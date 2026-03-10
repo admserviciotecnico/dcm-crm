@@ -18,32 +18,61 @@ const statuses = [
 
 const priorities = ['baja', 'media', 'alta'];
 
-async function main() {
-  const adminRole = await prisma.role.upsert({ where: { name: 'admin' }, update: {}, create: { name: 'admin' } });
-  const techRole = await prisma.role.upsert({ where: { name: 'tecnico' }, update: {}, create: { name: 'tecnico' } });
+async function seed() {
+  console.log('🌱 Seeding database...');
+
+  const adminRole = await prisma.role.upsert({
+    where: { name: 'admin' },
+    update: {},
+    create: { name: 'admin' }
+  });
+
+  const techRole = await prisma.role.upsert({
+    where: { name: 'tecnico' },
+    update: {},
+    create: { name: 'tecnico' }
+  });
+
   const password = await bcrypt.hash('ChangeMe123!', 10);
 
   const admin = await prisma.user.upsert({
     where: { email: 'admin@dcm.local' },
     update: {},
-    create: { first_name: 'Admin', last_name: 'DCM', email: 'admin@dcm.local', password, role_id: adminRole.id }
+    create: {
+      first_name: 'Admin',
+      last_name: 'DCM',
+      email: 'admin@dcm.local',
+      password,
+      role_id: adminRole.id
+    }
   });
 
   const techEmails = ['tecnico1@dcm.local', 'tecnico2@dcm.local', 'tecnico3@dcm.local'];
   const techs = [];
+
   for (let i = 0; i < techEmails.length; i += 1) {
-    const u = await prisma.user.upsert({
+    const tech = await prisma.user.upsert({
       where: { email: techEmails[i] },
       update: {},
-      create: { first_name: `Tecnico${i + 1}`, last_name: 'DCM', email: techEmails[i], password, role_id: techRole.id }
+      create: {
+        first_name: `Tecnico${i + 1}`,
+        last_name: 'DCM',
+        email: techEmails[i],
+        password,
+        role_id: techRole.id
+      }
     });
-    techs.push(u);
+    techs.push(tech);
   }
+  console.log('✅ Users seeded');
 
   const clients = [];
   for (let i = 1; i <= 5; i += 1) {
-    const client = await prisma.client.create({
-      data: {
+    const client = await prisma.client.upsert({
+      where: { id: `seed-client-${i}` },
+      update: {},
+      create: {
+        id: `seed-client-${i}`,
         nombre_empresa: `Cliente ${i}`,
         email: `cliente${i}@mail.com`,
         telefono: `+54114000000${i}`,
@@ -55,27 +84,35 @@ async function main() {
     });
     clients.push(client);
   }
+  console.log('✅ Clients seeded');
 
-  const equipments = [];
+  const equipmentStates = ['operativo', 'mantenimiento', 'fuera_servicio', 'en_revision'];
   for (let i = 1; i <= 10; i += 1) {
-    const eq = await prisma.equipment.create({
-      data: {
+    await prisma.equipment.upsert({
+      where: { numero_serie: `SN-DCM-${1000 + i}` },
+      update: {},
+      create: {
         client_id: clients[i % clients.length].id,
         tipo_equipo: `Equipo tipo ${((i - 1) % 4) + 1}`,
         modelo: `Model-${i}`,
         numero_serie: `SN-DCM-${1000 + i}`,
         ubicacion_planta: `Planta ${((i - 1) % 3) + 1}`,
-        estado_actual: ['operativo', 'mantenimiento', 'fuera_servicio', 'en_revision'][i % 4]
+        estado_actual: equipmentStates[i % 4]
       }
     });
-    equipments.push(eq);
   }
+  console.log('✅ Equipments seeded');
 
   for (let i = 1; i <= 20; i += 1) {
     const estado = statuses[i % statuses.length];
     const prioridad = priorities[i % priorities.length];
-    const order = await prisma.serviceOrder.create({
-      data: {
+    const orderId = `seed-order-${i}`;
+
+    const order = await prisma.serviceOrder.upsert({
+      where: { id: orderId },
+      update: {},
+      create: {
+        id: orderId,
         client_id: clients[i % clients.length].id,
         estado,
         prioridad,
@@ -88,15 +125,41 @@ async function main() {
       }
     });
 
-    await prisma.serviceOrderTechnician.createMany({
-      data: [
-        { service_order_id: order.id, technician_id: techs[i % techs.length].id, asignado_por: admin.email },
-        { service_order_id: order.id, technician_id: techs[(i + 1) % techs.length].id, asignado_por: admin.email }
-      ]
+    await prisma.serviceOrderTechnician.upsert({
+      where: {
+        service_order_id_technician_id: {
+          service_order_id: order.id,
+          technician_id: techs[i % techs.length].id
+        }
+      },
+      update: {},
+      create: {
+        service_order_id: order.id,
+        technician_id: techs[i % techs.length].id,
+        asignado_por: admin.email
+      }
     });
 
-    await prisma.serviceOrderStatusHistory.create({
-      data: {
+    await prisma.serviceOrderTechnician.upsert({
+      where: {
+        service_order_id_technician_id: {
+          service_order_id: order.id,
+          technician_id: techs[(i + 1) % techs.length].id
+        }
+      },
+      update: {},
+      create: {
+        service_order_id: order.id,
+        technician_id: techs[(i + 1) % techs.length].id,
+        asignado_por: admin.email
+      }
+    });
+
+    await prisma.serviceOrderStatusHistory.upsert({
+      where: { id: `seed-history-${i}` },
+      update: {},
+      create: {
+        id: `seed-history-${i}`,
         service_order_id: order.id,
         estado_anterior: null,
         estado_nuevo: estado,
@@ -108,6 +171,16 @@ async function main() {
       }
     });
   }
+
+  console.log('✅ Service orders seeded');
+  console.log('🌱 Seed finished');
 }
 
-main().finally(async () => prisma.$disconnect());
+try {
+  await seed();
+} catch (error) {
+  console.error('Seed error:', error);
+  process.exit(1);
+} finally {
+  await prisma.$disconnect();
+}
