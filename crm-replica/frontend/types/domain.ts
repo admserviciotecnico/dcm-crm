@@ -18,6 +18,7 @@ export interface User {
   last_name: string;
   email: string;
   role: Role;
+  phone?: string;
 }
 
 export interface Client {
@@ -28,6 +29,7 @@ export interface Client {
   persona_contacto?: string;
   fecha_vencimiento_documentacion?: string;
   deleted_at?: string | null;
+  delayed?: boolean;
 }
 
 export interface Equipment {
@@ -38,6 +40,7 @@ export interface Equipment {
   numero_serie: string;
   estado_actual: string;
   deleted_at?: string | null;
+  delayed?: boolean;
 }
 
 export interface ServiceOrder {
@@ -53,6 +56,7 @@ export interface ServiceOrder {
   observaciones?: string;
   observaciones_cierre?: string;
   deleted_at?: string | null;
+  delayed?: boolean;
   client?: Client;
   technicians?: { technician_id: string }[];
 }
