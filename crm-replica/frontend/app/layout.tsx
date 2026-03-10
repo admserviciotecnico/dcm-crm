@@ -5,7 +5,7 @@ import { GlobalLoader } from '@/components/common/global-loader';
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="es">
+    <html lang="es" className="dark">
       <body>
         <GlobalLoader />
         <Toaster />
