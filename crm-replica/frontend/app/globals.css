@@ -15,16 +15,22 @@
   --success: #10B981;
   --warning: #F59E0B;
   --danger: #EF4444;
-  color-scheme: dark;
 }
 
-.light {
+html.dark {
+  --primary: #0F172A;
+  --surface: #1E293B;
+  --border: #334155;
+  --text-primary: #F1F5F9;
+  --text-secondary: #94A3B8;
+}
+
+html:not(.dark) {
   --primary: #e2e8f0;
   --surface: #ffffff;
   --border: #cbd5e1;
   --text-primary: #0f172a;
   --text-secondary: #334155;
-  color-scheme: light;
 }
 
 body {
