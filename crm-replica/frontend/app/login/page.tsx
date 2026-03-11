@@ -13,13 +13,16 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { appStore } from '@/stores/app-store';
 
-const loginSchema = z.object({ email: z.string().email(), password: z.string().min(8) });
+const loginSchema = z.object({
+  email: z.string().email('Email inválido'),
+  password: z.string().min(1, 'Requerido')
+});
 const registerSchema = z.object({
-  first_name: z.string().min(2),
-  last_name: z.string().min(2),
-  email: z.string().email(),
-  password: z.string().min(8),
-  confirm_password: z.string().min(8),
+  first_name: z.string().min(1, 'Requerido'),
+  last_name: z.string().min(1, 'Requerido'),
+  email: z.string().email('Email inválido'),
+  password: z.string().min(8, 'Mínimo 8 caracteres'),
+  confirm_password: z.string().min(1, 'Requerido'),
   role: z.enum(['admin', 'tecnico'])
 }).refine((v) => v.password === v.confirm_password, { message: 'Las contraseñas no coinciden', path: ['confirm_password'] });
 
@@ -48,7 +51,7 @@ export default function LoginPage() {
   const onRegister = async (data: RegisterFormData) => {
     await AuthApi.register({ first_name: data.first_name, last_name: data.last_name, email: data.email, password: data.password, role: data.role });
     pushToast({ type: 'success', message: 'Usuario registrado correctamente' });
-    registerForm.reset();
+    registerForm.reset({ first_name: '', last_name: '', email: '', password: '', confirm_password: '', role: 'tecnico' });
     setRegisterMode(false);
   };
 
@@ -62,22 +65,21 @@ export default function LoginPage() {
         {!registerMode ? (
           <form onSubmit={loginForm.handleSubmit(onLogin)} className="w-full max-w-sm space-y-4 rounded-xl border border-slate-700 bg-slate-900 p-6">
             <h2 className="text-2xl font-bold">Iniciar sesión</h2>
-            <div><Input {...loginForm.register('email')} placeholder="Email corporativo" />{loginForm.formState.errors.email ? <p className="text-xs text-red-300">{loginForm.formState.errors.email.message}</p> : null}</div>
-            <div className="relative"><Input type={show ? 'text' : 'password'} {...loginForm.register('password')} placeholder="Contraseña" /> <button type="button" onClick={() => setShow((v) => !v)} className="absolute right-2 top-2 p-1">{show ? <EyeOff size={15} /> : <Eye size={15} />}</button>{loginForm.formState.errors.password ? <p className="text-xs text-red-300">{loginForm.formState.errors.password.message}</p> : null}</div>
-            <Button disabled={loginForm.formState.isSubmitting} className="w-full">{loginForm.formState.isSubmitting ? 'Ingresando...' : 'Entrar'}</Button>
+            <div><Input {...loginForm.register('email')} placeholder="Email corporativo" />{loginForm.formState.errors.email ? <p className="mt-1 text-xs text-red-300">{loginForm.formState.errors.email.message}</p> : null}</div>
+            <div className="relative"><Input type={show ? 'text' : 'password'} {...loginForm.register('password')} placeholder="Contraseña" /> <button type="button" onClick={() => setShow((v) => !v)} className="absolute right-2 top-2 p-1">{show ? <EyeOff size={15} /> : <Eye size={15} />}</button>{loginForm.formState.errors.password ? <p className="mt-1 text-xs text-red-300">{loginForm.formState.errors.password.message}</p> : null}</div>
+            <Button type="submit" disabled={loginForm.formState.isSubmitting} className="w-full">{loginForm.formState.isSubmitting ? 'Ingresando...' : 'Entrar'}</Button>
             <button type="button" onClick={() => setRegisterMode(true)} className="text-xs text-cyan-300">¿No tenés cuenta? Registrarte</button>
           </form>
         ) : (
           <form onSubmit={registerForm.handleSubmit(onRegister)} className="w-full max-w-sm space-y-3 rounded-xl border border-slate-700 bg-slate-900 p-6">
             <h2 className="text-2xl font-bold">Registrarte</h2>
-            <Input placeholder="Nombre" {...registerForm.register('first_name')} />
-            <Input placeholder="Apellido" {...registerForm.register('last_name')} />
-            <Input placeholder="Email" {...registerForm.register('email')} />
-            <Input type="password" placeholder="Contraseña" {...registerForm.register('password')} />
-            <Input type="password" placeholder="Confirmar contraseña" {...registerForm.register('confirm_password')} />
-            <Select {...registerForm.register('role')}><option value="admin">Admin</option><option value="tecnico">Técnico</option></Select>
-            {Object.values(registerForm.formState.errors).length > 0 ? <p className="text-xs text-red-300">{registerForm.formState.errors.confirm_password?.message ?? registerForm.formState.errors.email?.message ?? 'Verificá los datos'}</p> : null}
-            <Button disabled={registerForm.formState.isSubmitting} className="w-full">{registerForm.formState.isSubmitting ? 'Registrando...' : 'Crear cuenta'}</Button>
+            <div><Input placeholder="Nombre" {...registerForm.register('first_name')} />{registerForm.formState.errors.first_name ? <p className="mt-1 text-xs text-red-300">{registerForm.formState.errors.first_name.message}</p> : null}</div>
+            <div><Input placeholder="Apellido" {...registerForm.register('last_name')} />{registerForm.formState.errors.last_name ? <p className="mt-1 text-xs text-red-300">{registerForm.formState.errors.last_name.message}</p> : null}</div>
+            <div><Input placeholder="Email" {...registerForm.register('email')} />{registerForm.formState.errors.email ? <p className="mt-1 text-xs text-red-300">{registerForm.formState.errors.email.message}</p> : null}</div>
+            <div><Input type="password" placeholder="Contraseña" {...registerForm.register('password')} />{registerForm.formState.errors.password ? <p className="mt-1 text-xs text-red-300">{registerForm.formState.errors.password.message}</p> : null}</div>
+            <div><Input type="password" placeholder="Confirmar contraseña" {...registerForm.register('confirm_password')} />{registerForm.formState.errors.confirm_password ? <p className="mt-1 text-xs text-red-300">{registerForm.formState.errors.confirm_password.message}</p> : null}</div>
+            <div><Select {...registerForm.register('role')}><option value="tecnico">Técnico</option><option value="admin">Admin</option></Select>{registerForm.formState.errors.role ? <p className="mt-1 text-xs text-red-300">{registerForm.formState.errors.role.message}</p> : null}</div>
+            <Button type="submit" disabled={registerForm.formState.isSubmitting} className="w-full">{registerForm.formState.isSubmitting ? 'Registrando...' : 'Crear cuenta'}</Button>
             <button type="button" onClick={() => setRegisterMode(false)} className="text-xs text-cyan-300">Volver al login</button>
           </form>
         )}
