@@ -10,8 +10,11 @@ import { authStore } from '@/stores/auth-store';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+ codex/fix-cors-error-in-backend-izagw1
 import { Select } from '@/components/ui/select';
 import { appStore } from '@/stores/app-store';
+
+ main
 
 const loginSchema = z.object({ email: z.string().email(), password: z.string().min(8) });
 const registerSchema = z.object({
@@ -32,10 +35,14 @@ export default function LoginPage() {
   const pushToast = appStore((s) => s.pushToast);
   const router = useRouter();
   const [show, setShow] = useState(false);
+ codex/fix-cors-error-in-backend-izagw1
   const [registerMode, setRegisterMode] = useState(false);
 
   const loginForm = useForm<LoginFormData>({ resolver: zodResolver(loginSchema) });
   const registerForm = useForm<RegisterFormData>({ resolver: zodResolver(registerSchema), defaultValues: { role: 'tecnico' } });
+
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({ resolver: zodResolver(schema) });
+ main
 
   const onLogin = async (data: LoginFormData) => {
     const login = await AuthApi.login(data);
@@ -59,6 +66,7 @@ export default function LoginPage() {
         <h1 className="mt-6 text-4xl font-bold">Gestión industrial de field service con trazabilidad total.</h1>
       </section>
       <section className="grid place-items-center p-6">
+ codex/fix-cors-error-in-backend-izagw1
         {!registerMode ? (
           <form onSubmit={loginForm.handleSubmit(onLogin)} className="w-full max-w-sm space-y-4 rounded-xl border border-slate-700 bg-slate-900 p-6">
             <h2 className="text-2xl font-bold">Iniciar sesión</h2>
@@ -81,6 +89,14 @@ export default function LoginPage() {
             <button type="button" onClick={() => setRegisterMode(false)} className="text-xs text-cyan-300">Volver al login</button>
           </form>
         )}
+
+        <form onSubmit={handleSubmit(onSubmit)} className="w-full max-w-sm space-y-4 rounded-xl border border-slate-700 bg-slate-900 p-6">
+          <h2 className="text-2xl font-bold">Iniciar sesión</h2>
+          <div><Input {...register('email')} placeholder="Email corporativo" />{errors.email ? <p className="text-xs text-red-300">{errors.email.message}</p> : null}</div>
+          <div className="relative"><Input type={show ? 'text' : 'password'} {...register('password')} placeholder="Contraseña" /> <button type="button" onClick={() => setShow((v) => !v)} className="absolute right-2 top-2 p-1">{show ? <EyeOff size={15} /> : <Eye size={15} />}</button>{errors.password ? <p className="text-xs text-red-300">{errors.password.message}</p> : null}</div>
+          <Button disabled={isSubmitting} className="w-full">{isSubmitting ? 'Ingresando...' : 'Entrar'}</Button>
+        </form>
+ main
       </section>
     </div>
   );

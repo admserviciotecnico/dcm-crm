@@ -37,7 +37,11 @@ export default function ActivityPage() {
               <div>
                 <p className="text-sm"><span className="font-semibold">{item.actor}</span> · {item.title}</p>
                 <p className="text-sm text-slate-300">{item.message}</p>
+ codex/fix-cors-error-in-backend-izagw1
                 <p className="text-xs text-slate-500"><RelativeTime value={item.createdAt} /></p>
+
+                <p className="text-xs text-slate-500">{formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}</p>
+     main
               </div>
             </div>
           ))}

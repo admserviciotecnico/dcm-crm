@@ -37,8 +37,11 @@ export const EquipmentsApi = {
 
 export const UsersApi = {
   list: () => api.get<User[]>('/api/users').then((r) => r.data),
+ codex/fix-cors-error-in-backend-izagw1
   create: (payload: { first_name: string; last_name: string; email: string; password: string; role: 'admin' | 'tecnico' }) => api.post('/api/users', payload).then((r) => r.data),
   setActive: (id: string, active: boolean) => api.patch(`/api/users/${id}`, { active }).then((r) => r.data),
+
+ main
   me: () => api.get<User>('/api/users/me').then((r) => r.data),
   updateMe: (payload: { first_name: string; last_name: string; phone?: string }) => api.patch('/api/users/me', payload).then((r) => r.data)
 };
