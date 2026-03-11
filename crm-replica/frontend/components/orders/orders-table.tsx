@@ -3,7 +3,6 @@
 import { memo } from 'react';
 import { Copy, Eye, ExternalLink, Pencil, XCircle } from 'lucide-react';
 
-import { Copy, Eye, Pencil, XCircle } from 'lucide-react';
 import { ServiceOrder, User, OrderStatus } from '@/types/domain';
 import { PriorityBadge, StatusBadge } from '@/components/common/badges';
 import { Avatar } from '@/components/ui/avatar';

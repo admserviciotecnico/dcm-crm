@@ -1,7 +1,6 @@
 'use client';
 
 import { Bell, LogOut, Menu, Moon, Search, Sun } from 'lucide-react';
-import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { authStore } from '@/stores/auth-store';
 import { uiStore } from '@/stores/ui-store';
@@ -16,8 +15,7 @@ export function Header() {
   const user = authStore((s) => s.user);
   const logout = authStore((s) => s.logout);
   const dark = uiStore((s) => s.darkMode);
-  const initTheme = uiStore((s) => s.initTheme);
-  const toggleTheme = uiStore((s) => s.toggleTheme);
+  const setDarkMode = uiStore((s) => s.setDarkMode);
   const setCommandOpen = uiStore((s) => s.setCommandOpen);
   const setMobileSidebarOpen = uiStore((s) => s.setMobileSidebarOpen);
   const notifications = appStore((s) => s.notifications);
@@ -25,7 +23,6 @@ export function Header() {
   const pathname = usePathname();
   const router = useRouter();
 
-  useEffect(() => { initTheme(); }, [initTheme]);
 
   const crumbs = pathname.split('/').filter(Boolean).map((p) => labels[p] ?? p);
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -52,7 +49,7 @@ export function Header() {
             {notifications.length === 0 ? <p className="p-3 text-sm text-slate-400">Sin notificaciones</p> : notifications.slice(0, 8).map((n) => <div key={n.id} className="border-b border-slate-800 p-3 text-sm"><p className="font-medium">{n.title}</p><p className="text-slate-400">{n.message}</p></div>)}
           </div>
         </Dropdown>
-        <Button variant="ghost" onClick={toggleTheme}>{dark ? <Sun size={16} /> : <Moon size={16} />}</Button>
+        <Button variant="ghost" onClick={() => setDarkMode(!dark)}>{dark ? <Sun size={16} /> : <Moon size={16} />}</Button>
         <Button variant="ghost" onClick={() => { logout(); router.replace('/login'); }}><LogOut size={16} /></Button>
       </div>
     </header>
