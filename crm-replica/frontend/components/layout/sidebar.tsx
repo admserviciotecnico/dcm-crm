@@ -7,8 +7,7 @@ import { useState } from 'react';
 import { authStore } from '@/stores/auth-store';
 import { Avatar } from '@/components/ui/avatar';
 import { uiStore } from '@/stores/ui-store';
-
- codex/fix-cors-error-in-backend-izagw1
+ 
 type LinkItem = { href: string; label: string; icon: typeof LayoutDashboard; adminOnly?: boolean; match?: string[] };
 const groups: { title: string; links: LinkItem[] }[] = [
   { title: 'Dashboard', links: [{ href: '/dashboard', label: 'Overview', icon: LayoutDashboard }] },
@@ -25,7 +24,6 @@ const groups = [
   { title: 'Equipos', links: [{ href: '/equipments', label: 'Instalados', icon: Package }] },
   { title: 'Colaboración', links: [{ href: '/activity', label: 'Actividad', icon: Activity }] },
   { title: 'Administración', links: [{ href: '/profile', label: 'Configuración', icon: Settings }] }
- main
 ];
 
 export function Sidebar() {
@@ -44,13 +42,11 @@ export function Sidebar() {
           <div key={group.title}>
             {!collapsed ? <p className="mb-1 px-2 text-xs uppercase text-slate-400">{group.title}</p> : null}
             <div className="space-y-1">
- codex/fix-cors-error-in-backend-izagw1
               {group.links.filter((l) => !l.adminOnly || user?.role === 'admin').map((l) => {
                 const active = (l.match ?? [l.href]).some((m) => pathname.startsWith(m));
 
               {group.links.map((l) => {
                 const active = pathname.startsWith(l.href);
- main
                 return (
                   <Link key={l.href} href={l.href} onClick={() => setMobileOpen(false)} className={`flex items-center gap-2 rounded-lg px-2 py-2 text-sm ${active ? 'border-l-2 border-blue-500 bg-slate-800 text-white' : 'text-slate-300 hover:bg-slate-800'}`}>
                     <l.icon className="h-4 w-4" /> {!collapsed ? l.label : null}
