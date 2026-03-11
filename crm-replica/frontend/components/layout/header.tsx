@@ -1,21 +1,59 @@
 'use client';
 
-import { LogOut, Moon, Sun } from 'lucide-react';
+import { Bell, LogOut, Menu, Moon, Search, Sun } from 'lucide-react';
+import { useEffect } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { authStore } from '@/stores/auth-store';
 import { uiStore } from '@/stores/ui-store';
+import { appStore } from '@/stores/app-store';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Dropdown } from '@/components/ui/dropdown';
+
+const labels: Record<string, string> = { dashboard: 'Dashboard', orders: 'Órdenes', clients: 'Clientes', equipments: 'Equipos', calendar: 'Calendario', profile: 'Administración' };
 
 export function Header() {
   const user = authStore((s) => s.user);
   const logout = authStore((s) => s.logout);
   const dark = uiStore((s) => s.darkMode);
-  const setDark = uiStore((s) => s.setDarkMode);
+  const initTheme = uiStore((s) => s.initTheme);
+  const toggleTheme = uiStore((s) => s.toggleTheme);
+  const setCommandOpen = uiStore((s) => s.setCommandOpen);
+  const setMobileSidebarOpen = uiStore((s) => s.setMobileSidebarOpen);
+  const notifications = appStore((s) => s.notifications);
+  const markNotificationsRead = appStore((s) => s.markNotificationsRead);
+  const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => { initTheme(); }, [initTheme]);
+
+  const crumbs = pathname.split('/').filter(Boolean).map((p) => labels[p] ?? p);
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
-    <header className="h-16 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 flex items-center justify-between">
-      <p className="text-sm text-slate-500">{user ? `Hola, ${user.first_name}` : 'DCM CRM'}</p>
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[var(--border)] bg-[var(--surface)] px-5">
       <div className="flex items-center gap-2">
-        <button onClick={() => setDark(!dark)} className="p-2 rounded hover:bg-slate-100 dark:hover:bg-slate-800">{dark ? <Sun size={16} /> : <Moon size={16} />}</button>
-        <button onClick={() => { logout(); window.location.href = '/login'; }} className="p-2 rounded hover:bg-slate-100 dark:hover:bg-slate-800"><LogOut size={16} /></button>
+        <Button className="md:hidden" variant="ghost" onClick={() => setMobileSidebarOpen(true)}><Menu size={16} /></Button>
+        <div>
+          <p className="text-xs text-slate-400">{crumbs.join(' / ')}</p>
+          <p className="text-sm">Hola, {user?.first_name ?? 'operador'}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <button className="hidden md:block" onClick={() => setCommandOpen(true)}><Input readOnly value="Buscar... (Ctrl/Cmd + K)" className="w-64 cursor-pointer" /></button>
+        <Button variant="ghost" onClick={() => setCommandOpen(true)}><Search size={16} /></Button>
+        <Dropdown
+          onOpen={markNotificationsRead}
+          trigger={
+            <span className="relative inline-flex"><Bell size={16} />{unreadCount > 0 ? <span className="absolute -right-2 -top-2 rounded-full bg-blue-600 px-1 text-[10px] text-white">{unreadCount}</span> : null}</span>
+          }
+        >
+          <div className="max-h-72 overflow-auto">
+            {notifications.length === 0 ? <p className="p-3 text-sm text-slate-400">Sin notificaciones</p> : notifications.slice(0, 8).map((n) => <div key={n.id} className="border-b border-slate-800 p-3 text-sm"><p className="font-medium">{n.title}</p><p className="text-slate-400">{n.message}</p></div>)}
+          </div>
+        </Dropdown>
+        <Button variant="ghost" onClick={toggleTheme}>{dark ? <Sun size={16} /> : <Moon size={16} />}</Button>
+        <Button variant="ghost" onClick={() => { logout(); router.replace('/login'); }}><LogOut size={16} /></Button>
       </div>
     </header>
   );

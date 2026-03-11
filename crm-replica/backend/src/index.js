@@ -20,7 +20,7 @@ io.on('connection', (socket) => {
   socket.emit('connected', { ok: true, ts: Date.now() });
 });
 
-app.use(cors({ origin: env.corsOrigin === '*' ? true : env.corsOrigin.split(',') }));
+app.use(cors({ origin: env.corsOrigin === '*' ? true : env.corsOrigin.split(','), credentials: true }));
 app.use(express.json({ limit: '2mb' }));
 app.use(sanitizeBody);
 app.use(morgan('dev'));

@@ -1,15 +1,38 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  color-scheme: light;
-}
-
-.dark {
+  --primary: #0F172A;
+  --surface: #1E293B;
+  --border: #334155;
+  --text-primary: #F1F5F9;
+  --text-secondary: #94A3B8;
+  --accent-primary: #3B82F6;
+  --accent-secondary: #06B6D4;
+  --success: #10B981;
+  --warning: #F59E0B;
+  --danger: #EF4444;
   color-scheme: dark;
 }
 
+.light {
+  --primary: #e2e8f0;
+  --surface: #ffffff;
+  --border: #cbd5e1;
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  color-scheme: light;
+}
+
 body {
-  @apply bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100;
+  font-family: 'DM Sans', sans-serif;
+  background: var(--primary);
+  color: var(--text-primary);
+}
+
+.mono {
+  font-family: 'JetBrains Mono', monospace;
 }
