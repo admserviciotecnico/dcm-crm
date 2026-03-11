@@ -7,6 +7,9 @@ import { ServiceOrder } from '@/types/domain';
 import { EmptyState } from '@/components/common/empty-state';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+ codex/fix-cors-error-in-backend-izagw1
+import { RelativeTime } from '@/components/common/relative-time';
+ main
 
 export default function CalendarPage() {
   const [date, setDate] = useState(new Date());
@@ -35,7 +38,11 @@ export default function CalendarPage() {
           })}
         </div>
       </Card>
+ codex/fix-cors-error-in-backend-izagw1
+      {selectedDay ? <Card><p className="mb-2 text-sm text-slate-400">Órdenes del <RelativeTime value={selectedDay} /></p>{selectedOrders.length ? selectedOrders.map((o) => <p key={o.id} className="text-sm">#{o.id.slice(0, 8)} · {o.client?.nombre_empresa ?? o.client_id}</p>) : <p className="text-sm text-slate-400">Sin órdenes en este día</p>}</Card> : null}
+
       {selectedDay ? <Card><p className="mb-2 text-sm text-slate-400">Órdenes del {new Date(selectedDay).toLocaleDateString()}</p>{selectedOrders.length ? selectedOrders.map((o) => <p key={o.id} className="text-sm">#{o.id.slice(0, 8)} · {o.client?.nombre_empresa ?? o.client_id}</p>) : <p className="text-sm text-slate-400">Sin órdenes en este día</p>}</Card> : null}
+ main
     </div>
   );
 }

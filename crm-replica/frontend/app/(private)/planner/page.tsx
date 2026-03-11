@@ -6,6 +6,10 @@ import { OrdersApi, UsersApi } from '@/lib/api/endpoints';
 import { ServiceOrder, User } from '@/types/domain';
 import { authStore } from '@/stores/auth-store';
 import { Card } from '@/components/ui/card';
+ codex/fix-cors-error-in-backend-izagw1
+import { EmptyState } from '@/components/common/empty-state';
+
+ main
 
 export default function PlannerPage() {
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
@@ -36,7 +40,11 @@ export default function PlannerPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-3xl font-bold">Planner semanal de técnicos</h1>
+ codex/fix-cors-error-in-backend-izagw1
+      {orders.length === 0 ? <EmptyState variant="orders" title="Planner sin órdenes" subtitle="No hay servicios asignados para esta semana." /> : <Card>
+
       <Card>
+ main
         <div className="grid grid-cols-6 gap-2 text-sm">
           <div className="font-semibold text-slate-400">Técnico</div>
           {days.map((day) => <div key={day.toISOString()} className="font-semibold text-slate-400">{format(day, 'EEE dd')}</div>)}
@@ -57,7 +65,11 @@ export default function PlannerPage() {
             </div>
           ))}
         </div>
+ codex/fix-cors-error-in-backend-izagw1
+      </Card>}
+
       </Card>
+ main
     </div>
   );
 }
