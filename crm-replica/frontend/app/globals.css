@@ -5,38 +5,97 @@
 @tailwind utilities;
 
 :root {
-  --primary: #0F172A;
-  --surface: #1E293B;
+  --bg-app: #0F172A;
+  --bg-surface: #1E293B;
+  --bg-surface-muted: #334155;
+  --bg-surface-hover: #334155;
+  --bg-sidebar: #1A2332;
   --border: #334155;
+  --border-strong: #475569;
   --text-primary: #F1F5F9;
   --text-secondary: #94A3B8;
-  --accent-primary: #3B82F6;
-  --accent-secondary: #06B6D4;
+  --text-muted: #64748B;
+  --primary: #3B82F6;
+  --primary-hover: #2563EB;
+  --primary-soft: rgba(59, 130, 246, 0.2);
   --success: #10B981;
   --warning: #F59E0B;
   --danger: #EF4444;
+  --info: #0284C7;
+
+  --surface: var(--bg-surface);
+  --accent-primary: var(--primary);
+  --accent-secondary: #06B6D4;
 }
 
 html.dark {
-  --primary: #0F172A;
-  --surface: #1E293B;
+  --bg-app: #0F172A;
+  --bg-surface: #1E293B;
+  --bg-surface-muted: #334155;
+  --bg-surface-hover: #334155;
+  --bg-sidebar: #1A2332;
   --border: #334155;
+  --border-strong: #475569;
   --text-primary: #F1F5F9;
   --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+  --primary: #3B82F6;
+  --primary-hover: #2563EB;
+  --primary-soft: rgba(59, 130, 246, 0.2);
 }
 
 html:not(.dark) {
-  --primary: #e2e8f0;
-  --surface: #ffffff;
-  --border: #cbd5e1;
-  --text-primary: #0f172a;
-  --text-secondary: #334155;
+  --bg-app: #F1F5F9;
+  --bg-surface: #FFFFFF;
+  --bg-surface-muted: #F8FAFC;
+  --bg-surface-hover: #F1F5F9;
+  --bg-sidebar: #1A2332;
+  --border: #E2E8F0;
+  --border-strong: #CBD5E1;
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
+  --primary: #1D4ED8;
+  --primary-hover: #1E40AF;
+  --primary-soft: #DBEAFE;
+  --success: #059669;
+  --warning: #D97706;
+  --danger: #DC2626;
+  --info: #0284C7;
+
+  --surface: var(--bg-surface);
+  --accent-primary: var(--primary);
 }
 
 body {
   font-family: 'DM Sans', sans-serif;
-  background: var(--primary);
+  background: var(--bg-app);
   color: var(--text-primary);
+}
+
+.table-ui thead {
+  background: var(--bg-surface-muted);
+}
+
+.table-ui th {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.table-ui tbody tr {
+  border-bottom: 1px solid var(--border);
+}
+
+.table-ui tbody tr:hover {
+  background: var(--bg-surface-hover);
+}
+
+.table-ui td,
+.table-ui th {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
 }
 
 .mono {

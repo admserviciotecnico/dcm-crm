@@ -56,22 +56,22 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="grid min-h-screen md:grid-cols-2">
-      <section className="hidden bg-slate-950 p-10 md:block">
+    <div className="grid min-h-screen bg-[var(--bg-app)] md:grid-cols-2">
+      <section className="hidden bg-[#1A2332] p-10 text-slate-100 md:block">
         <p className="text-sm text-cyan-400">DCM SERVICE CRM</p>
         <h1 className="mt-6 text-4xl font-bold">Gestión industrial de field service con trazabilidad total.</h1>
       </section>
-      <section className="grid place-items-center p-6">
+      <section className="grid place-items-center bg-[var(--bg-surface)] p-6">
         {!registerMode ? (
-          <form onSubmit={loginForm.handleSubmit(onLogin)} className="w-full max-w-sm space-y-4 rounded-xl border border-slate-700 bg-slate-900 p-6">
+          <form onSubmit={loginForm.handleSubmit(onLogin)} className="w-full max-w-sm space-y-4 rounded-[10px] border border-[var(--border)] bg-[var(--bg-surface)] p-6 shadow-sm">
             <h2 className="text-2xl font-bold">Iniciar sesión</h2>
             <div><Input {...loginForm.register('email')} placeholder="Email corporativo" />{loginForm.formState.errors.email ? <p className="mt-1 text-xs text-red-300">{loginForm.formState.errors.email.message}</p> : null}</div>
             <div className="relative"><Input type={show ? 'text' : 'password'} {...loginForm.register('password')} placeholder="Contraseña" /> <button type="button" onClick={() => setShow((v) => !v)} className="absolute right-2 top-2 p-1">{show ? <EyeOff size={15} /> : <Eye size={15} />}</button>{loginForm.formState.errors.password ? <p className="mt-1 text-xs text-red-300">{loginForm.formState.errors.password.message}</p> : null}</div>
             <Button type="submit" disabled={loginForm.formState.isSubmitting} className="w-full">{loginForm.formState.isSubmitting ? 'Ingresando...' : 'Entrar'}</Button>
-            <button type="button" onClick={() => setRegisterMode(true)} className="text-xs text-cyan-300">¿No tenés cuenta? Registrarte</button>
+            <button type="button" onClick={() => setRegisterMode(true)} className="text-xs text-[var(--primary)]">¿No tenés cuenta? Registrarte</button>
           </form>
         ) : (
-          <form onSubmit={registerForm.handleSubmit(onRegister)} className="w-full max-w-sm space-y-3 rounded-xl border border-slate-700 bg-slate-900 p-6">
+          <form onSubmit={registerForm.handleSubmit(onRegister)} className="w-full max-w-sm space-y-3 rounded-[10px] border border-[var(--border)] bg-[var(--bg-surface)] p-6 shadow-sm">
             <h2 className="text-2xl font-bold">Registrarte</h2>
             <div><Input placeholder="Nombre" {...registerForm.register('first_name')} />{registerForm.formState.errors.first_name ? <p className="mt-1 text-xs text-red-300">{registerForm.formState.errors.first_name.message}</p> : null}</div>
             <div><Input placeholder="Apellido" {...registerForm.register('last_name')} />{registerForm.formState.errors.last_name ? <p className="mt-1 text-xs text-red-300">{registerForm.formState.errors.last_name.message}</p> : null}</div>
@@ -80,7 +80,7 @@ export default function LoginPage() {
             <div><Input type="password" placeholder="Confirmar contraseña" {...registerForm.register('confirm_password')} />{registerForm.formState.errors.confirm_password ? <p className="mt-1 text-xs text-red-300">{registerForm.formState.errors.confirm_password.message}</p> : null}</div>
             <div><Select {...registerForm.register('role')}><option value="tecnico">Técnico</option><option value="admin">Admin</option></Select>{registerForm.formState.errors.role ? <p className="mt-1 text-xs text-red-300">{registerForm.formState.errors.role.message}</p> : null}</div>
             <Button type="submit" disabled={registerForm.formState.isSubmitting} className="w-full">{registerForm.formState.isSubmitting ? 'Registrando...' : 'Crear cuenta'}</Button>
-            <button type="button" onClick={() => setRegisterMode(false)} className="text-xs text-cyan-300">Volver al login</button>
+            <button type="button" onClick={() => setRegisterMode(false)} className="text-xs text-[var(--primary)]">Volver al login</button>
           </form>
         )}
       </section>
