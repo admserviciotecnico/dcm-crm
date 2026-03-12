@@ -24,11 +24,7 @@ export default function EquipmentHistoryPage() {
       <Card>
         <h2 className="mb-3 font-semibold">Historial de servicios</h2>
         <Timeline>
- codex/fix-cors-error-in-backend-izagw1
           {serviceHistory.map((o) => <TimelineItem key={o.id} title={`${o.fecha_programada ? new Date(o.fecha_programada).toISOString() : '-'} · Orden #${o.id.slice(0, 8)}`} subtitle={`Tipo de servicio: ${o.estado} · Estado final: ${o.estado}`} />)}
-
-          {serviceHistory.map((o) => <TimelineItem key={o.id} title={`${o.fecha_programada ? new Date(o.fecha_programada).toLocaleDateString() : '-'} · Orden #${o.id.slice(0, 8)}`} subtitle={`Tipo de servicio: ${o.estado} · Estado final: ${o.estado}`} />)}
- main
         </Timeline>
       </Card>
     </div>
