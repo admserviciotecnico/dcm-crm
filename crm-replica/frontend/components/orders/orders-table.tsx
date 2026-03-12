@@ -53,7 +53,7 @@ function OrdersTableComponent({ rows, users, selectedIds, onToggleSelect, onTogg
               </td>
               <td className="p-2" onClick={() => onClick(o)}><StatusBadge value={o.estado} /></td>
               <td className="p-2" onClick={() => onClick(o)}><PriorityBadge value={o.prioridad} /></td>
-              <td className="p-2" onClick={() => onClick(o)}><div className="flex items-center -space-x-2">{visible.map((t) => <Avatar key={t.technician_id} name={getTechName(t.technician_id)} className="h-7 w-7 border border-slate-900" />)}{extra > 0 ? <span className="grid h-7 w-7 place-items-center rounded-full border border-slate-900 bg-slate-700 text-xs">+{extra}</span> : null}</div></td>
+              <td className="p-2" onClick={() => onClick(o)}><div className="flex items-center">{visible.map((t, idx) => <Avatar key={t.technician_id} name={getTechName(t.technician_id)} className={`h-7 w-7 border-2 border-white ${idx > 0 ? '-ml-1.5' : ''}`} />)}{extra > 0 ? <span className="ml-1 grid h-7 w-7 place-items-center rounded-full border-2 border-white bg-slate-700 text-xs">+{extra}</span> : null}</div></td>
               <td className="p-2" onClick={() => onClick(o)}><RelativeTime value={o.fecha_programada} /></td>
 
               <td className="p-2" onClick={() => onClick(o)}>{o.fecha_programada ? new Date(o.fecha_programada).toLocaleDateString() : '-'}</td>

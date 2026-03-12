@@ -121,7 +121,7 @@ export default function OrdersPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Órdenes de Servicio</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Órdenes de Servicio</h1>
         {user?.role === 'admin' ? <Button onClick={() => setShowCreate(true)}><Plus size={15} /> Nueva Orden</Button> : null}
       </div>
 

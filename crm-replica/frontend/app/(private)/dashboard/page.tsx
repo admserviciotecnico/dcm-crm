@@ -59,7 +59,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Service Overview</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Service Overview</h1>
       <KpiCards data={data} loading={loading} />
       <div className="grid gap-4 md:grid-cols-3">
         <Card><p className="text-xs text-slate-400">Órdenes abiertas</p><p className="text-2xl font-bold">{orders.filter((o) => o.estado !== 'completado' && o.estado !== 'cancelado').length}</p></Card>

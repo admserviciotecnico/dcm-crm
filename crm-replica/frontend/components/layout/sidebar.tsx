@@ -27,17 +27,17 @@ export function Sidebar() {
 
   const content = (
     <aside className={`h-screen border-r border-[#243043] bg-[var(--bg-sidebar)] p-3 text-[#CBD5E1] transition-all ${collapsed ? 'w-16' : 'w-[260px]'}`}>
-      <button className="mb-3 rounded p-2 hover:bg-white/10" onClick={() => setCollapsed((v) => !v)}>{collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}</button>
-      {!collapsed ? <h1 className="mb-4 px-2 text-lg font-bold">DCM Service CRM</h1> : null}
-      <nav className="space-y-4">
+      <button className="mb-3 rounded-[8px] p-2 transition-colors duration-150 hover:bg-white/10" onClick={() => setCollapsed((v) => !v)}>{collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}</button>
+      {!collapsed ? <h1 className="mb-4 px-2 text-lg font-semibold tracking-tight">DCM Service CRM</h1> : null}
+      <nav className="space-y-3">
         {groups.map((group) => (
           <div key={group.title}>
             {!collapsed ? <p className="mb-1 px-2 text-xs uppercase text-slate-400/80">{group.title}</p> : null}
-            <div className="space-y-1">
+            <div className="space-y-2">
               {group.links.filter((l) => !l.adminOnly || user?.role === 'admin').map((l) => {
                 const active = (l.match ?? [l.href]).some((m) => pathname.startsWith(m));
                 return (
-                  <Link key={l.href} href={l.href} onClick={() => setMobileOpen(false)} className={`flex items-center gap-2 rounded-lg px-2 py-2 text-sm ${active ? 'border-l-[3px] border-blue-500 bg-[rgba(59,130,246,0.15)] text-white' : 'text-[#CBD5E1] hover:bg-[rgba(255,255,255,0.08)]'}`}>
+                  <Link key={l.href} href={l.href} onClick={() => setMobileOpen(false)} className={`flex items-center gap-2 rounded-[8px] px-3 py-2 text-sm transition-colors duration-150 ${active ? 'border-l-[3px] border-blue-500 bg-[rgba(59,130,246,0.15)] text-white' : 'text-[#CBD5E1] hover:bg-[rgba(255,255,255,0.06)]'}`}>
                     <l.icon className="h-4 w-4" /> {!collapsed ? l.label : null}
                   </Link>
                 );

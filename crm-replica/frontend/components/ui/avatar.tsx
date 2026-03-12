@@ -8,5 +8,5 @@ export function Avatar({ name, className }: { name: string; className?: string }
     .join('')
     .toUpperCase();
 
-  return <div className={cn('grid h-8 w-8 place-items-center rounded-full bg-slate-700 text-xs font-bold text-slate-100', className)}>{letters}</div>;
+  return <div className={cn('grid h-7 w-7 place-items-center rounded-full bg-slate-700 text-[11px] font-semibold text-slate-100', className)}>{letters}</div>;
 }

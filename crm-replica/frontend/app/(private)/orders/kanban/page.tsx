@@ -40,7 +40,7 @@ export default function OrdersKanbanPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-3xl font-bold">Órdenes · Kanban</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Órdenes · Kanban</h1>
       {orders.length === 0 ? <EmptyState variant="orders" title="Sin órdenes para Kanban" subtitle="Creá órdenes para visualizar el tablero operativo." /> : <div className="grid gap-3 lg:grid-cols-5">
         {ORDER_STATUS_COLUMNS.map((col) => (
           <Card key={col} className="min-h-[420px]">

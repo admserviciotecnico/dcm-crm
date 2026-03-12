@@ -28,12 +28,12 @@ export function Header() {
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[var(--border)] bg-[var(--bg-surface)] px-5 shadow-sm">
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[var(--border)] bg-[var(--bg-surface)] px-6 shadow-sm">
       <div className="flex items-center gap-2">
         <Button className="md:hidden" variant="ghost" onClick={() => setMobileSidebarOpen(true)}><Menu size={16} /></Button>
         <div>
-          <p className="text-xs text-slate-400">{crumbs.join(' / ')}</p>
-          <p className="text-sm">Hola, {user?.first_name ?? 'operador'}</p>
+          <p className="text-xs text-[var(--text-muted)]">{crumbs.join(' / ')}</p>
+          <p className="text-sm font-medium">Hola, {user?.first_name ?? 'operador'}</p>
         </div>
       </div>
       <div className="flex items-center gap-2">

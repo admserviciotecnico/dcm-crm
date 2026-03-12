@@ -41,14 +41,14 @@ export function CommandPalette() {
 
   return (
     <div className="fixed inset-0 z-[260] grid place-items-start bg-black/50 p-8" onClick={() => setOpen(false)}>
-      <div className="mx-auto w-full max-w-2xl rounded-xl border border-slate-600 bg-slate-900 p-3" onClick={(e) => e.stopPropagation()}>
+      <div className="mx-auto w-full max-w-2xl animate-[fadeSlide_150ms_ease-out] rounded-[12px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-lg" onClick={(e) => e.stopPropagation()}>
         <Input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar órdenes, clientes, equipos..." />
-        <div className="mt-2 max-h-80 space-y-3 overflow-auto">
+        <div className="mt-3 max-h-80 space-y-3 overflow-auto">
           {(['order', 'client', 'equipment'] as const).map((section) => (
             <div key={section}>
-              <p className="px-2 text-xs uppercase text-slate-400">{section === 'order' ? 'Órdenes' : section === 'client' ? 'Clientes' : 'Equipos'}</p>
+              <p className="px-2 text-xs uppercase tracking-wide text-[var(--text-secondary)]">{section === 'order' ? 'Órdenes' : section === 'client' ? 'Clientes' : 'Equipos'}</p>
               {(grouped[section] || []).map((item) => (
-                <button key={`${item.type}-${item.id}`} onClick={() => { setOpen(false); router.push(item.route); }} className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-slate-800">
+                <button key={`${item.type}-${item.id}`} onClick={() => { setOpen(false); router.push(item.route); }} className="block w-full rounded-[8px] px-3 py-2 text-left text-sm transition-colors duration-150 hover:bg-[var(--bg-surface-hover)]">
                   {item.label}
                 </button>
               ))}

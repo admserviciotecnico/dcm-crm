@@ -73,6 +73,10 @@ body {
   color: var(--text-primary);
 }
 
+.lucide {
+  stroke-width: 1.75;
+}
+
 .table-ui thead {
   background: var(--bg-surface-muted);
 }
@@ -94,8 +98,57 @@ body {
 
 .table-ui td,
 .table-ui th {
+  padding-left: 1rem;
+  padding-right: 1rem;
   padding-top: 0.75rem;
   padding-bottom: 0.75rem;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes scaleInFade {
+  from {
+    transform: scale(0.97);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeSlide {
+  from {
+    transform: translateY(-6px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .mono {

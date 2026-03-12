@@ -55,7 +55,7 @@ export default function ClientsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between"><h1 className="text-3xl font-bold">Clientes industriales</h1><Button onClick={() => { setEdit(null); reset(); setOpen(true); }}>Nuevo cliente</Button></div>
+      <div className="flex items-center justify-between"><h1 className="text-2xl font-semibold tracking-tight">Clientes industriales</h1><Button onClick={() => { setEdit(null); reset(); setOpen(true); }}>Nuevo cliente</Button></div>
       {!visibleClients.length ? <EmptyState variant="clients" title="No hay clientes" subtitle="Registra empresas para iniciar operaciones." /> : (
         <Table>
           <thead className="bg-slate-900 text-left text-xs uppercase text-slate-400"><tr><th className="p-2">Empresa</th><th className="p-2">Contacto</th><th className="p-2">Email</th><th className="p-2">Teléfono</th><th className="p-2">Vencimiento documentación</th><th className="p-2">Estado</th><th className="p-2" /></tr></thead>

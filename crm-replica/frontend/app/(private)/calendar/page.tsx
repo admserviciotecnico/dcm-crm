@@ -23,7 +23,7 @@ export default function CalendarPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between"><h1 className="text-3xl font-bold">Calendario de servicios</h1><div className="flex gap-2"><Button variant="secondary" onClick={() => setDate(subMonths(date, 1))}>Mes anterior</Button><Button variant="secondary" onClick={() => setDate(addMonths(date, 1))}>Mes siguiente</Button></div></div>
+      <div className="flex items-center justify-between"><h1 className="text-2xl font-semibold tracking-tight">Calendario de servicios</h1><div className="flex gap-2"><Button variant="secondary" onClick={() => setDate(subMonths(date, 1))}>Mes anterior</Button><Button variant="secondary" onClick={() => setDate(addMonths(date, 1))}>Mes siguiente</Button></div></div>
       <Card>
         <p className="mb-3 text-sm text-slate-400">{format(date, 'MMMM yyyy')}</p>
         <div className="grid grid-cols-7 gap-2">

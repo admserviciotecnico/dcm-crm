@@ -36,7 +36,7 @@ export default function PlannerPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-3xl font-bold">Planner semanal de técnicos</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Planner semanal de técnicos</h1>
       {orders.length === 0 ? <EmptyState variant="orders" title="Planner sin órdenes" subtitle="No hay servicios asignados para esta semana." /> : <Card>
         <div className="grid grid-cols-6 gap-2 text-sm">
           <div className="font-semibold text-slate-400">Técnico</div>
