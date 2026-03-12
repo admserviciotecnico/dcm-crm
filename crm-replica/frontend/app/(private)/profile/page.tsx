@@ -39,7 +39,7 @@ export default function ProfilePage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-3xl font-bold">Mi Perfil</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Mi Perfil</h1>
       <p className="text-slate-400">{user?.email}</p>
       <form className="max-w-md space-y-2" onSubmit={handleSubmit(onSubmit)}>
         <Input placeholder="Nombre" {...register('first_name')} />

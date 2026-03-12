@@ -46,7 +46,7 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between"><h1 className="text-3xl font-bold">Usuarios</h1><Button onClick={() => setOpen(true)}>+ Nuevo Usuario</Button></div>
+      <div className="flex items-center justify-between"><h1 className="text-2xl font-semibold tracking-tight">Usuarios</h1><Button onClick={() => setOpen(true)}>+ Nuevo Usuario</Button></div>
       <Table>
         <thead><tr><th className="p-2">Nombre completo</th><th className="p-2">Email</th><th className="p-2">Rol</th><th className="p-2">Estado</th><th className="p-2" /></tr></thead>
         <tbody>

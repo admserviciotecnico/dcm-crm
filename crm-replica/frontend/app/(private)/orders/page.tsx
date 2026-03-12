@@ -121,7 +121,7 @@ export default function OrdersPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Órdenes de Servicio</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Órdenes de Servicio</h1>
         {user?.role === 'admin' ? <Button onClick={() => setShowCreate(true)}><Plus size={15} /> Nueva Orden</Button> : null}
       </div>
 
@@ -135,7 +135,7 @@ export default function OrdersPage() {
           <Button variant="secondary" onClick={exportCsv}><Download size={14} /> Exportar CSV</Button>
         </div>
         {showFilters ? (
-          <div className="mt-3 grid gap-2 md:grid-cols-6">
+          <div className="mt-3 grid gap-2 rounded-[10px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 md:grid-cols-6">
             <Select value={filters.status} onChange={(e) => setFilter('status', e.target.value)}><option value="">Estado</option><option value="service_programado">Programado</option><option value="en_ejecucion">En ejecución</option><option value="completado">Completado</option></Select>
             <Select value={filters.priority} onChange={(e) => setFilter('priority', e.target.value)}><option value="">Prioridad</option><option value="alta">Alta</option><option value="media">Media</option><option value="baja">Baja</option></Select>
             <Select value={filters.client} onChange={(e) => setFilter('client', e.target.value)}><option value="">Cliente</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.nombre_empresa}</option>)}</Select>

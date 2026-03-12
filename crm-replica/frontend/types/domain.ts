@@ -19,10 +19,7 @@ export interface User {
   email: string;
   role: Role;
   phone?: string;
- codex/fix-cors-error-in-backend-izagw1
   active?: boolean;
-
- main
 }
 
 export interface Client {
@@ -31,6 +28,7 @@ export interface Client {
   email: string;
   telefono?: string;
   persona_contacto?: string;
+  observaciones?: string;
   fecha_vencimiento_documentacion?: string;
   deleted_at?: string | null;
   delayed?: boolean;

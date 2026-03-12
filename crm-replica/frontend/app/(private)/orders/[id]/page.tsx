@@ -34,7 +34,7 @@ export default function OrderByIdPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-3xl font-bold">Orden #{order.id.slice(0, 8)}</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Orden #{order.id.slice(0, 8)}</h1>
       <Card>
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div><p className="text-slate-400">Cliente</p><p>{order.client?.nombre_empresa ?? order.client_id}</p></div>
