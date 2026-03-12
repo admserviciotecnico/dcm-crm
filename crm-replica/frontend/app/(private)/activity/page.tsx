@@ -28,7 +28,7 @@ export default function ActivityPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between"><h1 className="text-3xl font-bold">Activity Feed</h1><div className="flex gap-2"><Select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as TypeFilter)}><option value="all">Todos</option><option value="creacion">Creación</option><option value="estado">Cambio de estado</option><option value="completado">Completado</option><option value="cancelado">Cancelado</option></Select><Select value={dateFilter} onChange={(e) => setDateFilter(e.target.value as DateFilter)}><option value="today">Hoy</option><option value="week">Última semana</option><option value="month">Último mes</option></Select></div></div>
+      <div className="flex items-center justify-between"><h1 className="text-2xl font-semibold tracking-tight">Activity Feed</h1><div className="flex gap-2"><Select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as TypeFilter)}><option value="all">Todos</option><option value="creacion">Creación</option><option value="estado">Cambio de estado</option><option value="completado">Completado</option><option value="cancelado">Cancelado</option></Select><Select value={dateFilter} onChange={(e) => setDateFilter(e.target.value as DateFilter)}><option value="today">Hoy</option><option value="week">Última semana</option><option value="month">Último mes</option></Select></div></div>
       <Card>
         <div className="space-y-2">
           {filtered.length === 0 ? <p className="text-sm text-slate-400">Sin actividad para los filtros seleccionados.</p> : filtered.map((item) => (
@@ -37,11 +37,7 @@ export default function ActivityPage() {
               <div>
                 <p className="text-sm"><span className="font-semibold">{item.actor}</span> · {item.title}</p>
                 <p className="text-sm text-slate-300">{item.message}</p>
- codex/fix-cors-error-in-backend-izagw1
                 <p className="text-xs text-slate-500"><RelativeTime value={item.createdAt} /></p>
-
-                <p className="text-xs text-slate-500">{formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}</p>
-     main
               </div>
             </div>
           ))}
