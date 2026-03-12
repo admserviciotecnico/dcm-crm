@@ -28,6 +28,7 @@ export interface Client {
   email: string;
   telefono?: string;
   persona_contacto?: string;
+  observaciones?: string;
   fecha_vencimiento_documentacion?: string;
   deleted_at?: string | null;
   delayed?: boolean;
