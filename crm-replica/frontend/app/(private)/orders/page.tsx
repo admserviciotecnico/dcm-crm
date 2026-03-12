@@ -20,6 +20,8 @@ import { Modal } from '@/components/ui/modal';
 import { authStore } from '@/stores/auth-store';
 import { appStore } from '@/stores/app-store';
 import { EmptyState } from '@/components/common/empty-state';
+import { PageHeader } from '@/components/layout/page-header';
+import { TableSkeleton } from '@/components/common/skeletons';
 
 const schema = z.object({
   client_id: z.string().min(1),
@@ -120,10 +122,11 @@ export default function OrdersPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Órdenes de Servicio</h1>
-        {user?.role === 'admin' ? <Button onClick={() => setShowCreate(true)}><Plus size={15} /> Nueva Orden</Button> : null}
-      </div>
+      <PageHeader
+        title="Órdenes de Servicio"
+        description="Gestioná, filtrá y ejecutá órdenes de campo desde un único panel."
+        action={user?.role === 'admin' ? <Button onClick={() => setShowCreate(true)}><Plus size={16} /> Nueva Orden</Button> : null}
+      />
 
       <Card>
         <div className="flex flex-wrap items-center gap-2">
@@ -147,7 +150,7 @@ export default function OrdersPage() {
       </Card>
 
       {selectedIds.length > 0 ? (
-        <Card>
+        <Card className="sticky top-20 z-20">
           <div className="flex flex-wrap items-center gap-2">
             <Badge>{selectedIds.length} seleccionadas</Badge>
             <Select value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value as OrderStatus)} className="max-w-52">
@@ -164,7 +167,7 @@ export default function OrdersPage() {
         </Card>
       ) : null}
 
-      {loading ? <Card>Cargando órdenes...</Card> : orders.length === 0 ? <EmptyState variant="orders" title="No hay órdenes" subtitle="Crea tu primera orden para iniciar la operación." /> : <OrdersTable rows={orders} users={users} selectedIds={selectedIds} onToggleSelect={toggleSelect} onToggleSelectAll={toggleSelectAll} onClick={setSelected} onStatusQuickChange={async (order, status) => { await OrdersApi.patch(order.id, { estado: status }); toast({ type: 'success', message: `Orden ${order.id.slice(0, 6)} actualizada` }); void load(); }} />}
+      {loading ? <TableSkeleton rows={8} cols={8} /> : orders.length === 0 ? <EmptyState variant="orders" title="No hay órdenes" subtitle="Crea tu primera orden para iniciar la operación." /> : <OrdersTable rows={orders} users={users} selectedIds={selectedIds} onToggleSelect={toggleSelect} onToggleSelectAll={toggleSelectAll} onClick={setSelected} onStatusQuickChange={async (order, status) => { await OrdersApi.patch(order.id, { estado: status }); toast({ type: 'success', message: `Orden ${order.id.slice(0, 6)} actualizada` }); void load(); }} />}
       <OrderDetail order={selected} users={users} onClose={() => setSelected(null)} onRefresh={load} />
 
       <Modal open={showCreate} title="Crear nueva orden" onClose={() => setShowCreate(false)}>

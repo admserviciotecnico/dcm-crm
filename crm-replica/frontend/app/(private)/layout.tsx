@@ -55,7 +55,9 @@ export default function PrivateLayout({ children }: { children: ReactNode }) {
         <Sidebar />
         <div className="flex-1">
           <Header />
-          <main className="bg-[var(--bg-app)] p-6">{children}</main>
+          <main className="bg-[var(--bg-app)] px-6 py-6">
+            <div className="mx-auto w-full max-w-[1400px]">{children}</div>
+          </main>
         </div>
       </div>
       <CommandPalette />

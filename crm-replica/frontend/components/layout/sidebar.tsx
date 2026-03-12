@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, ClipboardList, Calendar, Users, Package, Settings, PanelLeftClose, PanelLeftOpen, KanbanSquare, Activity, CalendarRange } from 'lucide-react';
+import { LayoutDashboard, ClipboardList, Calendar, Users, Package, Settings, PanelLeftClose, PanelLeftOpen, KanbanSquare, Activity, CalendarRange, LineChart, MapPinned } from 'lucide-react';
 import { useState } from 'react';
 import { authStore } from '@/stores/auth-store';
 import { Avatar } from '@/components/ui/avatar';
@@ -11,10 +11,10 @@ import { uiStore } from '@/stores/ui-store';
 type LinkItem = { href: string; label: string; icon: typeof LayoutDashboard; adminOnly?: boolean; match?: string[] };
 const groups: { title: string; links: LinkItem[] }[] = [
   { title: 'Dashboard', links: [{ href: '/dashboard', label: 'Overview', icon: LayoutDashboard }] },
-  { title: 'Operaciones', links: [{ href: '/orders', label: 'Órdenes', icon: ClipboardList, match: ['/orders', '/orders/kanban'] }, { href: '/orders/kanban', label: 'Kanban', icon: KanbanSquare }, { href: '/planner', label: 'Planner', icon: CalendarRange }, { href: '/calendar', label: 'Calendario', icon: Calendar }] },
+  { title: 'Operaciones', links: [{ href: '/orders', label: 'Órdenes', icon: ClipboardList, match: ['/orders', '/orders/kanban'] }, { href: '/orders/kanban', label: 'Kanban', icon: KanbanSquare }, { href: '/planner', label: 'Planner', icon: CalendarRange }, { href: '/map', label: 'Mapa', icon: MapPinned }, { href: '/calendar', label: 'Calendario', icon: Calendar }] },
   { title: 'Clientes', links: [{ href: '/clients', label: 'Empresas', icon: Users }] },
   { title: 'Equipos', links: [{ href: '/equipments', label: 'Instalados', icon: Package }] },
-  { title: 'Colaboración', links: [{ href: '/activity', label: 'Actividad', icon: Activity }] },
+  { title: 'Colaboración', links: [{ href: '/activity', label: 'Actividad', icon: Activity }, { href: '/analytics', label: 'Analytics', icon: LineChart }] },
   { title: 'Administración', links: [{ href: '/users', label: 'Usuarios', icon: Users, adminOnly: true }, { href: '/profile', label: 'Configuración', icon: Settings }] }
 ];
 

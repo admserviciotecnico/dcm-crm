@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertTriangle, CheckCircle, Clock, Trash2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Clock, MoreHorizontal, Trash2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ClientsApi } from '@/lib/api/endpoints';
@@ -19,7 +19,10 @@ import { Modal } from '@/components/ui/modal';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip } from '@/components/ui/tooltip';
+import { Dropdown } from '@/components/ui/dropdown';
 import { ClientContact, getPrimaryContact, parseClientObservaciones, serializeClientObservaciones } from '@/lib/client-contacts';
+import { PageHeader } from '@/components/layout/page-header';
+import { FormSkeleton, TableSkeleton } from '@/components/common/skeletons';
 
 const contactSchema = z.object({
   nombre: z.string().min(1, 'Requerido'),
@@ -46,6 +49,8 @@ const emptyContact: FormData['contacts'][number] = { nombre: '', apellido: '', e
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState('');
   const [toDelete, setToDelete] = useState<Client | null>(null);
   const [edit, setEdit] = useState<Client | null>(null);
   const [open, setOpen] = useState(false);
@@ -67,7 +72,14 @@ export default function ClientsPage() {
     name: 'contacts'
   });
 
-  const load = () => ClientsApi.list().then(setClients);
+  const load = async () => {
+    setLoading(true);
+    try {
+      setClients(await ClientsApi.list());
+    } finally {
+      setLoading(false);
+    }
+  };
   useEffect(() => { void load(); }, []);
 
   const mapClientToForm = (client: Client): FormData => {
@@ -139,9 +151,26 @@ export default function ClientsPage() {
   };
 
   const visibleClients = useMemo(() => {
-    if (searchParams.get('expired') !== '1') return clients;
-    return clients.filter((c) => c.fecha_vencimiento_documentacion && new Date(c.fecha_vencimiento_documentacion).getTime() < Date.now());
-  }, [clients, searchParams]);
+    const expiredFiltered = searchParams.get('expired') !== '1'
+      ? clients
+      : clients.filter((c) => c.fecha_vencimiento_documentacion && new Date(c.fecha_vencimiento_documentacion).getTime() < Date.now());
+
+    if (!query.trim()) return expiredFiltered;
+    const q = query.toLowerCase();
+
+    return expiredFiltered.filter((client) => {
+      const parsed = parseClientObservaciones(client.observaciones);
+      const contacts = parsed.contacts.length > 0
+        ? parsed.contacts
+        : [{ nombre: client.persona_contacto ?? '', apellido: '', email: client.email, telefono: client.telefono, area: '' }];
+
+      const contactText = contacts
+        .map((c) => `${c.nombre ?? ''} ${c.apellido ?? ''} ${c.email ?? ''} ${c.telefono ?? ''}`.toLowerCase())
+        .join(' ');
+
+      return [client.nombre_empresa, contactText, client.email ?? '', client.telefono ?? ''].join(' ').toLowerCase().includes(q);
+    });
+  }, [clients, query, searchParams]);
 
   const readContacts = (client: Client) => {
     const parsed = parseClientObservaciones(client.observaciones);
@@ -153,8 +182,12 @@ export default function ClientsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between"><h1 className="text-2xl font-semibold tracking-tight">Clientes industriales</h1><Button onClick={() => { setEdit(null); reset({ nombre_empresa: '', persona_contacto: '', fecha_vencimiento_documentacion: '', observaciones: '', contacts: [emptyContact] }); setOpen(true); }}>Nuevo cliente</Button></div>
-      {!visibleClients.length ? <EmptyState variant="clients" title="No hay clientes" subtitle="Registra empresas para iniciar operaciones." /> : (
+      <PageHeader
+        title="Clientes industriales"
+        description="Administrá cuentas, contactos y documentación de cada cliente."
+        action={<div className="flex items-center gap-2"><Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar por empresa, contacto, email o teléfono" className="w-80" /><Button onClick={() => { setEdit(null); reset({ nombre_empresa: '', persona_contacto: '', fecha_vencimiento_documentacion: '', observaciones: '', contacts: [emptyContact] }); setOpen(true); }}>Nuevo cliente</Button></div>}
+      />
+      {loading ? <TableSkeleton rows={7} cols={7} /> : !visibleClients.length ? <EmptyState variant="clients" title="No hay clientes" subtitle="Registra empresas para iniciar operaciones." /> : (
         <Table>
           <thead><tr><th>Empresa</th><th>Contacto</th><th>Email</th><th>Teléfono</th><th>Vencimiento documentación</th><th>Estado</th><th /></tr></thead>
           <tbody>
@@ -176,7 +209,7 @@ export default function ClientsPage() {
                   <td>{primary?.telefono ?? '-'}</td>
                   <td>{expiryCell(c.fecha_vencimiento_documentacion)}</td>
                   <td>{c.deleted_at ? 'Inactivo' : 'Activo'}</td>
-                  <td><div className="flex gap-2"><Button variant="ghost" onClick={() => { setEdit(c); reset(mapClientToForm(c)); setOpen(true); }}>Editar</Button><Button variant="danger" onClick={() => setToDelete(c)}>Eliminar</Button></div></td>
+                  <td><div className="flex gap-2"><Button variant="ghost" onClick={() => { setEdit(c); reset(mapClientToForm(c)); setOpen(true); }}>Editar</Button><Button variant="danger" onClick={() => setToDelete(c)}>Eliminar</Button><Dropdown trigger={<Button variant="ghost"><MoreHorizontal size={16} /></Button>}><button className="block w-full rounded-[8px] px-3 py-2 text-left text-sm hover:bg-[var(--bg-surface-hover)]" onClick={() => { setEdit(c); reset(mapClientToForm(c)); setOpen(true); }}>Editar cliente</button><button className="block w-full rounded-[8px] px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50" onClick={() => setToDelete(c)}>Eliminar</button></Dropdown></div></td>
                 </tr>
               );
             })}
@@ -258,6 +291,7 @@ export default function ClientsPage() {
 
           <div className="flex justify-end"><Button type="submit">Guardar</Button></div>
         </form>
+        {loading ? <FormSkeleton /> : null}
       </Modal>
 
       <ConfirmModal open={!!toDelete} title="Eliminar cliente" message="Se realizará soft delete." onCancel={() => setToDelete(null)} onConfirm={async () => { if (!toDelete) return; await ClientsApi.remove(toDelete.id); setToDelete(null); load(); }} />

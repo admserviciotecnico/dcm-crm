@@ -17,6 +17,7 @@ import { Modal } from '@/components/ui/modal';
 import { ConfirmModal } from '@/components/common/confirm-modal';
 import { getSocket } from '@/lib/api/socket';
 import { RelativeTime } from '@/components/common/relative-time';
+import { ActivityTimeline } from '@/components/timeline/activity-timeline';
 
 type LocalFile = { name: string; url: string; size: number };
 type LocalComment = { id: string; user: string; message: string; time: string };
@@ -69,6 +70,7 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
 
   const adminAllowed = useMemo(() => (order ? workflow[order.estado] || [] : []), [order]);
   const techUsers = users.filter((u) => u.role === 'tecnico');
+  const timelineEvents = history.map((h) => ({ id: h.id, actor: h.usuario?.email ?? 'sistema', action: `cambió ${h.campo_modificado ?? 'estado'}`, entity: `${h.valor_nuevo ?? '-'}`, at: h.created_at }));
 
   if (!order) return null;
 
@@ -117,6 +119,9 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
             <Timeline>
               {history.map((h) => <TimelineItem key={h.id} title={`${h.usuario?.email ?? 'sistema'} · ${h.campo_modificado ?? 'estado'}`} subtitle={`${h.valor_anterior ?? '-'} → ${h.valor_nuevo ?? '-'} · ${new Date(h.created_at).toISOString()}`} />)}
             </Timeline>
+            <div className="mt-3">
+              <ActivityTimeline events={timelineEvents} />
+            </div>
           </div>
 
           <div>

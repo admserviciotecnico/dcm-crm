@@ -1,7 +1,7 @@
 'use client';
 
 import { memo } from 'react';
-import { Copy, Eye, ExternalLink, Pencil, XCircle } from 'lucide-react';
+import { Copy, Eye, ExternalLink, MoreHorizontal, Pencil, XCircle } from 'lucide-react';
 
 import { ServiceOrder, User, OrderStatus } from '@/types/domain';
 import { PriorityBadge, StatusBadge } from '@/components/common/badges';
@@ -10,6 +10,7 @@ import { Table } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { RelativeTime } from '@/components/common/relative-time';
+import { Dropdown } from '@/components/ui/dropdown';
 
 type Props = {
   rows: ServiceOrder[];
@@ -42,7 +43,7 @@ function OrdersTableComponent({ rows, users, selectedIds, onToggleSelect, onTogg
           const extra = Math.max(0, techs.length - visible.length);
           const checked = selectedIds.includes(o.id);
           return (
-            <tr key={o.id} className={`group cursor-pointer border-t border-slate-700 hover:bg-slate-800/50 ${o.deleted_at ? 'opacity-50 line-through' : ''}`}>
+            <tr key={o.id} className={`group cursor-pointer border-t border-slate-700 hover:bg-slate-800/50 ${checked ? 'bg-blue-500/10' : ''} ${o.deleted_at ? 'opacity-50 line-through' : ''}`}>
               <td className="p-2"><input type="checkbox" checked={checked} onChange={() => onToggleSelect(o.id)} /></td>
               <td className="mono p-2"><button className="inline-flex items-center gap-1" onClick={(e) => { e.stopPropagation(); void navigator.clipboard.writeText(o.id); }}><span>#{o.id.slice(0, 8)}</span><Copy size={12} /></button></td>
               <td className="p-2">
@@ -64,6 +65,11 @@ function OrdersTableComponent({ rows, users, selectedIds, onToggleSelect, onTogg
                   <Button variant="ghost" onClick={() => onStatusQuickChange(o, 'service_programado')}><Pencil size={14} /></Button>
                   <Link href={`/orders/${o.id}`} className="inline-flex items-center rounded-lg p-2 hover:bg-slate-700"><ExternalLink size={14} /></Link>
                   <Button variant="ghost" onClick={() => onStatusQuickChange(o, 'cancelado')}><XCircle size={14} /></Button>
+                  <Dropdown trigger={<Button variant="ghost"><MoreHorizontal size={16} /></Button>}>
+                    <button className="block w-full rounded-[8px] px-3 py-2 text-left text-sm hover:bg-[var(--bg-surface-hover)]" onClick={() => onClick(o)}>Ver detalle</button>
+                    <button className="block w-full rounded-[8px] px-3 py-2 text-left text-sm hover:bg-[var(--bg-surface-hover)]" onClick={() => onStatusQuickChange(o, 'service_programado')}>Marcar programada</button>
+                    <button className="block w-full rounded-[8px] px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50" onClick={() => onStatusQuickChange(o, 'cancelado')}>Cancelar orden</button>
+                  </Dropdown>
                 </div>
               </td>
             </tr>
