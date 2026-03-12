@@ -4,8 +4,6 @@ import { ChangeEvent, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Download, Upload, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
-
-import { Download, Upload } from 'lucide-react';
 import { OrderHistory, ServiceOrder, User } from '@/types/domain';
 import { OrdersApi } from '@/lib/api/endpoints';
 import { authStore } from '@/stores/auth-store';
@@ -19,16 +17,13 @@ import { Modal } from '@/components/ui/modal';
 import { ConfirmModal } from '@/components/common/confirm-modal';
 import { getSocket } from '@/lib/api/socket';
 import { RelativeTime } from '@/components/common/relative-time';
+import { ActivityTimeline } from '@/components/timeline/activity-timeline';
 
 type LocalFile = { name: string; url: string; size: number };
 type LocalComment = { id: string; user: string; message: string; time: string };
 
 type CommentForm = { comment: string };
 
-import { getSocket } from '@/lib/api/socket';
-
-type LocalFile = { name: string; url: string; size: number };
-type LocalComment = { id: string; user: string; message: string; time: string };
 const workflow: Record<string, string[]> = {
   presupuesto_generado: ['service_programado', 'cancelado'],
   service_programado: ['en_ejecucion', 'cancelado'],
@@ -44,8 +39,6 @@ const workflow: Record<string, string[]> = {
 
 export function OrderDetail({ order, users, onClose, onRefresh }: { order: ServiceOrder | null; users: User[]; onClose: () => void; onRefresh: () => void }) {
   const [history, setHistory] = useState<OrderHistory[]>([]);
-
-  const [comment, setComment] = useState('');
   const [comments, setComments] = useState<LocalComment[]>([]);
   const [files, setFiles] = useState<LocalFile[]>([]);
   const [reassignOpen, setReassignOpen] = useState(false);
@@ -75,24 +68,9 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
     return () => { socket.off('orders:comment', onRemoteComment); };
   }, [order]);
 
-
-    setSelectedTechnicians((order.technicians ?? []).map((t) => t.technician_id));
-  }, [order]);
-
-  useEffect(() => {
-    const socket = getSocket();
-    const onRemoteComment = (payload: { orderId: string; message: string; user: string }) => {
-      if (!order || payload.orderId !== order.id) return;
-      setComments((prev) => [...prev, { id: crypto.randomUUID(), user: payload.user, message: payload.message, time: new Date().toISOString() }]);
-    };
-    socket.on('orders:comment', onRemoteComment);
-    return () => {
-      socket.off('orders:comment', onRemoteComment);
-    };
-  }, [order]);
-
   const adminAllowed = useMemo(() => (order ? workflow[order.estado] || [] : []), [order]);
   const techUsers = users.filter((u) => u.role === 'tecnico');
+  const timelineEvents = history.map((h) => ({ id: h.id, actor: h.usuario?.email ?? 'sistema', action: `cambió ${h.campo_modificado ?? 'estado'}`, entity: `${h.valor_nuevo ?? '-'}`, at: h.created_at }));
 
   if (!order) return null;
 
@@ -127,10 +105,6 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
           <div className="flex items-center justify-between"><div className="flex items-center gap-2"><StatusBadge value={order.estado} /><PriorityBadge value={order.prioridad} /></div><Link href={`/orders/${order.id}`} className="inline-flex items-center gap-1 text-sm text-cyan-300"><ExternalLink size={14} /> Abrir página</Link></div>
           <div className="grid grid-cols-2 gap-3 text-sm"><div><p className="text-slate-400">Cliente</p><p>{order.client?.nombre_empresa ?? order.client_id}</p></div><div><p className="text-slate-400">Dirección</p><p>{order.direccion_service ?? '-'}</p></div><div><p className="text-slate-400">Fecha</p><p><RelativeTime value={order.fecha_programada} /></p></div><div><p className="text-slate-400">Técnicos</p><div className="space-y-1">{(order.technicians ?? []).map((t) => <div key={t.technician_id} className="flex items-center gap-2"><Avatar name={techName(t.technician_id)} /><span>{techName(t.technician_id)}</span></div>)}</div>{user?.role === 'admin' ? <Button className="mt-2" variant="secondary" onClick={() => setReassignOpen(true)}>Reasignar técnicos</Button> : null}</div></div>
 
-      <Drawer open={!!order} title={`Orden #${order.id.slice(0, 8)}`} onClose={onClose}>
-        <div className="space-y-5">
-          <div className="flex items-center gap-2"><StatusBadge value={order.estado} /><PriorityBadge value={order.prioridad} /></div>
-          <div className="grid grid-cols-2 gap-3 text-sm"><div><p className="text-slate-400">Cliente</p><p>{order.client?.nombre_empresa ?? order.client_id}</p></div><div><p className="text-slate-400">Dirección</p><p>{order.direccion_service ?? '-'}</p></div><div><p className="text-slate-400">Fecha</p><p>{order.fecha_programada ? new Date(order.fecha_programada).toLocaleDateString() : '-'}</p></div><div><p className="text-slate-400">Técnicos</p><div className="space-y-1">{(order.technicians ?? []).map((t) => <div key={t.technician_id} className="flex items-center gap-2"><Avatar name={techName(t.technician_id)} /><span>{techName(t.technician_id)}</span></div>)}</div>{user?.role === 'admin' ? <Button className="mt-2" variant="secondary" onClick={() => setReassignOpen(true)}>Reasignar técnicos</Button> : null}</div></div>
           <div>
             <p className="mb-2 text-sm text-slate-400">Acciones de workflow</p>
             <div className="flex flex-wrap gap-2">
@@ -143,20 +117,17 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
           <div>
             <p className="mb-2 text-sm text-slate-400">Timeline de auditoría</p>
             <Timeline>
-
               {history.map((h) => <TimelineItem key={h.id} title={`${h.usuario?.email ?? 'sistema'} · ${h.campo_modificado ?? 'estado'}`} subtitle={`${h.valor_anterior ?? '-'} → ${h.valor_nuevo ?? '-'} · ${new Date(h.created_at).toISOString()}`} />)}
-
-              {history.map((h) => <TimelineItem key={h.id} title={`${h.usuario?.email ?? 'sistema'} · ${h.campo_modificado ?? 'estado'}`} subtitle={`${h.valor_anterior ?? '-'} → ${h.valor_nuevo ?? '-'} · ${new Date(h.created_at).toLocaleString()}`} />)}
             </Timeline>
+            <div className="mt-3">
+              <ActivityTimeline events={timelineEvents} />
+            </div>
           </div>
 
           <div>
             <p className="mb-2 text-sm text-slate-400">Comentarios del equipo</p>
             <div className="space-y-2">{comments.map((c) => <div key={c.id} className="rounded-lg border border-slate-700 p-2 text-sm"><div className="flex items-center gap-2"><Avatar name={c.user} className="h-6 w-6" /><p className="font-medium">{c.user}</p><span className="text-xs text-slate-500"><RelativeTime value={c.time} /></span></div><p className="mt-1 text-slate-300">{c.message}</p></div>)}</div>
             <form className="mt-2 flex gap-2" onSubmit={handleSubmit(async ({ comment }) => { if (!comment.trim()) return; const payload = { id: crypto.randomUUID(), user: `${user?.first_name ?? 'Operador'} ${user?.last_name ?? ''}`.trim(), message: comment, time: new Date().toISOString() }; setComments((v) => [...v, payload]); getSocket().emit('orders:comment', { orderId: order.id, ...payload }); reset({ comment: '' }); })}><input {...register('comment')} className="h-9 flex-1 rounded-lg border border-slate-600 bg-slate-900 px-3 text-sm" placeholder="Escribir comentario interno..." /><Button type="submit">Enviar</Button></form>
-
-            <div className="space-y-2">{comments.map((c) => <div key={c.id} className="rounded-lg border border-slate-700 p-2 text-sm"><div className="flex items-center gap-2"><Avatar name={c.user} className="h-6 w-6" /><p className="font-medium">{c.user}</p><span className="text-xs text-slate-500">{new Date(c.time).toLocaleTimeString()}</span></div><p className="mt-1 text-slate-300">{c.message}</p></div>)}</div>
-            <div className="mt-2 flex gap-2"><input value={comment} onChange={(e) => setComment(e.target.value)} className="h-9 flex-1 rounded-lg border border-slate-600 bg-slate-900 px-3 text-sm" placeholder="Escribir comentario interno..." /><Button onClick={() => { if (!comment.trim()) return; const payload = { id: crypto.randomUUID(), user: `${user?.first_name ?? 'Operador'} ${user?.last_name ?? ''}`.trim(), message: comment, time: new Date().toISOString() }; setComments((v) => [...v, payload]); getSocket().emit('orders:comment', { orderId: order.id, ...payload }); setComment(''); }}>Enviar</Button></div>
           </div>
 
           <div>
@@ -186,34 +157,6 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
       </Modal>
 
       <ConfirmModal open={confirmClose} title="Descartar cambios" message="Tenés cambios sin guardar en comentarios o reasignación. ¿Cerrar igualmente?" onCancel={() => setConfirmClose(false)} onConfirm={() => { setConfirmClose(false); onClose(); }} />
-
-          </div>
-        </div>
-      </Drawer>
-
-      <Modal open={reassignOpen} title="Reasignar técnicos" onClose={() => setReassignOpen(false)}>
-        <div className="space-y-2">
-          {techUsers.map((tech) => {
-            const checked = selectedTechnicians.includes(tech.id);
-            return (
-              <label key={tech.id} className="flex items-center gap-2 rounded border border-slate-700 p-2 text-sm">
-                <input type="checkbox" checked={checked} onChange={() => setSelectedTechnicians((prev) => checked ? prev.filter((id) => id !== tech.id) : [...prev, tech.id])} />
-                <span>{tech.first_name} {tech.last_name}</span>
-              </label>
-            );
-          })}
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setReassignOpen(false)}>Cancelar</Button>
-            <Button onClick={async () => {
-              await OrdersApi.assignTechnicians(order.id, selectedTechnicians);
-              toast({ type: 'success', message: 'Técnicos reasignados' });
-              setReassignOpen(false);
-              onRefresh();
-            }}>Guardar</Button>
-          </div>
-        </div>
-      </Modal>
- main
     </>
   );
 }

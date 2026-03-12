@@ -43,7 +43,7 @@ export default function EquipmentsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between"><h1 className="text-3xl font-bold">Equipos instalados</h1><Button onClick={() => { setEdit(null); reset(); setOpen(true); }}>Nuevo equipo</Button></div>
+      <div className="flex items-center justify-between"><h1 className="text-2xl font-semibold tracking-tight">Equipos instalados</h1><Button onClick={() => { setEdit(null); reset(); setOpen(true); }}>Nuevo equipo</Button></div>
       {!items.length ? <EmptyState variant="equipments" title="No hay equipos" subtitle="Asocia equipos a clientes y ubicaciones." /> : (
         <Table>
           <thead className="bg-slate-900 text-left text-xs uppercase text-slate-400"><tr><th className="p-2">Tipo</th><th className="p-2">Modelo</th><th className="p-2">Número serie</th><th className="p-2">Cliente</th><th className="p-2">Ubicación</th><th className="p-2">Estado</th><th className="p-2" /></tr></thead>

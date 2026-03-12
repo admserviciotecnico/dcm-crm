@@ -11,10 +11,7 @@ import { Timeline, TimelineItem } from '@/components/ui/timeline';
 import { ServiceOrder, User } from '@/types/domain';
 import { OrdersChart } from '@/components/dashboard/orders-chart';
 import { appStore } from '@/stores/app-store';
- codex/fix-cors-error-in-backend-izagw1
 import { RelativeTime } from '@/components/common/relative-time';
-
- main
 
 export default function DashboardPage() {
   const [data, setData] = useState<Record<string, number> | null>(null);
@@ -62,7 +59,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Service Overview</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Service Overview</h1>
       <KpiCards data={data} loading={loading} />
       <div className="grid gap-4 md:grid-cols-3">
         <Card><p className="text-xs text-slate-400">Órdenes abiertas</p><p className="text-2xl font-bold">{orders.filter((o) => o.estado !== 'completado' && o.estado !== 'cancelado').length}</p></Card>
@@ -92,11 +89,7 @@ export default function DashboardPage() {
         <Table>
           <thead className="bg-slate-900/70 text-left text-xs uppercase text-slate-400"><tr><th className="p-2">ID</th><th className="p-2">Cliente</th><th className="p-2">Estado</th><th className="p-2">Prioridad</th><th className="p-2">Fecha</th></tr></thead>
           <tbody>
- codex/fix-cors-error-in-backend-izagw1
             {orders.slice(0, 8).map((o) => <tr key={o.id} className="border-t border-slate-700"><td className="mono p-2">#{o.id.slice(0, 8)}</td><td className="p-2">{o.client?.nombre_empresa ?? o.client_id}</td><td className="p-2"><StatusBadge value={o.estado} /></td><td className="p-2"><PriorityBadge value={o.prioridad} /></td><td className="p-2"><RelativeTime value={o.fecha_programada} /></td></tr>)}
-
-            {orders.slice(0, 8).map((o) => <tr key={o.id} className="border-t border-slate-700"><td className="mono p-2">#{o.id.slice(0, 8)}</td><td className="p-2">{o.client?.nombre_empresa ?? o.client_id}</td><td className="p-2"><StatusBadge value={o.estado} /></td><td className="p-2"><PriorityBadge value={o.prioridad} /></td><td className="p-2">{o.fecha_programada ? new Date(o.fecha_programada).toLocaleDateString() : '-'}</td></tr>)}
- main
           </tbody>
         </Table>
       </Card>

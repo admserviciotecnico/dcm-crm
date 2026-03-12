@@ -20,6 +20,8 @@ import { Modal } from '@/components/ui/modal';
 import { authStore } from '@/stores/auth-store';
 import { appStore } from '@/stores/app-store';
 import { EmptyState } from '@/components/common/empty-state';
+import { PageHeader } from '@/components/layout/page-header';
+import { TableSkeleton } from '@/components/common/skeletons';
 
 const schema = z.object({
   client_id: z.string().min(1),
@@ -120,10 +122,11 @@ export default function OrdersPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Órdenes de Servicio</h1>
-        {user?.role === 'admin' ? <Button onClick={() => setShowCreate(true)}><Plus size={15} /> Nueva Orden</Button> : null}
-      </div>
+      <PageHeader
+        title="Órdenes de Servicio"
+        description="Gestioná, filtrá y ejecutá órdenes de campo desde un único panel."
+        action={user?.role === 'admin' ? <Button onClick={() => setShowCreate(true)}><Plus size={16} /> Nueva Orden</Button> : null}
+      />
 
       <Card>
         <div className="flex flex-wrap items-center gap-2">
@@ -135,7 +138,7 @@ export default function OrdersPage() {
           <Button variant="secondary" onClick={exportCsv}><Download size={14} /> Exportar CSV</Button>
         </div>
         {showFilters ? (
-          <div className="mt-3 grid gap-2 md:grid-cols-6">
+          <div className="mt-3 grid gap-2 rounded-[10px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 md:grid-cols-6">
             <Select value={filters.status} onChange={(e) => setFilter('status', e.target.value)}><option value="">Estado</option><option value="service_programado">Programado</option><option value="en_ejecucion">En ejecución</option><option value="completado">Completado</option></Select>
             <Select value={filters.priority} onChange={(e) => setFilter('priority', e.target.value)}><option value="">Prioridad</option><option value="alta">Alta</option><option value="media">Media</option><option value="baja">Baja</option></Select>
             <Select value={filters.client} onChange={(e) => setFilter('client', e.target.value)}><option value="">Cliente</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.nombre_empresa}</option>)}</Select>
@@ -147,7 +150,7 @@ export default function OrdersPage() {
       </Card>
 
       {selectedIds.length > 0 ? (
-        <Card>
+        <Card className="sticky top-20 z-20">
           <div className="flex flex-wrap items-center gap-2">
             <Badge>{selectedIds.length} seleccionadas</Badge>
             <Select value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value as OrderStatus)} className="max-w-52">
@@ -164,7 +167,7 @@ export default function OrdersPage() {
         </Card>
       ) : null}
 
-      {loading ? <Card>Cargando órdenes...</Card> : orders.length === 0 ? <EmptyState variant="orders" title="No hay órdenes" subtitle="Crea tu primera orden para iniciar la operación." /> : <OrdersTable rows={orders} users={users} selectedIds={selectedIds} onToggleSelect={toggleSelect} onToggleSelectAll={toggleSelectAll} onClick={setSelected} onStatusQuickChange={async (order, status) => { await OrdersApi.patch(order.id, { estado: status }); toast({ type: 'success', message: `Orden ${order.id.slice(0, 6)} actualizada` }); void load(); }} />}
+      {loading ? <TableSkeleton rows={8} cols={8} /> : orders.length === 0 ? <EmptyState variant="orders" title="No hay órdenes" subtitle="Crea tu primera orden para iniciar la operación." /> : <OrdersTable rows={orders} users={users} selectedIds={selectedIds} onToggleSelect={toggleSelect} onToggleSelectAll={toggleSelectAll} onClick={setSelected} onStatusQuickChange={async (order, status) => { await OrdersApi.patch(order.id, { estado: status }); toast({ type: 'success', message: `Orden ${order.id.slice(0, 6)} actualizada` }); void load(); }} />}
       <OrderDetail order={selected} users={users} onClose={() => setSelected(null)} onRefresh={load} />
 
       <Modal open={showCreate} title="Crear nueva orden" onClose={() => setShowCreate(false)}>
