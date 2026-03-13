@@ -5,7 +5,6 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { UsersApi } from '@/lib/api/endpoints';
-import { getErrorMessage } from '@/lib/api/error-message';
 import { User } from '@/types/domain';
 import { authStore } from '@/stores/auth-store';
 import { Badge } from '@/components/ui/badge';
