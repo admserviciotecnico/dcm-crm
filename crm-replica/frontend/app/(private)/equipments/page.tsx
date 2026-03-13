@@ -19,6 +19,8 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { PageHeader } from '@/components/layout/page-header';
 import { TableSkeleton } from '@/components/common/skeletons';
+import { SearchableSelect } from '@/components/ui/searchable-select';
+import { getApiErrorMessage } from '@/lib/api/error-message';
 
 const schema = z.object({
   client_id: z.string().min(1, 'Cliente requerido'),
@@ -63,10 +65,11 @@ export default function EquipmentsPage() {
   const [metaMap, setMetaMap] = useState<Record<string, { location?: string; installedAt?: string; notes?: string }>>({});
   const toast = appStore((s) => s.pushToast);
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { estado_actual: 'operativo', modelo: '' }
   });
+  const selectedClientId = watch('client_id');
 
   const load = async () => {
     setLoading(true);
@@ -125,8 +128,8 @@ export default function EquipmentsPage() {
       toast({ type: 'success', message: edit ? 'Equipo actualizado' : 'Equipo creado' });
       setOpen(false); setEdit(null); reset();
       await load();
-    } catch {
-      toast({ type: 'error', message: 'No se pudo guardar el equipo' });
+    } catch (error) {
+      toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo guardar el equipo') });
     }
   };
 
@@ -184,7 +187,14 @@ export default function EquipmentsPage() {
         <form className="space-y-3" onSubmit={handleSubmit(onSubmit)}>
           <div>
             <p className="mb-1 text-xs text-[var(--text-secondary)]">Cliente</p>
-            <Select {...register('client_id')}><option value="">Seleccionar cliente</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.nombre_empresa}</option>)}</Select>
+            <SearchableSelect
+              options={clients.map((c) => ({ value: c.id, label: c.nombre_empresa }))}
+              value={selectedClientId ?? ''}
+              onChange={(value) => setValue('client_id', value, { shouldDirty: true, shouldValidate: true })}
+              placeholder="Buscar cliente por nombre"
+              emptyMessage="No hay clientes coincidentes"
+            />
+            <input type="hidden" {...register('client_id')} />
             {errors.client_id ? <p className="text-xs text-red-400">{errors.client_id.message}</p> : null}
           </div>
           <div className="grid gap-2 md:grid-cols-2">
@@ -199,7 +209,7 @@ export default function EquipmentsPage() {
         </form>
       </Modal>
 
-      <ConfirmModal open={!!toDelete} title="Eliminar equipo" message="Se realizará soft delete." onCancel={() => setToDelete(null)} onConfirm={async () => { if (!toDelete) return; try { await EquipmentsApi.remove(toDelete.id); toast({ type: 'info', message: 'Equipo eliminado' }); } catch { toast({ type: 'error', message: 'No se pudo eliminar el equipo' }); } setToDelete(null); await load(); }} />
+      <ConfirmModal open={!!toDelete} title="Eliminar equipo" message="Se realizará soft delete." onCancel={() => setToDelete(null)} onConfirm={async () => { if (!toDelete) return; try { await EquipmentsApi.remove(toDelete.id); toast({ type: 'info', message: 'Equipo eliminado' }); } catch (error) { toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo eliminar el equipo') }); } setToDelete(null); await load(); }} />
     </div>
   );
 }
