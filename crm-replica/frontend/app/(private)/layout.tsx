@@ -51,11 +51,13 @@ export default function PrivateLayout({ children }: { children: ReactNode }) {
 
   return (
     <Protected>
-      <div className="flex min-h-screen bg-[var(--primary)]">
+      <div className="flex min-h-screen bg-[var(--bg-app)]">
         <Sidebar />
         <div className="flex-1">
           <Header />
-          <main className="p-6">{children}</main>
+          <main className="bg-[var(--bg-app)] px-6 py-6">
+            <div className="mx-auto w-full max-w-[1400px]">{children}</div>
+          </main>
         </div>
       </div>
       <CommandPalette />
