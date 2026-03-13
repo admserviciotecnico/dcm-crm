@@ -71,7 +71,7 @@ export default function EquipmentsPage() {
     resolver: zodResolver(schema),
     defaultValues: { estado_actual: 'operativo', modelo: '' }
   });
-  const selectedClientId = watch('client_id');
+  const selectedClientId = watch('client_id') ?? '';
 
   const load = async () => {
     setLoading(true);
@@ -204,7 +204,7 @@ export default function EquipmentsPage() {
             <p className="mb-1 text-xs text-[var(--text-secondary)]">Cliente</p>
             <SearchableSelect
               options={clients.map((c) => ({ value: c.id, label: c.nombre_empresa }))}
-              value={selectedClientId ?? ''}
+              value={selectedClientId}
               onChange={(value) => setValue('client_id', value, { shouldDirty: true, shouldValidate: true })}
               placeholder="Buscar cliente por nombre"
               emptyMessage="No hay clientes coincidentes"
