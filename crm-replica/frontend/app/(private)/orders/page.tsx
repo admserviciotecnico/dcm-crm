@@ -22,6 +22,7 @@ import { appStore } from '@/stores/app-store';
 import { EmptyState } from '@/components/common/empty-state';
 import { PageHeader } from '@/components/layout/page-header';
 import { TableSkeleton } from '@/components/common/skeletons';
+import { getApiErrorMessage } from '@/lib/api/error-message';
 
 const schema = z.object({
   client_id: z.string().min(1),
@@ -75,7 +76,8 @@ export default function OrdersPage() {
   const activeFilters = useMemo(() => Object.values(filters).filter(Boolean).length, [filters]);
 
   const onCreate = async (data: OrderForm) => {
-    await OrdersApi.create({
+    try {
+      await OrdersApi.create({
       client_id: data.client_id,
       estado: data.estado,
       prioridad: data.prioridad,
@@ -84,28 +86,39 @@ export default function OrdersPage() {
       observaciones: data.observaciones,
       technician_ids: data.technician_ids ? data.technician_ids.split(',').map((id) => id.trim()) : []
     });
-    toast({ type: 'success', message: 'Orden creada con éxito' });
-    setShowCreate(false);
-    reset();
-    void load();
+      toast({ type: 'success', message: 'Orden creada con éxito' });
+      setShowCreate(false);
+      reset();
+      void load();
+    } catch (error) {
+      toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo crear la orden') });
+    }
   };
 
   const toggleSelect = (id: string) => setSelectedIds((prev) => (prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]));
   const toggleSelectAll = () => setSelectedIds((prev) => (prev.length === orders.length ? [] : orders.map((o) => o.id)));
 
   const bulkChangeStatus = async () => {
-    await Promise.all(selectedIds.map((id) => OrdersApi.patch(id, { estado: bulkStatus })));
-    toast({ type: 'success', message: 'Estado actualizado en selección' });
-    setSelectedIds([]);
-    void load();
+    try {
+      await Promise.all(selectedIds.map((id) => OrdersApi.patch(id, { estado: bulkStatus })));
+      toast({ type: 'success', message: 'Estado actualizado en selección' });
+      setSelectedIds([]);
+      void load();
+    } catch (error) {
+      toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo actualizar el estado en selección') });
+    }
   };
 
   const bulkAssignTech = async () => {
     if (!bulkTechnician) return;
-    await Promise.all(selectedIds.map((id) => OrdersApi.assignTechnicians(id, [bulkTechnician])));
-    toast({ type: 'success', message: 'Técnico asignado en selección' });
-    setSelectedIds([]);
-    void load();
+    try {
+      await Promise.all(selectedIds.map((id) => OrdersApi.assignTechnicians(id, [bulkTechnician])));
+      toast({ type: 'success', message: 'Técnico asignado en selección' });
+      setSelectedIds([]);
+      void load();
+    } catch (error) {
+      toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo asignar técnico en selección') });
+    }
   };
 
   const exportCsv = () => {
@@ -167,7 +180,7 @@ export default function OrdersPage() {
         </Card>
       ) : null}
 
-      {loading ? <TableSkeleton rows={8} cols={8} /> : orders.length === 0 ? <EmptyState variant="orders" title="No hay órdenes" subtitle="Crea tu primera orden para iniciar la operación." /> : <OrdersTable rows={orders} users={users} selectedIds={selectedIds} onToggleSelect={toggleSelect} onToggleSelectAll={toggleSelectAll} onClick={setSelected} onStatusQuickChange={async (order, status) => { await OrdersApi.patch(order.id, { estado: status }); toast({ type: 'success', message: `Orden ${order.id.slice(0, 6)} actualizada` }); void load(); }} />}
+      {loading ? <TableSkeleton rows={8} cols={8} /> : orders.length === 0 ? <EmptyState variant="orders" title="No hay órdenes" subtitle="Crea tu primera orden para iniciar la operación." /> : <OrdersTable rows={orders} users={users} selectedIds={selectedIds} onToggleSelect={toggleSelect} onToggleSelectAll={toggleSelectAll} onClick={setSelected} onStatusQuickChange={async (order, status) => { try { await OrdersApi.patch(order.id, { estado: status }); toast({ type: 'success', message: `Orden ${order.id.slice(0, 6)} actualizada` }); void load(); } catch (error) { toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo actualizar la orden') }); } }} />}
       <OrderDetail order={selected} users={users} onClose={() => setSelected(null)} onRefresh={load} />
 
       <Modal open={showCreate} title="Crear nueva orden" onClose={() => setShowCreate(false)}>
