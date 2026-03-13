@@ -63,6 +63,8 @@ export default function EquipmentsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [metaMap, setMetaMap] = useState<Record<string, { location?: string; installedAt?: string; notes?: string }>>({});
+  const [clientQuery, setClientQuery] = useState('');
+  const [clientOpen, setClientOpen] = useState(false);
   const toast = appStore((s) => s.pushToast);
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<FormData>({
@@ -98,6 +100,19 @@ export default function EquipmentsPage() {
     return searchOk && statusOk;
   }), [items, clients, metaMap, search, statusFilter]);
 
+
+  const selectedClientId = watch('client_id');
+  const filteredClients = useMemo(() => {
+    const q = clientQuery.trim().toLowerCase();
+    if (!q) return clients;
+    return clients.filter((c) => c.nombre_empresa.toLowerCase().includes(q));
+  }, [clientQuery, clients]);
+
+  useEffect(() => {
+    const current = clients.find((c) => c.id === selectedClientId);
+    if (current) setClientQuery(current.nombre_empresa);
+  }, [clients, selectedClientId]);
+
   const onSubmit = async (data: FormData) => {
     try {
       const payload = {
@@ -126,7 +141,7 @@ export default function EquipmentsPage() {
       }
 
       toast({ type: 'success', message: edit ? 'Equipo actualizado' : 'Equipo creado' });
-      setOpen(false); setEdit(null); reset();
+      setOpen(false); setClientOpen(false); setEdit(null); reset();
       await load();
     } catch (error) {
       toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo guardar el equipo') });
@@ -138,7 +153,7 @@ export default function EquipmentsPage() {
       <PageHeader
         title="Equipos instalados"
         description="Vista operativa de activos con estado, contexto de cliente y último servicio."
-        action={<Button onClick={() => { setEdit(null); reset({ estado_actual: 'operativo', modelo: '' }); setOpen(true); }}>Nuevo equipo</Button>}
+        action={<Button onClick={() => { setEdit(null); reset({ estado_actual: 'operativo', modelo: '' }); setClientQuery(''); setOpen(true); }}>Nuevo equipo</Button>}
       />
 
       <div className="flex flex-wrap gap-2">
@@ -175,7 +190,7 @@ export default function EquipmentsPage() {
                   <td className="p-2"><Badge className={statusBadgeClass(status)}>{status.replace('_', ' ')}</Badge></td>
                   <td className="p-2">{openOrders}</td>
                   <td className="p-2">{latestService?.fecha_programada ? new Date(latestService.fecha_programada).toLocaleDateString() : '-'}</td>
-                  <td className="p-2"><div className="flex gap-2"><Button variant="ghost" onClick={() => { setEdit(eq); reset({ client_id: eq.client_id, tipo_equipo: eq.tipo_equipo, modelo: eq.modelo ?? '', numero_serie: eq.numero_serie, ubicacion: metaMap[eq.id]?.location ?? '', observaciones: metaMap[eq.id]?.notes ?? '', estado_actual: normalizeStatus(eq.estado_actual) as FormData['estado_actual'] }); setOpen(true); }}>Editar</Button><Button variant="danger" onClick={() => setToDelete(eq)}>Eliminar</Button></div></td>
+                  <td className="p-2"><div className="flex gap-2"><Button variant="ghost" onClick={() => { setEdit(eq); reset({ client_id: eq.client_id, tipo_equipo: eq.tipo_equipo, modelo: eq.modelo ?? '', numero_serie: eq.numero_serie, ubicacion: metaMap[eq.id]?.location ?? '', observaciones: metaMap[eq.id]?.notes ?? '', estado_actual: normalizeStatus(eq.estado_actual) as FormData['estado_actual'] }); setClientQuery(clients.find((c) => c.id === eq.client_id)?.nombre_empresa ?? ''); setOpen(true); }}>Editar</Button><Button variant="danger" onClick={() => setToDelete(eq)}>Eliminar</Button></div></td>
                 </tr>
               );
             })}
@@ -183,9 +198,9 @@ export default function EquipmentsPage() {
         </Table>
       ) : null}
 
-      <Modal open={open} title={edit ? 'Editar equipo' : 'Nuevo equipo'} onClose={() => setOpen(false)}>
+      <Modal open={open} title={edit ? 'Editar equipo' : 'Nuevo equipo'} onClose={() => { setOpen(false); setClientOpen(false); }}>
         <form className="space-y-3" onSubmit={handleSubmit(onSubmit)}>
-          <div>
+          <div className="relative">
             <p className="mb-1 text-xs text-[var(--text-secondary)]">Cliente</p>
             <SearchableSelect
               options={clients.map((c) => ({ value: c.id, label: c.nombre_empresa }))}
