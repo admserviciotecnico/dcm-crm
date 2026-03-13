@@ -101,7 +101,6 @@ export default function EquipmentsPage() {
   }), [items, clients, metaMap, search, statusFilter]);
 
 
-  const selectedClientId = watch('client_id');
   const filteredClients = useMemo(() => {
     const q = clientQuery.trim().toLowerCase();
     if (!q) return clients;
