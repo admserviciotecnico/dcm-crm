@@ -6,7 +6,6 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { CalendarDays, Download, Filter, Plus } from 'lucide-react';
 import { ClientsApi, OrdersApi, UsersApi } from '@/lib/api/endpoints';
-import { getErrorMessage } from '@/lib/api/error-message';
 import { ServiceOrder, User, OrderStatus } from '@/types/domain';
 import { OrdersTable } from '@/components/orders/orders-table';
 import { OrderDetail } from '@/components/orders/order-detail';
