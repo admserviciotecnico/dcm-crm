@@ -19,10 +19,7 @@ export interface User {
   email: string;
   role: Role;
   phone?: string;
- codex/fix-cors-error-in-backend-izagw1
   active?: boolean;
-
- main
 }
 
 export interface Client {
@@ -31,10 +28,13 @@ export interface Client {
   email: string;
   telefono?: string;
   persona_contacto?: string;
+  observaciones?: string;
   fecha_vencimiento_documentacion?: string;
   deleted_at?: string | null;
   delayed?: boolean;
 }
+
+export type EquipmentStatus = 'operativo' | 'mantenimiento' | 'fuera_servicio' | 'en_revision' | 'revision';
 
 export interface Equipment {
   id: string;
@@ -42,7 +42,9 @@ export interface Equipment {
   tipo_equipo: string;
   modelo?: string;
   numero_serie: string;
-  estado_actual: string;
+  estado_actual: EquipmentStatus | string;
+  observaciones?: string;
+  created_at?: string;
   deleted_at?: string | null;
   delayed?: boolean;
 }
