@@ -19,6 +19,8 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { PageHeader } from '@/components/layout/page-header';
 import { TableSkeleton } from '@/components/common/skeletons';
+import { SearchableSelect } from '@/components/ui/searchable-select';
+import { getApiErrorMessage } from '@/lib/api/error-message';
 
 const schema = z.object({
   client_id: z.string().min(1, 'Cliente requerido'),
@@ -69,6 +71,7 @@ export default function EquipmentsPage() {
     resolver: zodResolver(schema),
     defaultValues: { estado_actual: 'operativo', modelo: '' }
   });
+  const selectedClientId = watch('client_id');
 
   const load = async () => {
     setLoading(true);
@@ -140,8 +143,8 @@ export default function EquipmentsPage() {
       toast({ type: 'success', message: edit ? 'Equipo actualizado' : 'Equipo creado' });
       setOpen(false); setClientOpen(false); setEdit(null); reset();
       await load();
-    } catch {
-      toast({ type: 'error', message: 'No se pudo guardar el equipo' });
+    } catch (error) {
+      toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo guardar el equipo') });
     }
   };
 
@@ -199,20 +202,14 @@ export default function EquipmentsPage() {
         <form className="space-y-3" onSubmit={handleSubmit(onSubmit)}>
           <div className="relative">
             <p className="mb-1 text-xs text-[var(--text-secondary)]">Cliente</p>
-            <Input
-              value={clientQuery}
-              onChange={(e) => { setClientQuery(e.target.value); setClientOpen(true); setValue('client_id', ''); }}
-              onFocus={() => setClientOpen(true)}
-              placeholder="Buscar cliente por nombre..."
+            <SearchableSelect
+              options={clients.map((c) => ({ value: c.id, label: c.nombre_empresa }))}
+              value={selectedClientId ?? ''}
+              onChange={(value) => setValue('client_id', value, { shouldDirty: true, shouldValidate: true })}
+              placeholder="Buscar cliente por nombre"
+              emptyMessage="No hay clientes coincidentes"
             />
             <input type="hidden" {...register('client_id')} />
-            {clientOpen ? (
-              <div className="absolute z-20 mt-1 max-h-52 w-full overflow-auto rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] p-1 shadow-lg">
-                {filteredClients.length === 0 ? <p className="px-2 py-2 text-xs text-[var(--text-secondary)]">No hay clientes para esa búsqueda.</p> : filteredClients.map((c) => (
-                  <button key={c.id} type="button" className="block w-full rounded-[6px] px-2 py-2 text-left text-sm hover:bg-[var(--bg-surface-hover)]" onClick={() => { setValue('client_id', c.id, { shouldValidate: true }); setClientQuery(c.nombre_empresa); setClientOpen(false); }}>{c.nombre_empresa}</button>
-                ))}
-              </div>
-            ) : null}
             {errors.client_id ? <p className="text-xs text-red-400">{errors.client_id.message}</p> : null}
           </div>
           <div className="grid gap-2 md:grid-cols-2">
@@ -227,7 +224,7 @@ export default function EquipmentsPage() {
         </form>
       </Modal>
 
-      <ConfirmModal open={!!toDelete} title="Eliminar equipo" message="Se realizará soft delete." onCancel={() => setToDelete(null)} onConfirm={async () => { if (!toDelete) return; try { await EquipmentsApi.remove(toDelete.id); toast({ type: 'info', message: 'Equipo eliminado' }); } catch { toast({ type: 'error', message: 'No se pudo eliminar el equipo' }); } setToDelete(null); await load(); }} />
+      <ConfirmModal open={!!toDelete} title="Eliminar equipo" message="Se realizará soft delete." onCancel={() => setToDelete(null)} onConfirm={async () => { if (!toDelete) return; try { await EquipmentsApi.remove(toDelete.id); toast({ type: 'info', message: 'Equipo eliminado' }); } catch (error) { toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo eliminar el equipo') }); } setToDelete(null); await load(); }} />
     </div>
   );
 }

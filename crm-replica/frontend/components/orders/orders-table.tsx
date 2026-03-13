@@ -52,17 +52,17 @@ function OrdersTableComponent({ rows, users, selectedIds, onToggleSelect, onTogg
                   <div className="pointer-events-none absolute left-0 top-6 z-10 hidden min-w-44 rounded border border-slate-700 bg-slate-900 p-2 text-xs text-slate-300 group-hover:block">Contacto cliente y métricas rápidas</div>
                 </div>
               </td>
-              <td className="p-2"><StatusBadge value={o.estado} /></td>
-              <td className="p-2"><PriorityBadge value={o.prioridad} /></td>
-              <td className="p-2"><div className="flex items-center">{visible.map((t, idx) => <Avatar key={t.technician_id} name={getTechName(t.technician_id)} className={`h-7 w-7 border-2 border-white ${idx > 0 ? '-ml-1.5' : ''}`} />)}{extra > 0 ? <span className="ml-1 grid h-7 w-7 place-items-center rounded-full border-2 border-white bg-slate-700 text-xs">+{extra}</span> : null}</div></td>
-              <td className="p-2"><RelativeTime value={o.fecha_programada} /></td>
-              <td className="p-2">{o.delayed ? <span className="rounded bg-red-500/20 px-2 py-1 text-xs text-red-300">⚠ Demorado</span> : '-'}</td>
+              <td className="p-2" onClick={() => onClick(o)}><StatusBadge value={o.estado} /></td>
+              <td className="p-2" onClick={() => onClick(o)}><PriorityBadge value={o.prioridad} /></td>
+              <td className="p-2" onClick={() => onClick(o)}><div className="flex items-center">{visible.map((t, idx) => <Avatar key={t.technician_id} name={getTechName(t.technician_id)} className={`h-7 w-7 border-2 border-white ${idx > 0 ? '-ml-1.5' : ''}`} />)}{extra > 0 ? <span className="ml-1 grid h-7 w-7 place-items-center rounded-full border-2 border-white bg-slate-700 text-xs">+{extra}</span> : null}</div></td>
+              <td className="p-2" onClick={() => onClick(o)}><RelativeTime value={o.fecha_programada} /></td>
+              <td className="p-2" onClick={() => onClick(o)}>{o.delayed ? <span className="rounded bg-red-500/20 px-2 py-1 text-xs text-red-300">⚠ Demorado</span> : '-'}</td>
               <td className="p-2">
-                <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                  <Button variant="ghost" onClick={() => onClick(o)}><Eye size={14} /></Button>
-                  <Button variant="ghost" onClick={() => onStatusQuickChange(o, 'service_programado')}><Pencil size={14} /></Button>
-                  <Link href={`/orders/${o.id}`} className="inline-flex items-center rounded-lg p-2 hover:bg-slate-700"><ExternalLink size={14} /></Link>
-                  <Button variant="ghost" onClick={() => onStatusQuickChange(o, 'cancelado')}><XCircle size={14} /></Button>
+                <div className="flex items-center justify-end gap-1">
+                  <Button variant="ghost" onClick={() => onClick(o)} title="Ver detalle"><Eye size={14} /></Button>
+                  <Button variant="ghost" onClick={() => onStatusQuickChange(o, 'service_programado')} title="Editar / Programar"><Pencil size={14} /></Button>
+                  <Link href={`/orders/${o.id}`} className="inline-flex items-center rounded-lg p-2 hover:bg-slate-700" title="Abrir página"><ExternalLink size={14} /></Link>
+                  <Button variant="ghost" onClick={() => onStatusQuickChange(o, 'cancelado')} title="Cancelar"><XCircle size={14} /></Button>
                   <Dropdown trigger={<Button variant="ghost"><MoreHorizontal size={16} /></Button>}>
                     <button className="block w-full rounded-[8px] px-3 py-2 text-left text-sm hover:bg-[var(--bg-surface-hover)]" onClick={() => onClick(o)}>Ver detalle</button>
                     <button className="block w-full rounded-[8px] px-3 py-2 text-left text-sm hover:bg-[var(--bg-surface-hover)]" onClick={() => onStatusQuickChange(o, 'service_programado')}>Marcar programada</button>

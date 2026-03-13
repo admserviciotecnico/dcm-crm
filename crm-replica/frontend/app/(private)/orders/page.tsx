@@ -23,6 +23,7 @@ import { appStore } from '@/stores/app-store';
 import { EmptyState } from '@/components/common/empty-state';
 import { PageHeader } from '@/components/layout/page-header';
 import { TableSkeleton } from '@/components/common/skeletons';
+import { getApiErrorMessage } from '@/lib/api/error-message';
 
 const schema = z.object({
   client_id: z.string().min(1),
@@ -91,7 +92,7 @@ export default function OrdersPage() {
       reset();
       void load();
     } catch (error) {
-      toast({ type: 'error', message: getErrorMessage(error, 'No se pudo crear la orden') });
+      toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo crear la orden') });
     }
   };
 
@@ -105,7 +106,7 @@ export default function OrdersPage() {
       setSelectedIds([]);
       void load();
     } catch (error) {
-      toast({ type: 'error', message: getErrorMessage(error, 'No se pudo actualizar el estado en lote') });
+      toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo actualizar el estado en selección') });
     }
   };
 
@@ -117,7 +118,7 @@ export default function OrdersPage() {
       setSelectedIds([]);
       void load();
     } catch (error) {
-      toast({ type: 'error', message: getErrorMessage(error, 'No se pudo asignar técnico en lote') });
+      toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo asignar técnico en selección') });
     }
   };
 
@@ -180,7 +181,7 @@ export default function OrdersPage() {
         </Card>
       ) : null}
 
-      {loading ? <TableSkeleton rows={8} cols={8} /> : orders.length === 0 ? <EmptyState variant="orders" title="No hay órdenes" subtitle="Crea tu primera orden para iniciar la operación." /> : <OrdersTable rows={orders} users={users} selectedIds={selectedIds} onToggleSelect={toggleSelect} onToggleSelectAll={toggleSelectAll} onClick={setSelected} onStatusQuickChange={async (order, status) => { try { await OrdersApi.patch(order.id, { estado: status }); toast({ type: 'success', message: `Orden ${order.id.slice(0, 6)} actualizada` }); void load(); } catch (error) { toast({ type: 'error', message: getErrorMessage(error, 'No se pudo ejecutar la acción de la orden') }); } }} />}
+      {loading ? <TableSkeleton rows={8} cols={8} /> : orders.length === 0 ? <EmptyState variant="orders" title="No hay órdenes" subtitle="Crea tu primera orden para iniciar la operación." /> : <OrdersTable rows={orders} users={users} selectedIds={selectedIds} onToggleSelect={toggleSelect} onToggleSelectAll={toggleSelectAll} onClick={setSelected} onStatusQuickChange={async (order, status) => { try { await OrdersApi.patch(order.id, { estado: status }); toast({ type: 'success', message: `Orden ${order.id.slice(0, 6)} actualizada` }); void load(); } catch (error) { toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo actualizar la orden') }); } }} />}
       <OrderDetail order={selected} users={users} onClose={() => setSelected(null)} onRefresh={load} />
 
       <Modal open={showCreate} title="Crear nueva orden" onClose={() => setShowCreate(false)}>

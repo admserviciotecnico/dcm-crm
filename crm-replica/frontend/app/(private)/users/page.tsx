@@ -15,6 +15,7 @@ import { Modal } from '@/components/ui/modal';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { appStore } from '@/stores/app-store';
+import { getApiErrorMessage } from '@/lib/api/error-message';
 
 const schema = z.object({
   first_name: z.string().min(2),
@@ -30,10 +31,16 @@ export default function UsersPage() {
   const toast = appStore((s) => s.pushToast);
   const [users, setUsers] = useState<User[]>([]);
   const [open, setOpen] = useState(false);
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({ resolver: zodResolver(schema), defaultValues: { role: 'tecnico' } });
 
-  const load = async () => setUsers(await UsersApi.list());
+  const load = async () => {
+    try {
+      setUsers(await UsersApi.list());
+    } catch (error) {
+      toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudieron cargar los usuarios') });
+    }
+  };
   useEffect(() => { void load(); }, []);
 
   if (me?.role !== 'admin') return <p className="text-sm text-slate-400">Acceso restringido.</p>;
@@ -46,37 +53,35 @@ export default function UsersPage() {
       reset();
       await load();
     } catch (error) {
-      toast({ type: 'error', message: getErrorMessage(error, 'No se pudo crear el usuario') });
+      toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo crear el usuario') });
     }
   };
 
   const toggleActive = async (user: User) => {
-    setUpdatingId(user.id);
+    const nextActive = user.active === false;
+    setUpdatingUserId(user.id);
     try {
-      await UsersApi.setActive(user.id, user.active === false);
-      toast({ type: 'success', message: user.active === false ? 'Usuario activado' : 'Usuario desactivado' });
-      await load();
+      await UsersApi.setActive(user.id, nextActive);
+      setUsers((prev) => prev.map((item) => item.id === user.id ? { ...item, active: nextActive } : item));
+      toast({ type: 'success', message: nextActive ? 'Usuario activado' : 'Usuario desactivado' });
     } catch (error) {
-      toast({ type: 'error', message: getErrorMessage(error, 'No se pudo actualizar el estado del usuario') });
+      toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo actualizar el estado del usuario') });
     } finally {
-      setUpdatingId(null);
+      setUpdatingUserId(null);
     }
   };
 
-  const changeRole = async (target: User, role: 'admin' | 'tecnico') => {
-    if (target.id === me.id && target.role === 'admin' && role !== 'admin') {
-      toast({ type: 'info', message: 'No podés quitarte el rol admin a vos mismo' });
-      return;
-    }
-    setUpdatingId(target.id);
+  const updateRole = async (user: User, role: 'admin' | 'tecnico') => {
+    if (user.id === me?.id || user.role === role) return;
+    setUpdatingUserId(user.id);
     try {
-      await UsersApi.update(target.id, { role });
-      toast({ type: 'success', message: 'Rol actualizado' });
-      await load();
+      await UsersApi.setRole(user.id, role);
+      setUsers((prev) => prev.map((item) => item.id === user.id ? { ...item, role } : item));
+      toast({ type: 'success', message: `Rol actualizado a ${role}` });
     } catch (error) {
-      toast({ type: 'error', message: getErrorMessage(error, 'No se pudo actualizar el rol') });
+      toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo actualizar el rol') });
     } finally {
-      setUpdatingId(null);
+      setUpdatingUserId(null);
     }
   };
 
@@ -86,23 +91,7 @@ export default function UsersPage() {
       <Table>
         <thead><tr><th className="p-2">Nombre completo</th><th className="p-2">Email</th><th className="p-2">Rol</th><th className="p-2">Estado</th><th className="p-2 text-right">Acciones</th></tr></thead>
         <tbody>
-          {users.map((u) => (
-            <tr key={u.id} className="border-t border-slate-700">
-              <td className="p-2">{u.first_name} {u.last_name}</td>
-              <td className="p-2">{u.email}</td>
-              <td className="p-2">
-                <div className="flex items-center gap-2">
-                  <Badge className={u.role === 'admin' ? 'border-blue-500 text-blue-300' : 'border-amber-500 text-amber-300'}>{u.role}</Badge>
-                  <Select value={u.role} onChange={(e) => void changeRole(u, e.target.value as 'admin' | 'tecnico')} disabled={updatingId === u.id} className="max-w-32">
-                    <option value="admin">admin</option>
-                    <option value="tecnico">tecnico</option>
-                  </Select>
-                </div>
-              </td>
-              <td className="p-2">{u.active === false ? 'Inactivo' : 'Activo'}</td>
-              <td className="p-2 text-right"><Button variant="secondary" onClick={() => void toggleActive(u)} disabled={updatingId === u.id}>{u.active === false ? 'Activar' : 'Desactivar'}</Button></td>
-            </tr>
-          ))}
+          {users.map((u) => <tr key={u.id} className="border-t border-slate-700"><td className="p-2">{u.first_name} {u.last_name}</td><td className="p-2">{u.email}</td><td className="p-2"><div className="flex items-center gap-2"><Badge className={u.role === 'admin' ? 'border-blue-500 text-blue-300' : 'border-amber-500 text-amber-300'}>{u.role}</Badge>{u.id !== me?.id ? <Select value={u.role} disabled={updatingUserId === u.id} onChange={(event) => void updateRole(u, event.target.value as 'admin' | 'tecnico')} className="max-w-36"><option value="admin">admin</option><option value="tecnico">tecnico</option></Select> : <span className="text-xs text-slate-400">Usuario actual</span>}</div></td><td className="p-2">{u.active === false ? 'Inactivo' : 'Activo'}</td><td className="p-2"><Button disabled={updatingUserId === u.id || u.id === me?.id} variant="secondary" onClick={() => void toggleActive(u)}>{u.active === false ? 'Activar' : 'Desactivar'}</Button></td></tr>)}
         </tbody>
       </Table>
 
