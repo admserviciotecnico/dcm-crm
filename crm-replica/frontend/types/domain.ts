@@ -34,13 +34,17 @@ export interface Client {
   delayed?: boolean;
 }
 
+export type EquipmentStatus = 'operativo' | 'mantenimiento' | 'fuera_servicio' | 'en_revision' | 'revision';
+
 export interface Equipment {
   id: string;
   client_id: string;
   tipo_equipo: string;
   modelo?: string;
   numero_serie: string;
-  estado_actual: string;
+  estado_actual: EquipmentStatus | string;
+  observaciones?: string;
+  created_at?: string;
   deleted_at?: string | null;
   delayed?: boolean;
 }

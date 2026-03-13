@@ -1,11 +1,13 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { endOfMonth, startOfMonth } from 'date-fns';
 import { Activity, AlertTriangle, CheckCircle2, Clock3 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { PageHeader } from '@/components/layout/page-header';
+import { EmptyState } from '@/components/common/empty-state';
 import { TableSkeleton } from '@/components/common/skeletons';
 import { useAnalyticsData } from '@/modules/analytics/hooks/use-analytics-data';
 import { AnalyticsKpiCard } from '@/modules/analytics/components/analytics-kpi-card';
@@ -23,10 +25,23 @@ export default function AnalyticsPage() {
 
   const metrics = useMemo(() => {
     const open = orders.filter((o) => o.estado !== 'completado' && o.estado !== 'cancelado').length;
-    const delayed = orders.filter((o) => o.delayed).length;
-    const completed = orders.filter((o) => o.estado === 'completado').length;
-    const avgResolution = completed === 0 ? 0 : Math.round(orders.filter((o) => o.estado === 'completado' && o.fecha_programada).reduce((acc, o) => acc + Math.max(1, Math.ceil((Date.now() - new Date(o.fecha_programada ?? new Date()).getTime()) / 86400000)), 0) / completed);
-    return { open, delayed, completed, avgResolution };
+    const delayed = orders.filter((o) => o.delayed || (!!o.fecha_programada && new Date(o.fecha_programada).getTime() < Date.now() && o.estado !== 'completado' && o.estado !== 'cancelado')).length;
+
+    const monthStart = startOfMonth(new Date());
+    const monthEnd = endOfMonth(new Date());
+    const completedThisMonth = orders
+      .filter((o) => o.estado === 'completado' && !!o.fecha_programada)
+      .filter((o) => {
+        const date = new Date(o.fecha_programada as string);
+        return date >= monthStart && date <= monthEnd;
+      }).length;
+
+    const completedWithDate = orders.filter((o) => o.estado === 'completado' && !!o.fecha_programada);
+    const avgResolution = completedWithDate.length === 0
+      ? null
+      : Math.round(completedWithDate.reduce((acc, o) => acc + Math.max(1, Math.ceil((Date.now() - new Date(o.fecha_programada as string).getTime()) / 86400000)), 0) / completedWithDate.length);
+
+    return { open, delayed, completedThisMonth, avgResolution };
   }, [orders]);
 
   return (
@@ -42,29 +57,31 @@ export default function AnalyticsPage() {
       </Card>
 
       {loading ? <TableSkeleton rows={8} cols={4} /> : (
-        <>
-          <div className="grid gap-3 md:grid-cols-4">
-            <AnalyticsKpiCard label="Órdenes abiertas" value={metrics.open} icon={<Activity size={16} />} />
-            <AnalyticsKpiCard label="Órdenes demoradas" value={metrics.delayed} icon={<AlertTriangle size={16} />} />
-            <AnalyticsKpiCard label="Completadas este período" value={metrics.completed} icon={<CheckCircle2 size={16} />} />
-            <AnalyticsKpiCard label="Tiempo promedio de resolución" value={`${metrics.avgResolution} días`} icon={<Clock3 size={16} />} />
-          </div>
+        orders.length === 0 ? <EmptyState variant="orders" title="Sin resultados" subtitle="No se encontraron órdenes para los filtros aplicados." /> : (
+          <>
+            <div className="grid gap-3 md:grid-cols-4">
+              <AnalyticsKpiCard label="Órdenes abiertas" value={metrics.open} icon={<Activity size={16} />} />
+              <AnalyticsKpiCard label="Órdenes demoradas" value={metrics.delayed} icon={<AlertTriangle size={16} />} />
+              <AnalyticsKpiCard label="Completadas este mes" value={metrics.completedThisMonth} icon={<CheckCircle2 size={16} />} />
+              <AnalyticsKpiCard label="Resolución promedio (aprox.)" value={metrics.avgResolution === null ? 'N/D' : `${metrics.avgResolution} días`} icon={<Clock3 size={16} />} />
+            </div>
 
-          <div className="grid gap-3 lg:grid-cols-3">
-            <Card>
-              <h2 className="mb-3 text-lg font-medium">Órdenes por estado</h2>
-              <OrdersByStatusChart orders={orders} />
-            </Card>
-            <Card>
-              <h2 className="mb-3 text-lg font-medium">Órdenes por técnico</h2>
-              <OrdersByTechnicianChart orders={orders} users={users} />
-            </Card>
-            <Card>
-              <h2 className="mb-3 text-lg font-medium">Órdenes en el tiempo</h2>
-              <OrdersOverTimeChart orders={orders} />
-            </Card>
-          </div>
-        </>
+            <div className="grid gap-3 lg:grid-cols-3">
+              <Card>
+                <h2 className="mb-3 text-lg font-medium">Órdenes por estado</h2>
+                <OrdersByStatusChart orders={orders} />
+              </Card>
+              <Card>
+                <h2 className="mb-3 text-lg font-medium">Órdenes por técnico</h2>
+                <OrdersByTechnicianChart orders={orders} users={users} />
+              </Card>
+              <Card>
+                <h2 className="mb-3 text-lg font-medium">Órdenes en el tiempo</h2>
+                <OrdersOverTimeChart orders={orders} />
+              </Card>
+            </div>
+          </>
+        )
       )}
     </div>
   );

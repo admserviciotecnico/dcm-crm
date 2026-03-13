@@ -1,9 +1,13 @@
+import { EmptyState } from '@/components/common/empty-state';
 import { ServiceOrder } from '@/types/domain';
 import { ordersOverTime } from '@/modules/analytics/utils/aggregations';
 
 export function OrdersOverTimeChart({ orders }: { orders: ServiceOrder[] }) {
   const rows = ordersOverTime(orders);
+  const total = rows.reduce((acc, row) => acc + row.value, 0);
+  if (total === 0) return <EmptyState title="Sin tendencia" subtitle="No hay órdenes programadas en los últimos 14 días." />;
   const max = Math.max(...rows.map((r) => r.value), 1);
+
   return (
     <div className="grid grid-cols-14 items-end gap-1">
       {rows.map((row) => (

@@ -1,8 +1,8 @@
 'use client';
 
-import { ChangeEvent, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Download, Upload, ExternalLink } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { OrderHistory, ServiceOrder, User } from '@/types/domain';
 import { OrdersApi } from '@/lib/api/endpoints';
@@ -18,8 +18,10 @@ import { ConfirmModal } from '@/components/common/confirm-modal';
 import { getSocket } from '@/lib/api/socket';
 import { RelativeTime } from '@/components/common/relative-time';
 import { ActivityTimeline } from '@/components/timeline/activity-timeline';
+import { FileUploader } from '@/modules/documents/components/file-uploader';
+import { FileList } from '@/modules/documents/components/file-list';
+import { useDocumentsState } from '@/modules/documents/hooks/use-documents-state';
 
-type LocalFile = { name: string; url: string; size: number };
 type LocalComment = { id: string; user: string; message: string; time: string };
 
 type CommentForm = { comment: string };
@@ -40,14 +42,14 @@ const workflow: Record<string, string[]> = {
 export function OrderDetail({ order, users, onClose, onRefresh }: { order: ServiceOrder | null; users: User[]; onClose: () => void; onRefresh: () => void }) {
   const [history, setHistory] = useState<OrderHistory[]>([]);
   const [comments, setComments] = useState<LocalComment[]>([]);
-  const [files, setFiles] = useState<LocalFile[]>([]);
   const [reassignOpen, setReassignOpen] = useState(false);
   const [selectedTechnicians, setSelectedTechnicians] = useState<string[]>([]);
   const [initialTechnicians, setInitialTechnicians] = useState<string[]>([]);
   const [confirmClose, setConfirmClose] = useState(false);
   const user = authStore((s) => s.user);
   const toast = appStore((s) => s.pushToast);
-  const { register, handleSubmit, reset, watch, formState: { isDirty } } = useForm<CommentForm>({ defaultValues: { comment: '' } });
+  const { register, handleSubmit, reset, formState: { isDirty } } = useForm<CommentForm>({ defaultValues: { comment: '' } });
+  const { docs, add: addDocument, remove: removeDocument } = useDocumentsState('order', order?.id ?? '');
 
   useEffect(() => {
     if (!order) return;
@@ -90,13 +92,6 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
     onClose();
   };
 
-  const onUpload = (event: ChangeEvent<HTMLInputElement>) => {
-    const inputFiles = event.target.files;
-    if (!inputFiles) return;
-    const newFiles: LocalFile[] = Array.from(inputFiles).map((file) => ({ name: file.name, size: file.size, url: URL.createObjectURL(file) }));
-    setFiles((prev) => [...prev, ...newFiles]);
-    toast({ type: 'success', message: 'Archivo adjuntado localmente' });
-  };
 
   return (
     <>
@@ -108,9 +103,9 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
           <div>
             <p className="mb-2 text-sm text-slate-400">Acciones de workflow</p>
             <div className="flex flex-wrap gap-2">
-              {user?.role === 'admin' ? adminAllowed.map((next) => <Button key={next} variant="secondary" onClick={async () => { await OrdersApi.patch(order.id, { estado: next }); toast({ type: 'success', message: `Estado actualizado a ${next}` }); onRefresh(); }}>{next}</Button>) : null}
-              {canTechMove ? <Button variant="secondary" onClick={async () => { const next = order.estado === 'service_programado' ? 'en_ejecucion' : 'completado'; await OrdersApi.patch(order.id, { estado: next }); toast({ type: 'success', message: `Orden ${next}` }); onRefresh(); }}>{order.estado === 'service_programado' ? 'Iniciar' : 'Completar'}</Button> : null}
-              <Button variant="danger" onClick={async () => { await OrdersApi.patch(order.id, { estado: 'cancelado' }); toast({ type: 'info', message: 'Orden cancelada' }); onRefresh(); }}>cancelar</Button>
+              {user?.role === 'admin' ? adminAllowed.map((next) => <Button key={next} variant="secondary" onClick={async () => { try { await OrdersApi.patch(order.id, { estado: next }); toast({ type: 'success', message: `Estado actualizado a ${next}` }); onRefresh(); } catch { toast({ type: 'error', message: 'No se pudo actualizar el estado' }); } }}>{next}</Button>) : null}
+              {canTechMove ? <Button variant="secondary" onClick={async () => { const next = order.estado === 'service_programado' ? 'en_ejecucion' : 'completado'; try { await OrdersApi.patch(order.id, { estado: next }); toast({ type: 'success', message: `Orden ${next}` }); onRefresh(); } catch { toast({ type: 'error', message: 'No se pudo actualizar la orden' }); } }}>{order.estado === 'service_programado' ? 'Iniciar' : 'Completar'}</Button> : null}
+              <Button variant="danger" onClick={async () => { try { await OrdersApi.patch(order.id, { estado: 'cancelado' }); toast({ type: 'info', message: 'Orden cancelada' }); onRefresh(); } catch { toast({ type: 'error', message: 'No se pudo cancelar la orden' }); } }}>cancelar</Button>
             </div>
           </div>
 
@@ -132,8 +127,8 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
 
           <div>
             <p className="mb-2 text-sm text-slate-400">Archivos adjuntos</p>
-            <label className="inline-flex cursor-pointer items-center gap-2 rounded border border-slate-700 px-3 py-2 text-sm"><Upload size={14} /> Subir archivos<input type="file" multiple className="hidden" onChange={onUpload} /></label>
-            <div className="mt-2 space-y-2">{files.map((file) => <div key={file.url} className="flex items-center justify-between rounded border border-slate-700 p-2 text-sm"><span>{file.name} ({Math.ceil(file.size / 1024)} KB)</span><a className="inline-flex items-center gap-1 text-blue-300" href={file.url} download={file.name}><Download size={12} /> Descargar</a></div>)}</div>
+            <FileUploader onAdd={(name, category) => { const result = addDocument(name, category); if (result.ok) toast({ type: 'success', message: 'Documento agregado' }); else if (result.reason === 'duplicate') toast({ type: 'info', message: 'Ese documento ya existe para esta orden' }); else toast({ type: 'error', message: 'Nombre de documento inválido' }); }} />
+            <div className="mt-2"><FileList docs={docs} onRemove={(id) => { const result = removeDocument(id); if (result.ok) toast({ type: 'info', message: 'Documento eliminado' }); else toast({ type: 'error', message: 'No se pudo eliminar el documento' }); }} /></div>
           </div>
         </div>
       </Drawer>
@@ -151,7 +146,7 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
           })}
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setReassignOpen(false)}>Cancelar</Button>
-            <Button onClick={async () => { await OrdersApi.assignTechnicians(order.id, selectedTechnicians); toast({ type: 'success', message: 'Técnicos reasignados' }); setInitialTechnicians([...selectedTechnicians]); setReassignOpen(false); onRefresh(); }}>Guardar</Button>
+            <Button onClick={async () => { try { await OrdersApi.assignTechnicians(order.id, selectedTechnicians); toast({ type: 'success', message: 'Técnicos reasignados' }); setInitialTechnicians([...selectedTechnicians]); setReassignOpen(false); onRefresh(); } catch { toast({ type: 'error', message: 'No se pudo reasignar técnicos' }); } }}>Guardar</Button>
           </div>
         </div>
       </Modal>

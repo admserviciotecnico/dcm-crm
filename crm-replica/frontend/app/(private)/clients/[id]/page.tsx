@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
-import { FileText, Plus, Trash2, UserRound } from 'lucide-react';
+import { Plus, Trash2, UserRound } from 'lucide-react';
 import { ClientsApi, EquipmentsApi, OrdersApi, UsersApi } from '@/lib/api/endpoints';
 import { Client, Equipment, ServiceOrder, User } from '@/types/domain';
 import { Tabs } from '@/components/ui/tabs';
@@ -11,7 +11,7 @@ import { Table } from '@/components/ui/table';
 import { RelativeTime } from '@/components/common/relative-time';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Timeline, TimelineItem } from '@/components/ui/timeline';
+import { ActivityTimeline } from '@/components/timeline/activity-timeline';
 import { parseClientObservaciones, serializeClientObservaciones, ClientContact } from '@/lib/client-contacts';
 import { StatusBadge, PriorityBadge } from '@/components/common/badges';
 import { Modal } from '@/components/ui/modal';
@@ -24,6 +24,10 @@ import { PageHeader } from '@/components/layout/page-header';
 import { CardSkeleton, TableSkeleton } from '@/components/common/skeletons';
 import { EmptyState } from '@/components/common/empty-state';
 import { Skeleton } from '@/components/common/skeleton';
+import { appStore } from '@/stores/app-store';
+import { FileUploader } from '@/modules/documents/components/file-uploader';
+import { FileList } from '@/modules/documents/components/file-list';
+import { useDocumentsState } from '@/modules/documents/hooks/use-documents-state';
 
 const contactSchema = z.object({
   nombre: z.string().min(1, 'Requerido'),
@@ -50,13 +54,12 @@ export default function Client360Page() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<ServiceOrder | null>(null);
-  const [documents, setDocuments] = useState<string[]>(['contrato-servicio.pdf', 'certificacion-seguridad.pdf', 'foto-equipo.jpg']);
-  const [documentName, setDocumentName] = useState('');
-  const [documentEvents, setDocumentEvents] = useState<ActivityEvent[]>([]);
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [orderSearch, setOrderSearch] = useState('');
   const [orderStatusFilter, setOrderStatusFilter] = useState('');
   const [equipmentSearch, setEquipmentSearch] = useState('');
+  const { docs, add: addDocument, remove: removeDocument } = useDocumentsState('client', id);
+  const toast = appStore((st) => st.pushToast);
 
   const contactForm = useForm<{ contacts: ContactForm[] }>({
     resolver: zodResolver(z.object({ contacts: z.array(contactSchema).min(1) })),
@@ -111,9 +114,9 @@ export default function Client360Page() {
     `contactos (${contacts.length})`,
     `órdenes (${orders.length})`,
     `equipos (${equipments.length})`,
-    `documentos (${documents.length})`,
-    `actividad (${orders.length + equipments.length + documentEvents.length + 1})`
-  ], [contacts.length, documents.length, documentEvents.length, equipments.length, orders.length]);
+    `documentos (${docs.length})`,
+    `actividad (${orders.length + equipments.length + docs.length + 1})`
+  ], [contacts.length, docs.length, equipments.length, orders.length]);
 
   const selectedTab = tab;
   const tabValue = useMemo(() => tabItems.find((item) => item.startsWith(tab)) ?? tabItems[0], [tab, tabItems]);
@@ -202,11 +205,11 @@ export default function Client360Page() {
         subtitle: e.numero_serie,
         time: new Date().toISOString()
       })),
-      ...documentEvents
+      ...docs.map((d) => ({ id: `document-${d.id}`, title: `Documento agregado · ${d.name}`, subtitle: d.category, time: d.createdAt }))
     ];
 
     return baseEvents.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
-  }, [client?.fecha_vencimiento_documentacion, client?.id, client?.nombre_empresa, documentEvents, equipments, orders]);
+  }, [client?.fecha_vencimiento_documentacion, client?.id, client?.nombre_empresa, docs, equipments, orders]);
 
   if (loading) {
     return (
@@ -360,7 +363,7 @@ export default function Client360Page() {
           {filteredEquipments.length === 0 ? <EmptyState variant="equipments" title="Sin equipos" subtitle="Este cliente todavía no tiene equipos instalados." /> : (
             <Table>
               <thead><tr><th>Tipo</th><th>Modelo</th><th>Número serie</th><th>Ubicación</th><th>Estado</th></tr></thead>
-              <tbody>{filteredEquipments.map((e) => <tr key={e.id}><td>{e.tipo_equipo}</td><td>{e.modelo ?? '-'}</td><td className="mono">{e.numero_serie}</td><td>{e.client_id}</td><td>{e.estado_actual}</td></tr>)}</tbody>
+              <tbody>{filteredEquipments.map((e) => <tr key={e.id} className="cursor-pointer" onClick={() => router.push(`/equipments/${e.id}`)}><td><span className="text-blue-300 hover:underline">{e.tipo_equipo}</span></td><td>{e.modelo ?? '-'}</td><td className="mono">{e.numero_serie}</td><td>{e.client_id}</td><td>{e.estado_actual}</td></tr>)}</tbody>
             </Table>
           )}
         </Card>
@@ -369,29 +372,13 @@ export default function Client360Page() {
       {selectedTab === 'documentos' ? (
         <Card>
           <h2 className="text-lg font-medium">Documentos</h2>
-          <div className="my-3 flex items-center gap-2">
-            <Input placeholder="Nombre del documento" value={documentName} onChange={(e) => setDocumentName(e.target.value)} className="max-w-sm" />
-            <Button onClick={() => {
-              if (!documentName.trim()) return;
-              setDocuments((prev) => [documentName.trim(), ...prev]);
-              setDocumentEvents((prev) => [{ id: crypto.randomUUID(), title: `Documento agregado · ${documentName.trim()}`, subtitle: 'Archivo cliente', time: new Date().toISOString() }, ...prev]);
-              setDocumentName('');
-            }}>Agregar documento</Button>
-          </div>
-          {documents.length === 0 ? <EmptyState variant="default" title="Sin documentos" subtitle="Subí archivos para centralizar la documentación del cliente." /> : (
-            <div className="space-y-2">
-              {documents.map((doc) => (
-                <div key={doc} className="flex items-center justify-between rounded-[10px] border border-[var(--border)] p-3 text-sm transition-colors duration-150 hover:bg-[var(--bg-surface-hover)]">
-                  <p className="flex items-center gap-2"><FileText size={16} /> {doc}</p>
-                  <div className="flex gap-2">
-                    <Button variant="secondary" onClick={() => {}}>Descargar</Button>
-                    <Button variant="danger" onClick={() => {
-                      setDocuments((prev) => prev.filter((d) => d !== doc));
-                      setDocumentEvents((prev) => [{ id: crypto.randomUUID(), title: `Documento eliminado · ${doc}`, subtitle: 'Archivo cliente', time: new Date().toISOString() }, ...prev]);
-                    }}>Eliminar</Button>
-                  </div>
-                </div>
-              ))}
+          <div className="my-3"><FileUploader onAdd={(name, category) => { const result = addDocument(name, category); if (result.ok) toast({ type: 'success', message: 'Documento agregado al cliente' }); else if (result.reason === 'duplicate') toast({ type: 'info', message: 'Ese documento ya existe para este cliente' }); else toast({ type: 'error', message: 'Nombre de documento inválido' }); }} /></div>
+          {docs.length === 0 ? <EmptyState variant="default" title="Sin documentos" subtitle="Subí archivos para centralizar la documentación del cliente." /> : (
+            <div className="space-y-3">
+              <FileList docs={docs.filter((d) => d.category === 'contract')} onRemove={(docId) => { const result = removeDocument(docId); if (result.ok) toast({ type: 'info', message: 'Documento eliminado' }); else toast({ type: 'error', message: 'No se pudo eliminar el documento' }); }} title="Contratos" hideWhenEmpty />
+              <FileList docs={docs.filter((d) => d.category === 'report')} onRemove={(docId) => { const result = removeDocument(docId); if (result.ok) toast({ type: 'info', message: 'Documento eliminado' }); else toast({ type: 'error', message: 'No se pudo eliminar el documento' }); }} title="Reportes" hideWhenEmpty />
+              <FileList docs={docs.filter((d) => d.category === 'photo')} onRemove={(docId) => { const result = removeDocument(docId); if (result.ok) toast({ type: 'info', message: 'Documento eliminado' }); else toast({ type: 'error', message: 'No se pudo eliminar el documento' }); }} title="Fotos" hideWhenEmpty />
+              <FileList docs={docs.filter((d) => d.category === 'other')} onRemove={(docId) => { const result = removeDocument(docId); if (result.ok) toast({ type: 'info', message: 'Documento eliminado' }); else toast({ type: 'error', message: 'No se pudo eliminar el documento' }); }} title="Otros" hideWhenEmpty />
             </div>
           )}
         </Card>
@@ -401,15 +388,7 @@ export default function Client360Page() {
         <Card>
           <h2 className="text-lg font-medium">Actividad</h2>
           {activityEvents.length === 0 ? <EmptyState variant="default" title="Sin actividad" subtitle="No hay eventos registrados para este cliente todavía." /> : (
-            <Timeline>
-              {activityEvents.map((event) => (
-                <TimelineItem
-                  key={event.id}
-                  title={event.title}
-                  subtitle={<span>{event.subtitle} • <RelativeTime value={event.time} /></span>}
-                />
-              ))}
-            </Timeline>
+<ActivityTimeline events={activityEvents.map((event) => ({ id: event.id, actor: 'Sistema', action: event.title, entity: event.subtitle, at: event.time }))} />
           )}
         </Card>
       ) : null}
