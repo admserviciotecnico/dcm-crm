@@ -1,0 +1,11 @@
+# Node.js dependencies and build outputs
+**/node_modules/
+**/.next/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Environment files
+*.env
+*.env.local

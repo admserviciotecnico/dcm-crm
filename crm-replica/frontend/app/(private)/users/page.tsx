@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { UsersApi } from '@/lib/api/endpoints';
+import { getErrorMessage } from '@/lib/api/error-message';
 import { User } from '@/types/domain';
 import { authStore } from '@/stores/auth-store';
 import { Badge } from '@/components/ui/badge';
@@ -88,7 +89,7 @@ export default function UsersPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between"><h1 className="text-2xl font-semibold tracking-tight">Usuarios</h1><Button onClick={() => setOpen(true)}>+ Nuevo Usuario</Button></div>
       <Table>
-        <thead><tr><th className="p-2">Nombre completo</th><th className="p-2">Email</th><th className="p-2">Rol</th><th className="p-2">Estado</th><th className="p-2" /></tr></thead>
+        <thead><tr><th className="p-2">Nombre completo</th><th className="p-2">Email</th><th className="p-2">Rol</th><th className="p-2">Estado</th><th className="p-2 text-right">Acciones</th></tr></thead>
         <tbody>
           {users.map((u) => <tr key={u.id} className="border-t border-slate-700"><td className="p-2">{u.first_name} {u.last_name}</td><td className="p-2">{u.email}</td><td className="p-2"><div className="flex items-center gap-2"><Badge className={u.role === 'admin' ? 'border-blue-500 text-blue-300' : 'border-amber-500 text-amber-300'}>{u.role}</Badge>{u.id !== me?.id ? <Select value={u.role} disabled={updatingUserId === u.id} onChange={(event) => void updateRole(u, event.target.value as 'admin' | 'tecnico')} className="max-w-36"><option value="admin">admin</option><option value="tecnico">tecnico</option></Select> : <span className="text-xs text-slate-400">Usuario actual</span>}</div></td><td className="p-2">{u.active === false ? 'Inactivo' : 'Activo'}</td><td className="p-2"><Button disabled={updatingUserId === u.id || u.id === me?.id} variant="secondary" onClick={() => void toggleActive(u)}>{u.active === false ? 'Activar' : 'Desactivar'}</Button></td></tr>)}
         </tbody>
