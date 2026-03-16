@@ -32,6 +32,8 @@ export const equipmentCreateSchema = z.object({
   modelo: z.string().optional(),
   numero_serie: z.string().min(1),
   ubicacion_planta: z.string().optional(),
+  observaciones: z.string().optional(),
+  fecha_instalacion: z.coerce.date().optional(),
   estado_actual: z.enum(['operativo', 'mantenimiento', 'fuera_servicio', 'en_revision']).optional(),
   is_active: z.boolean().optional()
 }).strict();
@@ -73,4 +75,20 @@ export const orderPatchSchema = z.object({
 
 export const techniciansUpdateSchema = z.object({
   technicians: z.array(z.string()).default([])
+}).strict();
+
+const documentEntityTypeSchema = z.enum(['order', 'client', 'equipment']);
+const documentCategorySchema = z.enum(['contract', 'report', 'photo', 'other']);
+
+export const documentListSchema = z.object({
+  entityType: documentEntityTypeSchema,
+  entityId: z.string().min(1)
+}).strict();
+
+export const documentCreateSchema = z.object({
+  entity_type: documentEntityTypeSchema,
+  entity_id: z.string().min(1),
+  file_name: z.string().min(1).max(120),
+  file_category: documentCategorySchema.default('other'),
+  file_path: z.string().max(500).optional()
 }).strict();

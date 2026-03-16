@@ -42,6 +42,8 @@ export interface Equipment {
   tipo_equipo: string;
   modelo?: string;
   numero_serie: string;
+  ubicacion_planta?: string;
+  fecha_instalacion?: string;
   estado_actual: EquipmentStatus | string;
   observaciones?: string;
   created_at?: string;
