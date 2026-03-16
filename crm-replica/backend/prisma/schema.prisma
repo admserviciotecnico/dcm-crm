@@ -38,6 +38,36 @@ enum EquipmentStatus {
   en_revision
 }
 
+enum DocumentEntityType {
+  order
+  client
+  equipment
+}
+
+enum DocumentCategory {
+  contract
+  report
+  photo
+  other
+}
+
+enum EventEntityType {
+  order
+  client
+  equipment
+  document
+  system
+}
+
+enum EventType {
+  created
+  updated
+  deleted
+  status_changed
+  document_added
+  document_removed
+}
+
 model Role {
   id    String   @id @default(cuid())
   name  UserRole @unique
@@ -88,6 +118,8 @@ model Equipment {
   modelo           String?
   numero_serie     String          @unique
   ubicacion_planta String?
+  observaciones    String?
+  fecha_instalacion DateTime?
   estado_actual    EquipmentStatus @default(operativo)
   is_active        Boolean         @default(true)
   deleted_at       DateTime?
@@ -181,4 +213,31 @@ model Attachment {
   service_order    ServiceOrder @relation(fields: [service_order_id], references: [id], onDelete: Cascade)
 
   @@index([service_order_id])
+}
+
+model Document {
+  id          String             @id @default(cuid())
+  entity_type DocumentEntityType
+  entity_id   String
+  file_name   String
+  file_category DocumentCategory @default(other)
+  file_path   String?
+  created_at  DateTime           @default(now())
+  updated_at  DateTime           @updatedAt
+
+  @@index([entity_type, entity_id, created_at])
+  @@index([created_at])
+}
+
+model EventLog {
+  id            String          @id @default(cuid())
+  entity_type   EventEntityType
+  entity_id     String?
+  event_type    EventType
+  message       String
+  actor_user_id String?
+  created_at    DateTime        @default(now())
+
+  @@index([entity_type, entity_id, created_at])
+  @@index([created_at])
 }
