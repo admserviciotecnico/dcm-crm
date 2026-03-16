@@ -226,6 +226,7 @@ model Document {
   updated_at  DateTime           @updatedAt
 
   @@index([entity_type, entity_id, created_at])
+  @@index([created_at])
 }
 
 model EventLog {
@@ -237,6 +238,6 @@ model EventLog {
   actor_user_id String?
   created_at    DateTime        @default(now())
 
-  @@index([entity_type, entity_id])
+  @@index([entity_type, entity_id, created_at])
   @@index([created_at])
 }

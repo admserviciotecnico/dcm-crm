@@ -13,6 +13,8 @@ import dashboardRoutes from './routes/dashboard.js';
 import documentsRoutes from './routes/documents.js';
 import eventsRoutes from './routes/events.js';
 import { sanitizeBody } from './middleware/sanitize.js';
+import { errorHandler, notFoundHandler } from './middleware/error-handler.js';
+import { rateLimit } from './middleware/rate-limit.js';
 
 const app = express();
 const server = createServer(app);
@@ -28,7 +30,7 @@ app.use(sanitizeBody);
 app.use(morgan('dev'));
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', rateLimit({ windowMs: 60_000, max: 30 }), authRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/clients', clientsRoutes);
 app.use('/api/equipments', equipmentsRoutes);
@@ -36,6 +38,8 @@ app.use('/api/orders', ordersRouter(io));
 app.use('/api/documents', documentsRoutes);
 app.use('/api/events', eventsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 server.listen(env.port, () => {
   // eslint-disable-next-line no-console

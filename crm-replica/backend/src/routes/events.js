@@ -1,30 +1,47 @@
 import { Router } from 'express';
 import { prisma } from '../config/prisma.js';
 import { authRequired } from '../middleware/auth.js';
+import { validateQuery } from '../middleware/validation.js';
 import { eventsListSchema } from '../services/schemas.js';
+import { asyncHandler, sendError } from '../utils/http.js';
 
 const router = Router();
 router.use(authRequired);
 
-router.get('/', async (req, res) => {
-  const parsed = eventsListSchema.safeParse(req.query);
-  if (!parsed.success) {
-    return res.status(400).json({ message: 'Invalid events query' });
+router.get('/', validateQuery(eventsListSchema), asyncHandler(async (req, res) => {
+  const { entityType, entityId, limit, offset, cursor } = req.validatedQuery;
+
+  if (cursor && offset !== undefined) {
+    return sendError(res, 400, 'Use either cursor or offset pagination, not both');
   }
 
-  const { entityType, entityId, limit = 100 } = parsed.data;
   const where = {
     ...(entityType ? { entity_type: entityType } : {}),
     ...(entityId ? { entity_id: entityId } : {})
   };
 
-  const items = await prisma.eventLog.findMany({
+  const query = {
     where,
-    orderBy: { created_at: 'desc' },
-    take: limit
-  });
+    orderBy: [{ created_at: 'desc' }, { id: 'desc' }],
+    take: limit + 1,
+    ...(offset !== undefined ? { skip: offset } : {}),
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {})
+  };
 
-  return res.json(items);
-});
+  const rows = await prisma.eventLog.findMany(query);
+  const hasMore = rows.length > limit;
+  const items = hasMore ? rows.slice(0, limit) : rows;
+  const nextCursor = hasMore ? items[items.length - 1].id : null;
+
+  return res.json({
+    items,
+    page: {
+      limit,
+      offset: offset ?? null,
+      nextCursor,
+      hasMore
+    }
+  });
+}));
 
 export default router;

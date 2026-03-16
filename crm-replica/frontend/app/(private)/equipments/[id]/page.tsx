@@ -5,7 +5,6 @@ import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { ClientsApi, EquipmentsApi, EventsApi, OrdersApi, UsersApi } from '@/lib/api/endpoints';
 import { Client, Equipment, EventLog, ServiceOrder, User } from '@/types/domain';
-import { EquipmentMeta, getEquipmentMeta } from '@/lib/equipment-meta';
 import { appStore } from '@/stores/app-store';
 import { Tabs } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
@@ -22,7 +21,7 @@ import { ActivityTimeline } from '@/components/timeline/activity-timeline';
 import { OrderDetail } from '@/components/orders/order-detail';
 import { FileUploader } from '@/modules/documents/components/file-uploader';
 import { FileList } from '@/modules/documents/components/file-list';
-import { useDocumentsState, readDocumentEvents } from '@/modules/documents/hooks/use-documents-state';
+import { useDocumentsState } from '@/modules/documents/hooks/use-documents-state';
 import { PriorityBadge, StatusBadge } from '@/components/common/badges';
 
 type TabKey = 'resumen' | 'historial' | 'órdenes' | 'documentos' | 'actividad';
@@ -59,13 +58,8 @@ export default function Equipment360Page() {
   const [selectedOrder, setSelectedOrder] = useState<ServiceOrder | null>(null);
   const [search, setSearch] = useState('');
   const [backendEvents, setBackendEvents] = useState<EventLog[]>([]);
-  const [legacyMeta, setLegacyMeta] = useState<EquipmentMeta>({});
 
   const { docs, add, remove } = useDocumentsState('equipment', id);
-
-  useEffect(() => {
-    setLegacyMeta(getEquipmentMeta(id));
-  }, [id]);
 
   const load = async () => {
     setLoading(true);
@@ -123,65 +117,6 @@ export default function Equipment360Page() {
     return user ? `${user.first_name} ${user.last_name}` : t.technician_id;
   });
 
-  const historyEvents = useMemo(() => {
-    const base = [
-      {
-        id: `equipment-${id}`,
-        actor: 'Sistema',
-        action: 'registró equipo',
-        entity: `${equipment?.tipo_equipo ?? 'Equipo'} · ${equipment?.numero_serie ?? ''}`,
-        at: equipment?.created_at ?? new Date().toISOString(),
-        href: equipment ? `/equipments/${equipment.id}` : undefined
-      },
-      {
-        id: `equipment-status-${id}-${normalizeStatus(equipment?.estado_actual)}`,
-        actor: 'Sistema',
-        action: 'actualizó estado de equipo',
-        entity: normalizeStatus(equipment?.estado_actual).replace('_', ' '),
-        at: equipment?.created_at ?? new Date().toISOString(),
-        href: equipment ? `/equipments/${equipment.id}` : undefined
-      }
-    ];
-
-    const orderEvents = orders.flatMap((o) => ([
-      {
-        id: `order-created-${o.id}`,
-        actor: 'Sistema',
-        action: 'asoció orden',
-        entity: `#${o.id.slice(0, 8)}`,
-        at: o.fecha_programada ?? new Date().toISOString(),
-        href: `/orders/${o.id}`
-      },
-      ...(o.estado === 'completado' ? [{
-        id: `order-completed-${o.id}`,
-        actor: 'Sistema',
-        action: 'completó orden',
-        entity: `#${o.id.slice(0, 8)}`,
-        at: o.fecha_programada ?? new Date().toISOString(),
-        href: `/orders/${o.id}`
-      }] : [])
-    ]));
-
-    const docEvents = readDocumentEvents()
-      .filter((e) => e.entityType === 'equipment' && e.entityId === id)
-      .map((e) => ({
-        id: `doc-${e.id}`,
-        actor: 'Sistema',
-        action: e.action === 'added' ? 'agregó documento' : 'eliminó documento',
-        entity: e.documentName,
-        at: e.createdAt,
-        href: `/equipments/${id}`
-      }));
-
-    const deduped = [...base, ...orderEvents, ...docEvents].reduce<Record<string, (typeof base)[number]>>((acc, event) => {
-      acc[event.id] = event;
-      return acc;
-    }, {});
-
-    return Object.values(deduped).sort((a, b) => (parseDateValue(b.at) ?? 0) - (parseDateValue(a.at) ?? 0));
-  }, [equipment, id, orders, docs.length]);
-
-
   const backendTimelineEvents = useMemo(() => backendEvents.map((event) => ({
     id: event.id,
     actor: event.actor_user_id ?? 'Sistema',
@@ -198,11 +133,11 @@ export default function Equipment360Page() {
   if (!equipment) return <EmptyState variant="equipments" title="Equipo no encontrado" subtitle="No se encontró el activo solicitado." />;
 
   const normalizedStatus = normalizeStatus(equipment.estado_actual);
-  const location = equipment.ubicacion_planta ?? legacyMeta.location;
+  const location = equipment.ubicacion_planta;
   const installedAt = equipment.fecha_instalacion
     ? new Date(equipment.fecha_instalacion).toLocaleDateString()
-    : legacyMeta.installedAt;
-  const technicalNotes = equipment.observaciones ?? legacyMeta.notes;
+    : undefined;
+  const technicalNotes = equipment.observaciones;
 
   return (
     <div className="space-y-4">
@@ -270,7 +205,7 @@ export default function Equipment360Page() {
       {tab === 'historial' ? (
         <Card>
           <h2 className="mb-3 text-lg font-medium">Historial técnico</h2>
-          <ActivityTimeline events={backendTimelineEvents.length > 0 ? backendTimelineEvents : historyEvents} />
+          {backendTimelineEvents.length === 0 ? <EmptyState variant="default" title="Sin actividad" subtitle="No hay eventos registrados para este equipo todavía." /> : <ActivityTimeline events={backendTimelineEvents} />}
         </Card>
       ) : null}
 
@@ -316,7 +251,7 @@ export default function Equipment360Page() {
       {tab === 'actividad' ? (
         <Card>
           <h2 className="mb-3 text-lg font-medium">Actividad</h2>
-          <ActivityTimeline events={backendTimelineEvents.length > 0 ? backendTimelineEvents : historyEvents} />
+          {backendTimelineEvents.length === 0 ? <EmptyState variant="default" title="Sin actividad" subtitle="No hay eventos registrados para este equipo todavía." /> : <ActivityTimeline events={backendTimelineEvents} />}
         </Card>
       ) : null}
 

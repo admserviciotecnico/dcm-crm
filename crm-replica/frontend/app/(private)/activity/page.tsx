@@ -1,13 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ClientsApi, EquipmentsApi, EventsApi, OrdersApi } from '@/lib/api/endpoints';
+import { EventsApi } from '@/lib/api/endpoints';
 import { Card } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';
 import { PageHeader } from '@/components/layout/page-header';
 import { ActivityTimeline } from '@/components/timeline/activity-timeline';
 import { TableSkeleton } from '@/components/common/skeletons';
-import { readDocumentEvents } from '@/modules/documents/hooks/use-documents-state';
 import { TimelineEvent } from '@/components/timeline/timeline-event';
 import { EventLog } from '@/types/domain';
 
@@ -45,65 +44,8 @@ export default function ActivityPage() {
     const run = async () => {
       setLoading(true);
       try {
-        try {
-          const backendEvents = await EventsApi.list({ limit: 300 });
-          setEvents(backendEvents.map(mapEventLog));
-          return;
-        } catch {
-          // Fallback legacy derivado
-        }
-
-        const [ordersRes, clients, equipments] = await Promise.all([
-          OrdersApi.list({ page: 1, pageSize: 300 }),
-          ClientsApi.list(),
-          EquipmentsApi.list()
-        ]);
-
-        const orderEvents: FeedEvent[] = ordersRes.items.flatMap((o) => {
-          const baseAt = o.fecha_programada ?? new Date().toISOString();
-          return [
-            { id: `order-created-${o.id}`, type: 'order', actor: 'Sistema', action: 'creó orden', entity: `#${o.id.slice(0, 8)} · ${o.client?.nombre_empresa ?? o.client_id}`, at: baseAt, href: `/orders/${o.id}` },
-            { id: `order-updated-${o.id}`, type: 'order', actor: 'Sistema', action: 'actualizó orden', entity: `#${o.id.slice(0, 8)} · ${o.estado}`, at: baseAt, href: `/orders/${o.id}` },
-            ...(o.estado === 'completado' ? [{ id: `order-completed-${o.id}`, type: 'order' as const, actor: 'Sistema', action: 'completó orden', entity: `#${o.id.slice(0, 8)}`, at: baseAt, href: `/orders/${o.id}` }] : [])
-          ];
-        });
-
-        const clientEvents: FeedEvent[] = clients.map((c) => ({
-          id: `client-created-${c.id}`,
-          type: 'client',
-          actor: 'Sistema',
-          action: 'registró cliente',
-          entity: c.nombre_empresa,
-          at: c.fecha_vencimiento_documentacion ?? new Date().toISOString(),
-          href: `/clients/${c.id}`
-        }));
-
-        const equipmentEvents: FeedEvent[] = equipments.map((e) => ({
-          id: `equipment-created-${e.id}`,
-          type: 'equipment',
-          actor: 'Sistema',
-          action: 'registró equipo',
-          entity: `${e.tipo_equipo} · ${e.numero_serie}`,
-          at: new Date().toISOString(),
-          href: `/equipments/${e.id}`
-        }));
-
-        const documentEvents: FeedEvent[] = readDocumentEvents().map((event) => ({
-          id: `document-${event.id}`,
-          type: 'document',
-          actor: 'Sistema',
-          action: event.action === 'added' ? 'agregó documento' : 'eliminó documento',
-          entity: `${event.documentName} (${event.entityType})`,
-          at: event.createdAt,
-          href: event.entityType === 'order' ? `/orders/${event.entityId}` : event.entityType === 'client' ? `/clients/${event.entityId}` : `/equipments/${event.entityId}`
-        }));
-
-        const deduped = [...orderEvents, ...clientEvents, ...equipmentEvents, ...documentEvents].reduce<Record<string, FeedEvent>>((acc, ev) => {
-          acc[ev.id] = ev;
-          return acc;
-        }, {});
-
-        setEvents(Object.values(deduped).sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()));
+        const backendEvents = await EventsApi.list({ limit: 300 });
+        setEvents(backendEvents.map(mapEventLog));
       } finally {
         setLoading(false);
       }

@@ -7,7 +7,6 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ClientsApi, EquipmentsApi, OrdersApi } from '@/lib/api/endpoints';
 import { Equipment, ServiceOrder } from '@/types/domain';
-import { getEquipmentMetaMap } from '@/lib/equipment-meta';
 import { appStore } from '@/stores/app-store';
 import { EmptyState } from '@/components/common/empty-state';
 import { ConfirmModal } from '@/components/common/confirm-modal';
@@ -63,7 +62,6 @@ export default function EquipmentsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [legacyMetaMap, setLegacyMetaMap] = useState<Record<string, { location?: string; installedAt?: string; notes?: string }>>({});
   const toast = appStore((s) => s.pushToast);
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<FormData>({
@@ -79,7 +77,6 @@ export default function EquipmentsPage() {
       setItems(eqs);
       setClients(cs.map((c) => ({ id: c.id, nombre_empresa: c.nombre_empresa })));
       setOrders(ordersRes.items);
-      setLegacyMetaMap(getEquipmentMetaMap());
     } finally {
       setLoading(false);
     }
@@ -92,11 +89,11 @@ export default function EquipmentsPage() {
   const filteredItems = useMemo(() => items.filter((eq) => {
     const clientName = clients.find((c) => c.id === eq.client_id)?.nombre_empresa ?? '';
     const status = normalizeStatus(eq.estado_actual);
-    const text = [eq.tipo_equipo, eq.modelo ?? '', eq.numero_serie, clientName, eq.ubicacion_planta ?? legacyMetaMap[eq.id]?.location ?? '', status].join(' ').toLowerCase();
+    const text = [eq.tipo_equipo, eq.modelo ?? '', eq.numero_serie, clientName, eq.ubicacion_planta ?? '', status].join(' ').toLowerCase();
     const searchOk = search.trim() ? text.includes(search.toLowerCase()) : true;
     const statusOk = statusFilter ? status === statusFilter : true;
     return searchOk && statusOk;
-  }), [items, clients, legacyMetaMap, search, statusFilter]);
+  }), [items, clients, search, statusFilter]);
 
   const onSubmit = async (data: FormData) => {
     try {
@@ -118,7 +115,7 @@ export default function EquipmentsPage() {
       await load();
 
       toast({ type: 'success', message: edit ? 'Equipo actualizado' : 'Equipo creado' });
-      setOpen(false); setClientOpen(false); setEdit(null); reset();
+      setOpen(false); setEdit(null); reset();
       await load();
     } catch (error) {
       toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo guardar el equipo') });
@@ -130,7 +127,7 @@ export default function EquipmentsPage() {
       <PageHeader
         title="Equipos instalados"
         description="Vista operativa de activos con estado, contexto de cliente y último servicio."
-        action={<Button onClick={() => { setEdit(null); reset({ estado_actual: 'operativo', modelo: '' }); setClientQuery(''); setOpen(true); }}>Nuevo equipo</Button>}
+        action={<Button onClick={() => { setEdit(null); reset({ estado_actual: 'operativo', modelo: '' }); setOpen(true); }}>Nuevo equipo</Button>}
       />
 
       <div className="flex flex-wrap gap-2">
@@ -163,11 +160,11 @@ export default function EquipmentsPage() {
                   <td className="p-2">{eq.modelo ?? '-'}</td>
                   <td className="mono p-2">{eq.numero_serie}</td>
                   <td className="p-2">{clients.find((c) => c.id === eq.client_id)?.nombre_empresa ?? eq.client_id}</td>
-                  <td className="p-2">{eq.ubicacion_planta ?? legacyMetaMap[eq.id]?.location ?? '-'}</td>
+                  <td className="p-2">{eq.ubicacion_planta ?? '-'}</td>
                   <td className="p-2"><Badge className={statusBadgeClass(status)}>{status.replace('_', ' ')}</Badge></td>
                   <td className="p-2">{openOrders}</td>
                   <td className="p-2">{latestService?.fecha_programada ? new Date(latestService.fecha_programada).toLocaleDateString() : '-'}</td>
-                  <td className="p-2"><div className="flex gap-2"><Button variant="ghost" onClick={() => { setEdit(eq); reset({ client_id: eq.client_id, tipo_equipo: eq.tipo_equipo, modelo: eq.modelo ?? '', numero_serie: eq.numero_serie, ubicacion: eq.ubicacion_planta ?? legacyMetaMap[eq.id]?.location ?? '', observaciones: eq.observaciones ?? legacyMetaMap[eq.id]?.notes ?? '', fecha_instalacion: eq.fecha_instalacion ? new Date(eq.fecha_instalacion).toISOString().slice(0, 10) : (legacyMetaMap[eq.id]?.installedAt ?? ''), estado_actual: normalizeStatus(eq.estado_actual) as FormData['estado_actual'] }); setOpen(true); }}>Editar</Button><Button variant="danger" onClick={() => setToDelete(eq)}>Eliminar</Button></div></td>
+                  <td className="p-2"><div className="flex gap-2"><Button variant="ghost" onClick={() => { setEdit(eq); reset({ client_id: eq.client_id, tipo_equipo: eq.tipo_equipo, modelo: eq.modelo ?? '', numero_serie: eq.numero_serie, ubicacion: eq.ubicacion_planta ?? '', observaciones: eq.observaciones ?? '', fecha_instalacion: eq.fecha_instalacion ? new Date(eq.fecha_instalacion).toISOString().slice(0, 10) : '', estado_actual: normalizeStatus(eq.estado_actual) as FormData['estado_actual'] }); setOpen(true); }}>Editar</Button><Button variant="danger" onClick={() => setToDelete(eq)}>Eliminar</Button></div></td>
                 </tr>
               );
             })}
@@ -175,9 +172,9 @@ export default function EquipmentsPage() {
         </Table>
       ) : null}
 
-      <Modal open={open} title={edit ? 'Editar equipo' : 'Nuevo equipo'} onClose={() => { setOpen(false); setClientOpen(false); }}>
+      <Modal open={open} title={edit ? 'Editar equipo' : 'Nuevo equipo'} onClose={() => setOpen(false)}>
         <form className="space-y-3" onSubmit={handleSubmit(onSubmit)}>
-          <div className="relative">
+          <div>
             <p className="mb-1 text-xs text-[var(--text-secondary)]">Cliente</p>
             <SearchableSelect
               options={clients.map((c) => ({ value: c.id, label: c.nombre_empresa }))}

@@ -82,7 +82,9 @@ const documentCategorySchema = z.enum(['contract', 'report', 'photo', 'other']);
 
 export const documentListSchema = z.object({
   entityType: documentEntityTypeSchema,
-  entityId: z.string().min(1)
+  entityId: z.string().min(1),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+  offset: z.coerce.number().int().min(0).optional()
 }).strict();
 
 export const documentCreateSchema = z.object({
@@ -96,5 +98,7 @@ export const documentCreateSchema = z.object({
 export const eventsListSchema = z.object({
   entityType: z.enum(['order', 'client', 'equipment', 'document', 'system']).optional(),
   entityId: z.string().min(1).optional(),
-  limit: z.coerce.number().int().min(1).max(200).optional()
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+  offset: z.coerce.number().int().min(0).optional(),
+  cursor: z.string().min(1).optional()
 }).strict();

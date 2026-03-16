@@ -2,6 +2,17 @@ import { api } from './client';
 import { Client, Equipment, EventEntityType, EventLog, OrderHistory, ServiceOrder, User } from '@/types/domain';
 import { DocumentCategory, DocumentEntityType } from '@/modules/documents/types';
 
+
+type PaginatedResponse<T> = {
+  items: T[];
+  page: {
+    limit: number;
+    offset: number | null;
+    hasMore: boolean;
+    nextCursor?: string | null;
+  };
+};
+
 type ApiDocument = {
   id: string;
   entity_type: DocumentEntityType;
@@ -29,7 +40,7 @@ export const OrdersApi = {
   remove: (id: string) => api.delete(`/api/orders/${id}`).then((r) => r.data),
   history: (id: string) => api.get<OrderHistory[]>(`/api/orders/${id}/history`).then((r) => r.data),
   create: (payload: Record<string, unknown>) => api.post('/api/orders', payload).then((r) => r.data),
-  assignTechnicians: (id: string, technicianIds: string[]) => api.put(`/api/orders/${id}/technicians`, { technician_ids: technicianIds }).then((r) => r.data)
+  assignTechnicians: (id: string, technicianIds: string[]) => api.put(`/api/orders/${id}/technicians`, { technicians: technicianIds }).then((r) => r.data)
 };
 
 export const ClientsApi = {
@@ -56,11 +67,11 @@ export const UsersApi = {
 };
 
 export const DocumentsApi = {
-  list: (entityType: DocumentEntityType, entityId: string) => api.get<ApiDocument[]>('/api/documents', { params: { entityType, entityId } }).then((r) => r.data),
+  list: (entityType: DocumentEntityType, entityId: string, params?: { limit?: number; offset?: number }) => api.get<PaginatedResponse<ApiDocument>>('/api/documents', { params: { entityType, entityId, ...params } }).then((r) => r.data.items),
   create: (payload: { entity_type: DocumentEntityType; entity_id: string; file_name: string; file_category: DocumentCategory; file_path?: string }) => api.post<ApiDocument>('/api/documents', payload).then((r) => r.data),
   remove: (id: string) => api.delete(`/api/documents/${id}`).then((r) => r.data)
 };
 
 export const EventsApi = {
-  list: (params?: { entityType?: EventEntityType; entityId?: string; limit?: number }) => api.get<EventLog[]>('/api/events', { params }).then((r) => r.data)
+  list: (params?: { entityType?: EventEntityType; entityId?: string; limit?: number; offset?: number; cursor?: string }) => api.get<PaginatedResponse<EventLog>>('/api/events', { params }).then((r) => r.data.items)
 };

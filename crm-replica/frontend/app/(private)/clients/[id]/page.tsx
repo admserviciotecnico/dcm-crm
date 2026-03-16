@@ -39,8 +39,6 @@ const contactSchema = z.object({
 
 type ContactForm = z.infer<typeof contactSchema>;
 
-type ActivityEvent = { id: string; title: string; subtitle: string; time: string };
-
 const emptyContact: ContactForm = { nombre: '', apellido: '', email: '', telefono: '', area: '' };
 
 export default function Client360Page() {
@@ -185,39 +183,6 @@ export default function Client360Page() {
     const user = users.find((u) => u.id === t.technician_id);
     return user ? `${user.first_name} ${user.last_name}` : t.technician_id;
   });
-
-  const activityEvents = useMemo<ActivityEvent[]>(() => {
-    const baseEvents: ActivityEvent[] = [
-      {
-        id: `client-${client?.id ?? 'unknown'}`,
-        title: 'Cliente creado',
-        subtitle: client?.nombre_empresa ?? 'Cliente',
-        time: client?.fecha_vencimiento_documentacion || new Date().toISOString()
-      },
-      ...orders.map((o) => ({
-        id: `order-created-${o.id}`,
-        title: `Orden #${o.id.slice(0, 8)} creada`,
-        subtitle: `Estado ${o.estado}`,
-        time: o.fecha_programada || new Date().toISOString()
-      })),
-      ...orders.filter((o) => o.estado === 'completado').map((o) => ({
-        id: `order-completed-${o.id}`,
-        title: `Orden #${o.id.slice(0, 8)} completada`,
-        subtitle: `Prioridad ${o.prioridad}`,
-        time: o.fecha_programada || new Date().toISOString()
-      })),
-      ...equipments.map((e) => ({
-        id: `equipment-${e.id}`,
-        title: `Equipo agregado · ${e.tipo_equipo}`,
-        subtitle: e.numero_serie,
-        time: new Date().toISOString()
-      })),
-      ...docs.map((d) => ({ id: `document-${d.id}`, title: `Documento agregado · ${d.name}`, subtitle: d.category, time: d.createdAt }))
-    ];
-
-    return baseEvents.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
-  }, [client?.fecha_vencimiento_documentacion, client?.id, client?.nombre_empresa, docs, equipments, orders]);
-
 
   const backendTimelineEvents = useMemo(() => backendActivityEvents.map((event) => ({
     id: event.id,
@@ -404,9 +369,7 @@ export default function Client360Page() {
       {selectedTab === 'actividad' ? (
         <Card>
           <h2 className="text-lg font-medium">Actividad</h2>
-          {(backendTimelineEvents.length > 0 ? backendTimelineEvents : activityEvents.map((event) => ({ id: event.id, actor: 'Sistema', action: event.title, entity: event.subtitle, at: event.time }))).length === 0 ? <EmptyState variant="default" title="Sin actividad" subtitle="No hay eventos registrados para este cliente todavía." /> : (
-            <ActivityTimeline events={backendTimelineEvents.length > 0 ? backendTimelineEvents : activityEvents.map((event) => ({ id: event.id, actor: 'Sistema', action: event.title, entity: event.subtitle, at: event.time }))} />
-          )}
+          {backendTimelineEvents.length === 0 ? <EmptyState variant="default" title="Sin actividad" subtitle="No hay eventos registrados para este cliente todavía." /> : <ActivityTimeline events={backendTimelineEvents} />}
         </Card>
       ) : null}
 
