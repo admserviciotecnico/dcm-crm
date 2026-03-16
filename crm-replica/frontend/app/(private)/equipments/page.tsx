@@ -118,7 +118,7 @@ export default function EquipmentsPage() {
       await load();
 
       toast({ type: 'success', message: edit ? 'Equipo actualizado' : 'Equipo creado' });
-      setOpen(false); setEdit(null); reset();
+      setOpen(false); setClientOpen(false); setEdit(null); reset();
       await load();
     } catch (error) {
       toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo guardar el equipo') });
@@ -130,7 +130,7 @@ export default function EquipmentsPage() {
       <PageHeader
         title="Equipos instalados"
         description="Vista operativa de activos con estado, contexto de cliente y último servicio."
-        action={<Button onClick={() => { setEdit(null); reset({ estado_actual: 'operativo', modelo: '' }); setOpen(true); }}>Nuevo equipo</Button>}
+        action={<Button onClick={() => { setEdit(null); reset({ estado_actual: 'operativo', modelo: '' }); setClientQuery(''); setOpen(true); }}>Nuevo equipo</Button>}
       />
 
       <div className="flex flex-wrap gap-2">
@@ -175,9 +175,9 @@ export default function EquipmentsPage() {
         </Table>
       ) : null}
 
-      <Modal open={open} title={edit ? 'Editar equipo' : 'Nuevo equipo'} onClose={() => setOpen(false)}>
+      <Modal open={open} title={edit ? 'Editar equipo' : 'Nuevo equipo'} onClose={() => { setOpen(false); setClientOpen(false); }}>
         <form className="space-y-3" onSubmit={handleSubmit(onSubmit)}>
-          <div>
+          <div className="relative">
             <p className="mb-1 text-xs text-[var(--text-secondary)]">Cliente</p>
             <SearchableSelect
               options={clients.map((c) => ({ value: c.id, label: c.nombre_empresa }))}
