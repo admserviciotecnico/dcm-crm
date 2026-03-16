@@ -3,8 +3,8 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { Plus, Trash2, UserRound } from 'lucide-react';
-import { ClientsApi, EquipmentsApi, OrdersApi, UsersApi } from '@/lib/api/endpoints';
-import { Client, Equipment, ServiceOrder, User } from '@/types/domain';
+import { ClientsApi, EquipmentsApi, EventsApi, OrdersApi, UsersApi } from '@/lib/api/endpoints';
+import { Client, Equipment, EventLog, ServiceOrder, User } from '@/types/domain';
 import { Tabs } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
 import { Table } from '@/components/ui/table';
@@ -58,6 +58,7 @@ export default function Client360Page() {
   const [orderSearch, setOrderSearch] = useState('');
   const [orderStatusFilter, setOrderStatusFilter] = useState('');
   const [equipmentSearch, setEquipmentSearch] = useState('');
+  const [backendActivityEvents, setBackendActivityEvents] = useState<EventLog[]>([]);
   const { docs, add: addDocument, remove: removeDocument } = useDocumentsState('client', id);
   const toast = appStore((st) => st.pushToast);
 
@@ -85,6 +86,12 @@ export default function Client360Page() {
       setEquipments(equipmentsRes.filter((e) => e.client_id === id));
       setOrders(ordersRes.items.filter((o) => o.client_id === id));
       setUsers(usersRes);
+      try {
+        const backendEvents = await EventsApi.list({ entityType: 'client', entityId: id, limit: 200 });
+        setBackendActivityEvents(backendEvents);
+      } catch {
+        setBackendActivityEvents([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -210,6 +217,16 @@ export default function Client360Page() {
 
     return baseEvents.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
   }, [client?.fecha_vencimiento_documentacion, client?.id, client?.nombre_empresa, docs, equipments, orders]);
+
+
+  const backendTimelineEvents = useMemo(() => backendActivityEvents.map((event) => ({
+    id: event.id,
+    actor: event.actor_user_id ?? 'Sistema',
+    action: event.event_type.replace('_', ' '),
+    entity: event.message,
+    at: event.created_at,
+    href: event.entity_type === 'order' && event.entity_id ? `/orders/${event.entity_id}` : event.entity_type === 'equipment' && event.entity_id ? `/equipments/${event.entity_id}` : event.entity_type === 'client' && event.entity_id ? `/clients/${event.entity_id}` : undefined
+  })), [backendActivityEvents]);
 
   if (loading) {
     return (
@@ -387,8 +404,8 @@ export default function Client360Page() {
       {selectedTab === 'actividad' ? (
         <Card>
           <h2 className="text-lg font-medium">Actividad</h2>
-          {activityEvents.length === 0 ? <EmptyState variant="default" title="Sin actividad" subtitle="No hay eventos registrados para este cliente todavía." /> : (
-<ActivityTimeline events={activityEvents.map((event) => ({ id: event.id, actor: 'Sistema', action: event.title, entity: event.subtitle, at: event.time }))} />
+          {(backendTimelineEvents.length > 0 ? backendTimelineEvents : activityEvents.map((event) => ({ id: event.id, actor: 'Sistema', action: event.title, entity: event.subtitle, at: event.time }))).length === 0 ? <EmptyState variant="default" title="Sin actividad" subtitle="No hay eventos registrados para este cliente todavía." /> : (
+            <ActivityTimeline events={backendTimelineEvents.length > 0 ? backendTimelineEvents : activityEvents.map((event) => ({ id: event.id, actor: 'Sistema', action: event.title, entity: event.subtitle, at: event.time }))} />
           )}
         </Card>
       ) : null}

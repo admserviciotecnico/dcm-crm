@@ -1,5 +1,5 @@
 import { api } from './client';
-import { Client, Equipment, OrderHistory, ServiceOrder, User } from '@/types/domain';
+import { Client, Equipment, EventEntityType, EventLog, OrderHistory, ServiceOrder, User } from '@/types/domain';
 import { DocumentCategory, DocumentEntityType } from '@/modules/documents/types';
 
 type ApiDocument = {
@@ -59,4 +59,8 @@ export const DocumentsApi = {
   list: (entityType: DocumentEntityType, entityId: string) => api.get<ApiDocument[]>('/api/documents', { params: { entityType, entityId } }).then((r) => r.data),
   create: (payload: { entity_type: DocumentEntityType; entity_id: string; file_name: string; file_category: DocumentCategory; file_path?: string }) => api.post<ApiDocument>('/api/documents', payload).then((r) => r.data),
   remove: (id: string) => api.delete(`/api/documents/${id}`).then((r) => r.data)
+};
+
+export const EventsApi = {
+  list: (params?: { entityType?: EventEntityType; entityId?: string; limit?: number }) => api.get<EventLog[]>('/api/events', { params }).then((r) => r.data)
 };

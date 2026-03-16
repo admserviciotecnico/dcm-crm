@@ -98,18 +98,6 @@ export default function EquipmentsPage() {
     return searchOk && statusOk;
   }), [items, clients, legacyMetaMap, search, statusFilter]);
 
-
-  const filteredClients = useMemo(() => {
-    const q = clientQuery.trim().toLowerCase();
-    if (!q) return clients;
-    return clients.filter((c) => c.nombre_empresa.toLowerCase().includes(q));
-  }, [clientQuery, clients]);
-
-  useEffect(() => {
-    const current = clients.find((c) => c.id === selectedClientId);
-    if (current) setClientQuery(current.nombre_empresa);
-  }, [clients, selectedClientId]);
-
   const onSubmit = async (data: FormData) => {
     try {
       const payload = {

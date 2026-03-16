@@ -3,8 +3,8 @@
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
-import { ClientsApi, EquipmentsApi, OrdersApi, UsersApi } from '@/lib/api/endpoints';
-import { Client, Equipment, ServiceOrder, User } from '@/types/domain';
+import { ClientsApi, EquipmentsApi, EventsApi, OrdersApi, UsersApi } from '@/lib/api/endpoints';
+import { Client, Equipment, EventLog, ServiceOrder, User } from '@/types/domain';
 import { EquipmentMeta, getEquipmentMeta } from '@/lib/equipment-meta';
 import { appStore } from '@/stores/app-store';
 import { Tabs } from '@/components/ui/tabs';
@@ -58,6 +58,7 @@ export default function Equipment360Page() {
   const [users, setUsers] = useState<User[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<ServiceOrder | null>(null);
   const [search, setSearch] = useState('');
+  const [backendEvents, setBackendEvents] = useState<EventLog[]>([]);
   const [legacyMeta, setLegacyMeta] = useState<EquipmentMeta>({});
 
   const { docs, add, remove } = useDocumentsState('equipment', id);
@@ -81,6 +82,12 @@ export default function Equipment360Page() {
       const related = eq ? ordersRes.items.filter((o) => (o.observaciones ?? '').includes(eq.id) || (o.observaciones ?? '').toLowerCase().includes(eq.numero_serie.toLowerCase())) : [];
       setOrders(related.sort((a, b) => (parseDateValue(b.fecha_programada) ?? 0) - (parseDateValue(a.fecha_programada) ?? 0)));
       setUsers(usersRes);
+      try {
+        const ev = await EventsApi.list({ entityType: 'equipment', entityId: id, limit: 200 });
+        setBackendEvents(ev);
+      } catch {
+        setBackendEvents([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -174,6 +181,16 @@ export default function Equipment360Page() {
     return Object.values(deduped).sort((a, b) => (parseDateValue(b.at) ?? 0) - (parseDateValue(a.at) ?? 0));
   }, [equipment, id, orders, docs.length]);
 
+
+  const backendTimelineEvents = useMemo(() => backendEvents.map((event) => ({
+    id: event.id,
+    actor: event.actor_user_id ?? 'Sistema',
+    action: event.event_type.replace('_', ' '),
+    entity: event.message,
+    at: event.created_at,
+    href: event.entity_type === 'order' && event.entity_id ? `/orders/${event.entity_id}` : event.entity_type === 'equipment' && event.entity_id ? `/equipments/${event.entity_id}` : event.entity_type === 'client' && event.entity_id ? `/clients/${event.entity_id}` : undefined
+  })), [backendEvents]);
+
   if (loading) {
     return <div className="space-y-4"><CardSkeleton /><div className="grid gap-3 md:grid-cols-5">{Array.from({ length: 5 }).map((_, i) => <CardSkeleton key={i} />)}</div><TableSkeleton rows={6} cols={7} /></div>;
   }
@@ -253,7 +270,7 @@ export default function Equipment360Page() {
       {tab === 'historial' ? (
         <Card>
           <h2 className="mb-3 text-lg font-medium">Historial técnico</h2>
-          <ActivityTimeline events={historyEvents} />
+          <ActivityTimeline events={backendTimelineEvents.length > 0 ? backendTimelineEvents : historyEvents} />
         </Card>
       ) : null}
 
@@ -299,7 +316,7 @@ export default function Equipment360Page() {
       {tab === 'actividad' ? (
         <Card>
           <h2 className="mb-3 text-lg font-medium">Actividad</h2>
-          <ActivityTimeline events={historyEvents} />
+          <ActivityTimeline events={backendTimelineEvents.length > 0 ? backendTimelineEvents : historyEvents} />
         </Card>
       ) : null}
 

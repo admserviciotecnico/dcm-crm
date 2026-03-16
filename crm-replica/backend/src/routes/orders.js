@@ -4,6 +4,7 @@ import { authRequired, requireRole } from '../middleware/auth.js';
 import { computePriorityWeight, validateStateTransition, validateTechnicianRestrictedFields } from '../services/order-rules.js';
 import { validateBody } from '../middleware/validation.js';
 import { orderCreateSchema, orderPatchSchema, techniciansUpdateSchema } from '../services/schemas.js';
+import { logEvent } from '../services/event-log.js';
 
 const MAX_PAGE_SIZE = 100;
 
@@ -102,6 +103,7 @@ export default function ordersRouter(io) {
 
     io.emit('orders:changed', { type: 'created', orderId: tx.id });
     io.emit('dashboard:refresh', { reason: 'order_created' });
+    await logEvent({ entity_type: 'order', entity_id: tx.id, event_type: 'created', message: `Orden creada #${tx.id.slice(0, 8)}`, actor_user_id: req.user.id });
     res.status(201).json(tx);
   });
 
@@ -135,9 +137,14 @@ export default function ordersRouter(io) {
 
     if (order.estado !== updated.estado) {
       io.emit('orders:status_changed', { orderId: order.id, from: order.estado, to: updated.estado, by: req.user.email });
+      await logEvent({ entity_type: 'order', entity_id: order.id, event_type: 'status_changed', message: `Estado de orden cambiado: ${order.estado} → ${updated.estado}`, actor_user_id: req.user.id });
     }
     io.emit('orders:changed', { type: 'updated', orderId: order.id });
     io.emit('dashboard:refresh', { reason: 'order_updated' });
+
+    if (order.estado === updated.estado) {
+      await logEvent({ entity_type: 'order', entity_id: order.id, event_type: 'updated', message: `Orden actualizada #${order.id.slice(0, 8)}`, actor_user_id: req.user.id });
+    }
 
     res.json(updated);
   });
@@ -146,6 +153,7 @@ export default function ordersRouter(io) {
     await prisma.serviceOrder.update({ where: { id: req.params.id }, data: { is_active: false, deleted_at: new Date() } });
     io.emit('orders:changed', { type: 'deleted', orderId: req.params.id });
     io.emit('dashboard:refresh', { reason: 'order_deleted' });
+    await logEvent({ entity_type: 'order', entity_id: req.params.id, event_type: 'deleted', message: `Orden eliminada #${req.params.id.slice(0, 8)}`, actor_user_id: req.user.id });
     res.json({ ok: true });
   });
 
@@ -185,6 +193,7 @@ export default function ordersRouter(io) {
 
     io.emit('orders:changed', { type: 'tech_assignment', orderId: req.params.id });
     io.emit('dashboard:refresh', { reason: 'technician_assignment' });
+    await logEvent({ entity_type: 'order', entity_id: req.params.id, event_type: 'updated', message: `Técnicos reasignados en orden #${req.params.id.slice(0, 8)}`, actor_user_id: req.user.id });
     res.json({ ok: true });
   });
 

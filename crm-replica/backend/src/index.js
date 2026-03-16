@@ -11,6 +11,7 @@ import equipmentsRoutes from './routes/equipments.js';
 import ordersRouter from './routes/orders.js';
 import dashboardRoutes from './routes/dashboard.js';
 import documentsRoutes from './routes/documents.js';
+import eventsRoutes from './routes/events.js';
 import { sanitizeBody } from './middleware/sanitize.js';
 
 const app = express();
@@ -33,6 +34,7 @@ app.use('/api/clients', clientsRoutes);
 app.use('/api/equipments', equipmentsRoutes);
 app.use('/api/orders', ordersRouter(io));
 app.use('/api/documents', documentsRoutes);
+app.use('/api/events', eventsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 
 server.listen(env.port, () => {

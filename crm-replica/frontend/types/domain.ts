@@ -78,3 +78,16 @@ export interface OrderHistory {
   created_at: string;
   usuario?: { email: string };
 }
+
+export type EventEntityType = 'order' | 'client' | 'equipment' | 'document' | 'system';
+export type EventType = 'created' | 'updated' | 'deleted' | 'status_changed' | 'document_added' | 'document_removed';
+
+export interface EventLog {
+  id: string;
+  entity_type: EventEntityType;
+  entity_id?: string | null;
+  event_type: EventType;
+  message: string;
+  actor_user_id?: string | null;
+  created_at: string;
+}

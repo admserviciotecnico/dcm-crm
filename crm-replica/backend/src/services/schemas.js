@@ -92,3 +92,9 @@ export const documentCreateSchema = z.object({
   file_category: documentCategorySchema.default('other'),
   file_path: z.string().max(500).optional()
 }).strict();
+
+export const eventsListSchema = z.object({
+  entityType: z.enum(['order', 'client', 'equipment', 'document', 'system']).optional(),
+  entityId: z.string().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional()
+}).strict();

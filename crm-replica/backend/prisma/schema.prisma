@@ -51,6 +51,23 @@ enum DocumentCategory {
   other
 }
 
+enum EventEntityType {
+  order
+  client
+  equipment
+  document
+  system
+}
+
+enum EventType {
+  created
+  updated
+  deleted
+  status_changed
+  document_added
+  document_removed
+}
+
 model Role {
   id    String   @id @default(cuid())
   name  UserRole @unique
@@ -209,4 +226,17 @@ model Document {
   updated_at  DateTime           @updatedAt
 
   @@index([entity_type, entity_id, created_at])
+}
+
+model EventLog {
+  id            String          @id @default(cuid())
+  entity_type   EventEntityType
+  entity_id     String?
+  event_type    EventType
+  message       String
+  actor_user_id String?
+  created_at    DateTime        @default(now())
+
+  @@index([entity_type, entity_id])
+  @@index([created_at])
 }
