@@ -3,9 +3,9 @@
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
-import { ClientsApi, EquipmentsApi, OrdersApi, UsersApi } from '@/lib/api/endpoints';
-import { Client, Equipment, ServiceOrder, User } from '@/types/domain';
-import { EQUIPMENT_META_UPDATED_EVENT, EquipmentMeta, getEquipmentMeta } from '@/lib/equipment-meta';
+import { ClientsApi, EquipmentsApi, EventsApi, OrdersApi, UsersApi } from '@/lib/api/endpoints';
+import { Client, Equipment, EventLog, ServiceOrder, User } from '@/types/domain';
+import { EquipmentMeta, getEquipmentMeta } from '@/lib/equipment-meta';
 import { appStore } from '@/stores/app-store';
 import { Tabs } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
@@ -58,25 +58,13 @@ export default function Equipment360Page() {
   const [users, setUsers] = useState<User[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<ServiceOrder | null>(null);
   const [search, setSearch] = useState('');
-  const [meta, setMeta] = useState<EquipmentMeta>({});
+  const [backendEvents, setBackendEvents] = useState<EventLog[]>([]);
+  const [legacyMeta, setLegacyMeta] = useState<EquipmentMeta>({});
 
   const { docs, add, remove } = useDocumentsState('equipment', id);
 
   useEffect(() => {
-    setMeta(getEquipmentMeta(id));
-  }, [id]);
-
-  useEffect(() => {
-    const sync = () => setMeta(getEquipmentMeta(id));
-    const onStorage = (event: StorageEvent) => {
-      if (event.key === 'dcm-equipment-meta-v1') sync();
-    };
-    window.addEventListener('storage', onStorage);
-    window.addEventListener(EQUIPMENT_META_UPDATED_EVENT, sync);
-    return () => {
-      window.removeEventListener('storage', onStorage);
-      window.removeEventListener(EQUIPMENT_META_UPDATED_EVENT, sync);
-    };
+    setLegacyMeta(getEquipmentMeta(id));
   }, [id]);
 
   const load = async () => {
@@ -94,6 +82,12 @@ export default function Equipment360Page() {
       const related = eq ? ordersRes.items.filter((o) => (o.observaciones ?? '').includes(eq.id) || (o.observaciones ?? '').toLowerCase().includes(eq.numero_serie.toLowerCase())) : [];
       setOrders(related.sort((a, b) => (parseDateValue(b.fecha_programada) ?? 0) - (parseDateValue(a.fecha_programada) ?? 0)));
       setUsers(usersRes);
+      try {
+        const ev = await EventsApi.list({ entityType: 'equipment', entityId: id, limit: 200 });
+        setBackendEvents(ev);
+      } catch {
+        setBackendEvents([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -187,6 +181,16 @@ export default function Equipment360Page() {
     return Object.values(deduped).sort((a, b) => (parseDateValue(b.at) ?? 0) - (parseDateValue(a.at) ?? 0));
   }, [equipment, id, orders, docs.length]);
 
+
+  const backendTimelineEvents = useMemo(() => backendEvents.map((event) => ({
+    id: event.id,
+    actor: event.actor_user_id ?? 'Sistema',
+    action: event.event_type.replace('_', ' '),
+    entity: event.message,
+    at: event.created_at,
+    href: event.entity_type === 'order' && event.entity_id ? `/orders/${event.entity_id}` : event.entity_type === 'equipment' && event.entity_id ? `/equipments/${event.entity_id}` : event.entity_type === 'client' && event.entity_id ? `/clients/${event.entity_id}` : undefined
+  })), [backendEvents]);
+
   if (loading) {
     return <div className="space-y-4"><CardSkeleton /><div className="grid gap-3 md:grid-cols-5">{Array.from({ length: 5 }).map((_, i) => <CardSkeleton key={i} />)}</div><TableSkeleton rows={6} cols={7} /></div>;
   }
@@ -194,6 +198,11 @@ export default function Equipment360Page() {
   if (!equipment) return <EmptyState variant="equipments" title="Equipo no encontrado" subtitle="No se encontró el activo solicitado." />;
 
   const normalizedStatus = normalizeStatus(equipment.estado_actual);
+  const location = equipment.ubicacion_planta ?? legacyMeta.location;
+  const installedAt = equipment.fecha_instalacion
+    ? new Date(equipment.fecha_instalacion).toLocaleDateString()
+    : legacyMeta.installedAt;
+  const technicalNotes = equipment.observaciones ?? legacyMeta.notes;
 
   return (
     <div className="space-y-4">
@@ -208,8 +217,8 @@ export default function Equipment360Page() {
           <div><p className="text-[var(--text-secondary)]">N° Serie</p><p className="mono">{equipment.numero_serie}</p></div>
           <div><p className="text-[var(--text-secondary)]">Estado</p><Badge className={statusBadgeClass(normalizedStatus)}>{normalizedStatus.replace('_', ' ')}</Badge></div>
           <div><p className="text-[var(--text-secondary)]">Cliente</p><Link href={`/clients/${equipment.client_id}`} className="text-blue-300 hover:underline">{client?.nombre_empresa ?? equipment.client_id}</Link></div>
-          <div><p className="text-[var(--text-secondary)]">Ubicación</p><p>{meta.location ?? '-'}</p></div>
-          <div><p className="text-[var(--text-secondary)]">Fecha instalación</p><p>{meta.installedAt ?? '-'}</p></div>
+          <div><p className="text-[var(--text-secondary)]">Ubicación</p><p>{location ?? '-'}</p></div>
+          <div><p className="text-[var(--text-secondary)]">Fecha instalación</p><p>{installedAt ?? '-'}</p></div>
           <div><p className="text-[var(--text-secondary)]">Última orden</p>{lastService ? <Link href={`/orders/${lastService.id}`} className="text-blue-300 hover:underline">#{lastService.id.slice(0, 8)}</Link> : '-'}</div>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -234,8 +243,8 @@ export default function Equipment360Page() {
               <div><p className="text-[var(--text-secondary)]">Modelo</p><p>{equipment.modelo ?? '-'}</p></div>
               <div><p className="text-[var(--text-secondary)]">Número de serie</p><p className="mono">{equipment.numero_serie}</p></div>
               <div><p className="text-[var(--text-secondary)]">Estado</p><Badge className={statusBadgeClass(normalizedStatus)}>{normalizedStatus.replace('_', ' ')}</Badge></div>
-              <div><p className="text-[var(--text-secondary)]">Ubicación</p><p>{meta.location ?? '-'}</p></div>
-              <div><p className="text-[var(--text-secondary)]">Observaciones</p><p>{meta.notes ?? equipment.observaciones ?? '-'}</p></div>
+              <div><p className="text-[var(--text-secondary)]">Ubicación</p><p>{location ?? '-'}</p></div>
+              <div><p className="text-[var(--text-secondary)]">Observaciones</p><p>{technicalNotes ?? '-'}</p></div>
             </div>
           </Card>
 
@@ -253,7 +262,7 @@ export default function Equipment360Page() {
 
           <Card>
             <h2 className="mb-3 text-lg font-medium">Documentos recientes</h2>
-            <FileList docs={docs.slice(0, 5)} onRemove={(docId) => { const result = remove(docId); if (result.ok) toast({ type: 'info', message: 'Documento eliminado' }); else toast({ type: 'error', message: 'No se pudo eliminar el documento' }); }} />
+            <FileList docs={docs.slice(0, 5)} onRemove={async (docId) => { const result = await remove(docId); if (result.ok) toast({ type: 'info', message: 'Documento eliminado' }); else toast({ type: 'error', message: 'No se pudo eliminar el documento' }); }} />
           </Card>
         </div>
       ) : null}
@@ -261,7 +270,7 @@ export default function Equipment360Page() {
       {tab === 'historial' ? (
         <Card>
           <h2 className="mb-3 text-lg font-medium">Historial técnico</h2>
-          <ActivityTimeline events={historyEvents} />
+          <ActivityTimeline events={backendTimelineEvents.length > 0 ? backendTimelineEvents : historyEvents} />
         </Card>
       ) : null}
 
@@ -292,13 +301,13 @@ export default function Equipment360Page() {
       {tab === 'documentos' ? (
         <Card>
           <h2 className="text-lg font-medium">Documentos</h2>
-          <div className="my-3"><FileUploader onAdd={(name, category) => { const result = add(name, category); if (result.ok) toast({ type: 'success', message: 'Documento agregado al equipo' }); else if (result.reason === 'duplicate') toast({ type: 'info', message: 'Documento duplicado para este equipo' }); else toast({ type: 'error', message: 'Nombre de documento inválido' }); }} /></div>
+          <div className="my-3"><FileUploader onAdd={async (name, category) => { const result = await add(name, category); if (result.ok) toast({ type: 'success', message: 'Documento agregado al equipo' }); else if (result.reason === 'duplicate') toast({ type: 'info', message: 'Documento duplicado para este equipo' }); else toast({ type: 'error', message: 'Nombre de documento inválido' }); }} /></div>
           {docs.length === 0 ? <EmptyState title="Sin documentos" subtitle="Subí manuales, informes y evidencias del activo." /> : (
             <div className="space-y-3">
-              <FileList docs={docs.filter((d) => d.category === 'contract')} onRemove={(docId) => { const result = remove(docId); if (result.ok) toast({ type: 'info', message: 'Documento eliminado' }); else toast({ type: 'error', message: 'No se pudo eliminar el documento' }); }} title="Manual técnico" hideWhenEmpty />
-              <FileList docs={docs.filter((d) => d.category === 'report')} onRemove={(docId) => { const result = remove(docId); if (result.ok) toast({ type: 'info', message: 'Documento eliminado' }); else toast({ type: 'error', message: 'No se pudo eliminar el documento' }); }} title="Informes de servicio" hideWhenEmpty />
-              <FileList docs={docs.filter((d) => d.category === 'photo')} onRemove={(docId) => { const result = remove(docId); if (result.ok) toast({ type: 'info', message: 'Documento eliminado' }); else toast({ type: 'error', message: 'No se pudo eliminar el documento' }); }} title="Fotografías" hideWhenEmpty />
-              <FileList docs={docs.filter((d) => d.category === 'other')} onRemove={(docId) => { const result = remove(docId); if (result.ok) toast({ type: 'info', message: 'Documento eliminado' }); else toast({ type: 'error', message: 'No se pudo eliminar el documento' }); }} title="Hojas técnicas / certificados" hideWhenEmpty />
+              <FileList docs={docs.filter((d) => d.category === 'contract')} onRemove={async (docId) => { const result = await remove(docId); if (result.ok) toast({ type: 'info', message: 'Documento eliminado' }); else toast({ type: 'error', message: 'No se pudo eliminar el documento' }); }} title="Manual técnico" hideWhenEmpty />
+              <FileList docs={docs.filter((d) => d.category === 'report')} onRemove={async (docId) => { const result = await remove(docId); if (result.ok) toast({ type: 'info', message: 'Documento eliminado' }); else toast({ type: 'error', message: 'No se pudo eliminar el documento' }); }} title="Informes de servicio" hideWhenEmpty />
+              <FileList docs={docs.filter((d) => d.category === 'photo')} onRemove={async (docId) => { const result = await remove(docId); if (result.ok) toast({ type: 'info', message: 'Documento eliminado' }); else toast({ type: 'error', message: 'No se pudo eliminar el documento' }); }} title="Fotografías" hideWhenEmpty />
+              <FileList docs={docs.filter((d) => d.category === 'other')} onRemove={async (docId) => { const result = await remove(docId); if (result.ok) toast({ type: 'info', message: 'Documento eliminado' }); else toast({ type: 'error', message: 'No se pudo eliminar el documento' }); }} title="Hojas técnicas / certificados" hideWhenEmpty />
             </div>
           )}
         </Card>
@@ -307,7 +316,7 @@ export default function Equipment360Page() {
       {tab === 'actividad' ? (
         <Card>
           <h2 className="mb-3 text-lg font-medium">Actividad</h2>
-          <ActivityTimeline events={historyEvents} />
+          <ActivityTimeline events={backendTimelineEvents.length > 0 ? backendTimelineEvents : historyEvents} />
         </Card>
       ) : null}
 
