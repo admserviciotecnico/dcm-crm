@@ -1,5 +1,16 @@
 import { api } from './client';
 import { Client, Equipment, OrderHistory, ServiceOrder, User } from '@/types/domain';
+import { DocumentCategory, DocumentEntityType } from '@/modules/documents/types';
+
+type ApiDocument = {
+  id: string;
+  entity_type: DocumentEntityType;
+  entity_id: string;
+  file_name: string;
+  file_category: DocumentCategory;
+  file_path?: string | null;
+  created_at: string;
+};
 
 export const AuthApi = {
   login: (payload: { email: string; password: string }) => api.post('/api/auth/login', payload).then((r) => r.data),
@@ -42,4 +53,10 @@ export const UsersApi = {
   setRole: (id: string, role: 'admin' | 'tecnico') => api.patch(`/api/users/${id}`, { role }).then((r) => r.data),
   me: () => api.get<User>('/api/users/me').then((r) => r.data),
   updateMe: (payload: { first_name: string; last_name: string; phone?: string }) => api.patch('/api/users/me', payload).then((r) => r.data)
+};
+
+export const DocumentsApi = {
+  list: (entityType: DocumentEntityType, entityId: string) => api.get<ApiDocument[]>('/api/documents', { params: { entityType, entityId } }).then((r) => r.data),
+  create: (payload: { entity_type: DocumentEntityType; entity_id: string; file_name: string; file_category: DocumentCategory; file_path?: string }) => api.post<ApiDocument>('/api/documents', payload).then((r) => r.data),
+  remove: (id: string) => api.delete(`/api/documents/${id}`).then((r) => r.data)
 };

@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ClientsApi, EquipmentsApi, OrdersApi } from '@/lib/api/endpoints';
 import { Equipment, ServiceOrder } from '@/types/domain';
-import { getEquipmentMetaMap, setEquipmentMeta } from '@/lib/equipment-meta';
+import { getEquipmentMetaMap } from '@/lib/equipment-meta';
 import { appStore } from '@/stores/app-store';
 import { EmptyState } from '@/components/common/empty-state';
 import { ConfirmModal } from '@/components/common/confirm-modal';
@@ -29,6 +29,7 @@ const schema = z.object({
   numero_serie: z.string().min(1, 'Número de serie requerido'),
   ubicacion: z.string().optional(),
   observaciones: z.string().optional(),
+  fecha_instalacion: z.string().optional(),
   estado_actual: z.enum(['operativo', 'mantenimiento', 'fuera_servicio', 'en_revision'])
 });
 
@@ -62,9 +63,7 @@ export default function EquipmentsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [metaMap, setMetaMap] = useState<Record<string, { location?: string; installedAt?: string; notes?: string }>>({});
-  const [clientQuery, setClientQuery] = useState('');
-  const [clientOpen, setClientOpen] = useState(false);
+  const [legacyMetaMap, setLegacyMetaMap] = useState<Record<string, { location?: string; installedAt?: string; notes?: string }>>({});
   const toast = appStore((s) => s.pushToast);
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<FormData>({
@@ -80,7 +79,7 @@ export default function EquipmentsPage() {
       setItems(eqs);
       setClients(cs.map((c) => ({ id: c.id, nombre_empresa: c.nombre_empresa })));
       setOrders(ordersRes.items);
-      setMetaMap(getEquipmentMetaMap());
+      setLegacyMetaMap(getEquipmentMetaMap());
     } finally {
       setLoading(false);
     }
@@ -92,13 +91,12 @@ export default function EquipmentsPage() {
 
   const filteredItems = useMemo(() => items.filter((eq) => {
     const clientName = clients.find((c) => c.id === eq.client_id)?.nombre_empresa ?? '';
-    const meta = metaMap[eq.id];
     const status = normalizeStatus(eq.estado_actual);
-    const text = [eq.tipo_equipo, eq.modelo ?? '', eq.numero_serie, clientName, meta?.location ?? '', status].join(' ').toLowerCase();
+    const text = [eq.tipo_equipo, eq.modelo ?? '', eq.numero_serie, clientName, eq.ubicacion_planta ?? legacyMetaMap[eq.id]?.location ?? '', status].join(' ').toLowerCase();
     const searchOk = search.trim() ? text.includes(search.toLowerCase()) : true;
     const statusOk = statusFilter ? status === statusFilter : true;
     return searchOk && statusOk;
-  }), [items, clients, metaMap, search, statusFilter]);
+  }), [items, clients, legacyMetaMap, search, statusFilter]);
 
 
   const filteredClients = useMemo(() => {
@@ -119,25 +117,17 @@ export default function EquipmentsPage() {
         tipo_equipo: data.tipo_equipo,
         modelo: data.modelo,
         numero_serie: data.numero_serie,
+        ubicacion_planta: data.ubicacion?.trim() || undefined,
+        observaciones: data.observaciones?.trim() || undefined,
+        fecha_instalacion: data.fecha_instalacion ? new Date(data.fecha_instalacion).toISOString() : undefined,
         estado_actual: data.estado_actual
       };
-      let targetId = edit?.id;
       if (edit) {
         await EquipmentsApi.update(edit.id, payload);
       } else {
-        const created = await EquipmentsApi.create(payload) as Partial<Equipment>;
-        targetId = created.id;
+        await EquipmentsApi.create(payload);
       }
       await load();
-
-      if (!targetId) {
-        const match = items.find((e) => e.numero_serie === data.numero_serie);
-        targetId = match?.id;
-      }
-      if (targetId) {
-        setEquipmentMeta(targetId, { location: data.ubicacion?.trim(), notes: data.observaciones?.trim() });
-        setMetaMap(getEquipmentMetaMap());
-      }
 
       toast({ type: 'success', message: edit ? 'Equipo actualizado' : 'Equipo creado' });
       setOpen(false); setClientOpen(false); setEdit(null); reset();
@@ -185,11 +175,11 @@ export default function EquipmentsPage() {
                   <td className="p-2">{eq.modelo ?? '-'}</td>
                   <td className="mono p-2">{eq.numero_serie}</td>
                   <td className="p-2">{clients.find((c) => c.id === eq.client_id)?.nombre_empresa ?? eq.client_id}</td>
-                  <td className="p-2">{metaMap[eq.id]?.location ?? '-'}</td>
+                  <td className="p-2">{eq.ubicacion_planta ?? legacyMetaMap[eq.id]?.location ?? '-'}</td>
                   <td className="p-2"><Badge className={statusBadgeClass(status)}>{status.replace('_', ' ')}</Badge></td>
                   <td className="p-2">{openOrders}</td>
                   <td className="p-2">{latestService?.fecha_programada ? new Date(latestService.fecha_programada).toLocaleDateString() : '-'}</td>
-                  <td className="p-2"><div className="flex gap-2"><Button variant="ghost" onClick={() => { setEdit(eq); reset({ client_id: eq.client_id, tipo_equipo: eq.tipo_equipo, modelo: eq.modelo ?? '', numero_serie: eq.numero_serie, ubicacion: metaMap[eq.id]?.location ?? '', observaciones: metaMap[eq.id]?.notes ?? '', estado_actual: normalizeStatus(eq.estado_actual) as FormData['estado_actual'] }); setClientQuery(clients.find((c) => c.id === eq.client_id)?.nombre_empresa ?? ''); setOpen(true); }}>Editar</Button><Button variant="danger" onClick={() => setToDelete(eq)}>Eliminar</Button></div></td>
+                  <td className="p-2"><div className="flex gap-2"><Button variant="ghost" onClick={() => { setEdit(eq); reset({ client_id: eq.client_id, tipo_equipo: eq.tipo_equipo, modelo: eq.modelo ?? '', numero_serie: eq.numero_serie, ubicacion: eq.ubicacion_planta ?? legacyMetaMap[eq.id]?.location ?? '', observaciones: eq.observaciones ?? legacyMetaMap[eq.id]?.notes ?? '', fecha_instalacion: eq.fecha_instalacion ? new Date(eq.fecha_instalacion).toISOString().slice(0, 10) : (legacyMetaMap[eq.id]?.installedAt ?? ''), estado_actual: normalizeStatus(eq.estado_actual) as FormData['estado_actual'] }); setOpen(true); }}>Editar</Button><Button variant="danger" onClick={() => setToDelete(eq)}>Eliminar</Button></div></td>
                 </tr>
               );
             })}
@@ -217,6 +207,7 @@ export default function EquipmentsPage() {
             <div><p className="mb-1 text-xs text-[var(--text-secondary)]">Número de serie</p><Input {...register('numero_serie')} />{errors.numero_serie ? <p className="text-xs text-red-400">{errors.numero_serie.message}</p> : null}</div>
             <div><p className="mb-1 text-xs text-[var(--text-secondary)]">Estado</p><Select {...register('estado_actual')}><option value="operativo">Operativo</option><option value="mantenimiento">Mantenimiento</option><option value="fuera_servicio">Fuera de servicio</option><option value="en_revision">En revisión</option></Select></div>
             <div className="md:col-span-2"><p className="mb-1 text-xs text-[var(--text-secondary)]">Ubicación</p><Input {...register('ubicacion')} placeholder="Planta / sector" /></div>
+            <div><p className="mb-1 text-xs text-[var(--text-secondary)]">Fecha de instalación</p><Input type="date" {...register('fecha_instalacion')} /></div>
             <div className="md:col-span-2"><p className="mb-1 text-xs text-[var(--text-secondary)]">Observaciones</p><Input {...register('observaciones')} placeholder="Notas operativas" /></div>
           </div>
           <div className="flex justify-end"><Button type="submit">Guardar</Button></div>

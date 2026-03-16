@@ -10,6 +10,7 @@ import clientsRoutes from './routes/clients.js';
 import equipmentsRoutes from './routes/equipments.js';
 import ordersRouter from './routes/orders.js';
 import dashboardRoutes from './routes/dashboard.js';
+import documentsRoutes from './routes/documents.js';
 import { sanitizeBody } from './middleware/sanitize.js';
 
 const app = express();
@@ -31,6 +32,7 @@ app.use('/api/users', usersRoutes);
 app.use('/api/clients', clientsRoutes);
 app.use('/api/equipments', equipmentsRoutes);
 app.use('/api/orders', ordersRouter(io));
+app.use('/api/documents', documentsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 
 server.listen(env.port, () => {
