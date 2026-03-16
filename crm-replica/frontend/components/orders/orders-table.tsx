@@ -43,11 +43,11 @@ function OrdersTableComponent({ rows, users, selectedIds, onToggleSelect, onTogg
           const extra = Math.max(0, techs.length - visible.length);
           const checked = selectedIds.includes(o.id);
           return (
-            <tr key={o.id} className={`group cursor-pointer border-t border-slate-700 hover:bg-slate-800/50 ${checked ? 'bg-blue-500/10' : ''} ${o.deleted_at ? 'opacity-50 line-through' : ''}`}>
-              <td className="p-2"><input type="checkbox" checked={checked} onChange={() => onToggleSelect(o.id)} /></td>
-              <td className="mono p-2"><button className="inline-flex items-center gap-1" onClick={(e) => { e.stopPropagation(); void navigator.clipboard.writeText(o.id); }}><span>#{o.id.slice(0, 8)}</span><Copy size={12} /></button></td>
+            <tr key={o.id} className={`group cursor-pointer border-t border-slate-700 hover:bg-slate-800/50 ${checked ? 'bg-blue-500/10' : ''} ${o.deleted_at ? 'opacity-50 line-through' : ''}`} onClick={() => onClick(o)}>
+              <td className="p-2" onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={checked} onChange={() => onToggleSelect(o.id)} /></td>
+              <td className="mono p-2" onClick={(e) => e.stopPropagation()}><button className="inline-flex items-center gap-1" onClick={() => { void navigator.clipboard.writeText(o.id); }}><span>#{o.id.slice(0, 8)}</span><Copy size={12} /></button></td>
               <td className="p-2">
-                <div className="relative" onClick={() => onClick(o)}>
+                <div className="relative">
                   {o.client?.nombre_empresa ?? o.client_id}
                   <div className="pointer-events-none absolute left-0 top-6 z-10 hidden min-w-44 rounded border border-slate-700 bg-slate-900 p-2 text-xs text-slate-300 group-hover:block">Contacto cliente y métricas rápidas</div>
                 </div>
