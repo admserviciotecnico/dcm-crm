@@ -84,7 +84,9 @@ export default function OrdersPage() {
       fecha_programada: data.fecha_programada,
       direccion_service: data.direccion_service,
       observaciones: data.observaciones,
-      technician_ids: data.technician_ids ? data.technician_ids.split(',').map((id) => id.trim()) : []
+      technicians: data.technician_ids
+        ? data.technician_ids.split(',').map((id) => id.trim()).filter(Boolean)
+        : []
     });
       toast({ type: 'success', message: 'Orden creada con éxito' });
       setShowCreate(false);
