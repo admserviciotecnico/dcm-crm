@@ -21,6 +21,7 @@ import { ActivityTimeline } from '@/components/timeline/activity-timeline';
 import { FileUploader } from '@/modules/documents/components/file-uploader';
 import { FileList } from '@/modules/documents/components/file-list';
 import { useDocumentsState } from '@/modules/documents/hooks/use-documents-state';
+import { resolveActorName, resolveActorNameById } from '@/lib/actor-name';
 
 type LocalComment = { id: string; user: string; message: string; time: string };
 
@@ -74,10 +75,11 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
 
   const adminAllowed = useMemo(() => (order ? workflow[order.estado] || [] : []), [order]);
   const techUsers = users.filter((u) => u.role === 'tecnico');
-  const timelineEvents = history.map((h) => ({ id: h.id, actor: h.usuario?.email ?? 'sistema', action: `cambió ${h.campo_modificado ?? 'estado'}`, entity: `${h.valor_nuevo ?? '-'}`, at: h.created_at }));
+  const usersById = useMemo(() => new Map(users.map((listedUser) => [listedUser.id, listedUser])), [users]);
+  const timelineEvents = history.map((h) => ({ id: h.id, actor: resolveActorName(h.usuario), action: `cambió ${h.campo_modificado ?? 'estado'}`, entity: `${h.valor_nuevo ?? '-'}`, at: h.created_at }));
   const backendTimelineEvents = backendEvents.map((event) => ({
     id: event.id,
-    actor: event.actor_user_id ?? 'Sistema',
+    actor: resolveActorNameById(event.actor_user_id, usersById),
     action: event.event_type.replace('_', ' '),
     entity: event.message,
     at: event.created_at,
@@ -122,7 +124,7 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
           <div>
             <p className="mb-2 text-sm text-slate-400">Timeline de auditoría</p>
             <Timeline>
-              {history.map((h) => <TimelineItem key={h.id} title={`${h.usuario?.email ?? 'sistema'} · ${h.campo_modificado ?? 'estado'}`} subtitle={`${h.valor_anterior ?? '-'} → ${h.valor_nuevo ?? '-'} · ${new Date(h.created_at).toISOString()}`} />)}
+              {history.map((h) => <TimelineItem key={h.id} title={`${resolveActorName(h.usuario)} · ${h.campo_modificado ?? 'estado'}`} subtitle={`${h.valor_anterior ?? '-'} → ${h.valor_nuevo ?? '-'} · ${new Date(h.created_at).toISOString()}`} />)}
             </Timeline>
             <div className="mt-3">
               <ActivityTimeline events={backendTimelineEvents.length > 0 ? backendTimelineEvents : timelineEvents} />

@@ -1,14 +1,15 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { EventsApi } from '@/lib/api/endpoints';
+import { EventsApi, UsersApi } from '@/lib/api/endpoints';
 import { Card } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';
 import { PageHeader } from '@/components/layout/page-header';
 import { ActivityTimeline } from '@/components/timeline/activity-timeline';
 import { TableSkeleton } from '@/components/common/skeletons';
 import { TimelineEvent } from '@/components/timeline/timeline-event';
-import { EventLog } from '@/types/domain';
+import { resolveActorNameById } from '@/lib/actor-name';
+import { EventLog, User } from '@/types/domain';
 
 type TypeFilter = 'all' | 'order' | 'client' | 'equipment' | 'document' | 'system';
 type DateFilter = 'today' | 'week' | 'month';
@@ -22,11 +23,11 @@ function hrefFromEvent(event: EventLog) {
   return undefined;
 }
 
-function mapEventLog(event: EventLog): FeedEvent {
+function mapEventLog(event: EventLog, usersById: Map<string, User>): FeedEvent {
   return {
     id: event.id,
     type: event.entity_type,
-    actor: event.actor_user_id ?? 'Sistema',
+    actor: resolveActorNameById(event.actor_user_id, usersById),
     action: event.event_type.replace('_', ' '),
     entity: event.message,
     at: event.created_at,
@@ -44,8 +45,12 @@ export default function ActivityPage() {
     const run = async () => {
       setLoading(true);
       try {
-        const backendEvents = await EventsApi.list({ limit: 300 });
-        setEvents(backendEvents.map(mapEventLog));
+        const [backendEvents, users] = await Promise.all([
+          EventsApi.list({ limit: 300 }),
+          UsersApi.list()
+        ]);
+        const nextUsersById = new Map(users.map((user) => [user.id, user]));
+        setEvents(backendEvents.map((event) => mapEventLog(event, nextUsersById)));
       } finally {
         setLoading(false);
       }

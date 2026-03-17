@@ -23,6 +23,7 @@ import { FileUploader } from '@/modules/documents/components/file-uploader';
 import { FileList } from '@/modules/documents/components/file-list';
 import { useDocumentsState } from '@/modules/documents/hooks/use-documents-state';
 import { PriorityBadge, StatusBadge } from '@/components/common/badges';
+import { resolveActorNameById } from '@/lib/actor-name';
 
 type TabKey = 'resumen' | 'historial' | 'órdenes' | 'documentos' | 'actividad';
 
@@ -117,14 +118,16 @@ export default function Equipment360Page() {
     return user ? `${user.first_name} ${user.last_name}` : t.technician_id;
   });
 
+  const usersById = useMemo(() => new Map(users.map((listedUser) => [listedUser.id, listedUser])), [users]);
+
   const backendTimelineEvents = useMemo(() => backendEvents.map((event) => ({
     id: event.id,
-    actor: event.actor_user_id ?? 'Sistema',
+    actor: resolveActorNameById(event.actor_user_id, usersById),
     action: event.event_type.replace('_', ' '),
     entity: event.message,
     at: event.created_at,
     href: event.entity_type === 'order' && event.entity_id ? `/orders/${event.entity_id}` : event.entity_type === 'equipment' && event.entity_id ? `/equipments/${event.entity_id}` : event.entity_type === 'client' && event.entity_id ? `/clients/${event.entity_id}` : undefined
-  })), [backendEvents]);
+  })), [backendEvents, usersById]);
 
   if (loading) {
     return <div className="space-y-4"><CardSkeleton /><div className="grid gap-3 md:grid-cols-5">{Array.from({ length: 5 }).map((_, i) => <CardSkeleton key={i} />)}</div><TableSkeleton rows={6} cols={7} /></div>;

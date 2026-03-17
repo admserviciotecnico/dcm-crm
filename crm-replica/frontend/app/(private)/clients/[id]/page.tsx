@@ -28,6 +28,7 @@ import { appStore } from '@/stores/app-store';
 import { FileUploader } from '@/modules/documents/components/file-uploader';
 import { FileList } from '@/modules/documents/components/file-list';
 import { useDocumentsState } from '@/modules/documents/hooks/use-documents-state';
+import { resolveActorNameById } from '@/lib/actor-name';
 
 const contactSchema = z.object({
   nombre: z.string().min(1, 'Requerido'),
@@ -184,14 +185,16 @@ export default function Client360Page() {
     return user ? `${user.first_name} ${user.last_name}` : t.technician_id;
   });
 
+  const usersById = useMemo(() => new Map(users.map((listedUser) => [listedUser.id, listedUser])), [users]);
+
   const backendTimelineEvents = useMemo(() => backendActivityEvents.map((event) => ({
     id: event.id,
-    actor: event.actor_user_id ?? 'Sistema',
+    actor: resolveActorNameById(event.actor_user_id, usersById),
     action: event.event_type.replace('_', ' '),
     entity: event.message,
     at: event.created_at,
     href: event.entity_type === 'order' && event.entity_id ? `/orders/${event.entity_id}` : event.entity_type === 'equipment' && event.entity_id ? `/equipments/${event.entity_id}` : event.entity_type === 'client' && event.entity_id ? `/clients/${event.entity_id}` : undefined
-  })), [backendActivityEvents]);
+  })), [backendActivityEvents, usersById]);
 
   if (loading) {
     return (
