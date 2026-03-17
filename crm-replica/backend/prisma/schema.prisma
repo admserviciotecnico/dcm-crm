@@ -82,6 +82,8 @@ model User {
   password       String
   phone          String?
   active         Boolean                    @default(true)
+  password_reset_token   String?
+  password_reset_expires DateTime?
   role_id        String
   role           Role                       @relation(fields: [role_id], references: [id])
   orders         ServiceOrderTechnician[]

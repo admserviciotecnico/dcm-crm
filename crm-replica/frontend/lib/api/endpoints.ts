@@ -26,6 +26,8 @@ type ApiDocument = {
 export const AuthApi = {
   login: (payload: { email: string; password: string }) => api.post('/api/auth/login', payload).then((r) => r.data),
   register: (payload: { first_name: string; last_name: string; email: string; password: string; role: 'admin' | 'tecnico' }) => api.post('/api/auth/register', payload).then((r) => r.data),
+  forgotPassword: (payload: { email: string }) => api.post('/api/auth/forgot-password', payload).then((r) => r.data),
+  resetPassword: (payload: { token: string; password: string }) => api.post('/api/auth/reset-password', payload).then((r) => r.data),
   me: () => api.get<User>('/api/auth/me').then((r) => r.data)
 };
 

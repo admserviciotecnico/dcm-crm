@@ -13,6 +13,16 @@ export const loginSchema = z.object({
   password: z.string().min(1)
 }).strict();
 
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().email()
+}).strict();
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1),
+  password: z.string().min(8)
+}).strict();
+
 export const clientCreateSchema = z.object({
   nombre_empresa: z.string().min(1),
   direccion: z.string().optional(),
