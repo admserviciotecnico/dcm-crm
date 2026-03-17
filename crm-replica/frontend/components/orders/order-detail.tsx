@@ -4,8 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { ExternalLink } from 'lucide-react';
 import Link from 'next/link';
-import { OrderHistory, ServiceOrder, User } from '@/types/domain';
-import { OrdersApi } from '@/lib/api/endpoints';
+import { EventLog, OrderHistory, ServiceOrder, User } from '@/types/domain';
+import { EventsApi, OrdersApi } from '@/lib/api/endpoints';
 import { authStore } from '@/stores/auth-store';
 import { appStore } from '@/stores/app-store';
 import { Drawer } from '@/components/ui/drawer';
@@ -21,6 +21,7 @@ import { ActivityTimeline } from '@/components/timeline/activity-timeline';
 import { FileUploader } from '@/modules/documents/components/file-uploader';
 import { FileList } from '@/modules/documents/components/file-list';
 import { useDocumentsState } from '@/modules/documents/hooks/use-documents-state';
+import { resolveActorName, resolveActorNameById } from '@/lib/actor-name';
 
 type LocalComment = { id: string; user: string; message: string; time: string };
 
@@ -41,6 +42,7 @@ const workflow: Record<string, string[]> = {
 
 export function OrderDetail({ order, users, onClose, onRefresh }: { order: ServiceOrder | null; users: User[]; onClose: () => void; onRefresh: () => void }) {
   const [history, setHistory] = useState<OrderHistory[]>([]);
+  const [backendEvents, setBackendEvents] = useState<EventLog[]>([]);
   const [comments, setComments] = useState<LocalComment[]>([]);
   const [reassignOpen, setReassignOpen] = useState(false);
   const [selectedTechnicians, setSelectedTechnicians] = useState<string[]>([]);
@@ -54,6 +56,7 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
   useEffect(() => {
     if (!order) return;
     OrdersApi.history(order.id).then(setHistory).catch(() => setHistory([]));
+    EventsApi.list({ entityType: 'order', entityId: order.id, limit: 200 }).then(setBackendEvents).catch(() => setBackendEvents([]));
     const ids = (order.technicians ?? []).map((t) => t.technician_id);
     setSelectedTechnicians(ids);
     setInitialTechnicians(ids);
@@ -72,7 +75,16 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
 
   const adminAllowed = useMemo(() => (order ? workflow[order.estado] || [] : []), [order]);
   const techUsers = users.filter((u) => u.role === 'tecnico');
-  const timelineEvents = history.map((h) => ({ id: h.id, actor: h.usuario?.email ?? 'sistema', action: `cambió ${h.campo_modificado ?? 'estado'}`, entity: `${h.valor_nuevo ?? '-'}`, at: h.created_at }));
+  const usersById = useMemo(() => new Map(users.map((listedUser) => [listedUser.id, listedUser])), [users]);
+  const timelineEvents = history.map((h) => ({ id: h.id, actor: resolveActorName(h.usuario), action: `cambió ${h.campo_modificado ?? 'estado'}`, entity: `${h.valor_nuevo ?? '-'}`, at: h.created_at }));
+  const backendTimelineEvents = backendEvents.map((event) => ({
+    id: event.id,
+    actor: resolveActorNameById(event.actor_user_id, usersById),
+    action: event.event_type.replace('_', ' '),
+    entity: event.message,
+    at: event.created_at,
+    href: event.entity_type === 'order' && event.entity_id ? `/orders/${event.entity_id}` : undefined
+  }));
 
   if (!order) return null;
 
@@ -112,10 +124,10 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
           <div>
             <p className="mb-2 text-sm text-slate-400">Timeline de auditoría</p>
             <Timeline>
-              {history.map((h) => <TimelineItem key={h.id} title={`${h.usuario?.email ?? 'sistema'} · ${h.campo_modificado ?? 'estado'}`} subtitle={`${h.valor_anterior ?? '-'} → ${h.valor_nuevo ?? '-'} · ${new Date(h.created_at).toISOString()}`} />)}
+              {history.map((h) => <TimelineItem key={h.id} title={`${resolveActorName(h.usuario)} · ${h.campo_modificado ?? 'estado'}`} subtitle={`${h.valor_anterior ?? '-'} → ${h.valor_nuevo ?? '-'} · ${new Date(h.created_at).toISOString()}`} />)}
             </Timeline>
             <div className="mt-3">
-              <ActivityTimeline events={timelineEvents} />
+              <ActivityTimeline events={backendTimelineEvents.length > 0 ? backendTimelineEvents : timelineEvents} />
             </div>
           </div>
 
@@ -127,8 +139,8 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
 
           <div>
             <p className="mb-2 text-sm text-slate-400">Archivos adjuntos</p>
-            <FileUploader onAdd={(name, category) => { const result = addDocument(name, category); if (result.ok) toast({ type: 'success', message: 'Documento agregado' }); else if (result.reason === 'duplicate') toast({ type: 'info', message: 'Ese documento ya existe para esta orden' }); else toast({ type: 'error', message: 'Nombre de documento inválido' }); }} />
-            <div className="mt-2"><FileList docs={docs} onRemove={(id) => { const result = removeDocument(id); if (result.ok) toast({ type: 'info', message: 'Documento eliminado' }); else toast({ type: 'error', message: 'No se pudo eliminar el documento' }); }} /></div>
+            <FileUploader onAdd={async (name, category) => { const result = await addDocument(name, category); if (result.ok) toast({ type: 'success', message: 'Documento agregado' }); else if (result.reason === 'duplicate') toast({ type: 'info', message: 'Ese documento ya existe para esta orden' }); else toast({ type: 'error', message: 'Nombre de documento inválido' }); }} />
+            <div className="mt-2"><FileList docs={docs} onRemove={async (id) => { const result = await removeDocument(id); if (result.ok) toast({ type: 'info', message: 'Documento eliminado' }); else toast({ type: 'error', message: 'No se pudo eliminar el documento' }); }} /></div>
           </div>
         </div>
       </Drawer>
