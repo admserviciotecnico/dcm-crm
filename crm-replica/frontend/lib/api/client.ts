@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { authStore } from '@/stores/auth-store';
 import { appStore } from '@/stores/app-store';
+import { getApiErrorMessage } from '@/lib/api/error-message';
 
 export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000',
@@ -27,7 +28,7 @@ api.interceptors.response.use(
       appStore.getState().pushToast({ type: 'error', message: 'Sesión expirada. Vuelve a iniciar sesión.' });
       if (typeof window !== 'undefined') window.location.href = '/login';
     } else {
-      appStore.getState().pushToast({ type: 'error', message: error?.response?.data?.message || 'Ocurrió un error inesperado' });
+      appStore.getState().pushToast({ type: 'error', message: getApiErrorMessage(error) });
     }
     return Promise.reject(error);
   }
