@@ -1,128 +1,85 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { DocumentCategory, DocumentEntityType, DocumentEvent, DocumentItem } from '@/modules/documents/types';
-
-const DOCS_KEY = 'dcm-documents-v1';
-const EVENTS_KEY = 'dcm-document-events-v1';
-const DOCS_UPDATED_EVENT = 'dcm-documents-updated';
+import { DocumentsApi } from '@/lib/api/endpoints';
+import { DocumentCategory, DocumentEntityType, DocumentItem } from '@/modules/documents/types';
 
 type MutationResult = { ok: true; item?: DocumentItem } | { ok: false; reason: 'invalid' | 'duplicate' | 'missing' };
 
-function readDocs(): DocumentItem[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem(DOCS_KEY);
-    return raw ? (JSON.parse(raw) as DocumentItem[]) : [];
-  } catch {
-    return [];
-  }
-}
+type BackendDocument = {
+  id: string;
+  entity_type: DocumentEntityType;
+  entity_id: string;
+  file_name: string;
+  file_category: DocumentCategory;
+  file_path?: string | null;
+  created_at: string;
+};
 
-function writeDocs(docs: DocumentItem[]) {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(DOCS_KEY, JSON.stringify(docs));
-  window.dispatchEvent(new Event(DOCS_UPDATED_EVENT));
-}
-
-export function readDocumentEvents(): DocumentEvent[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem(EVENTS_KEY);
-    return raw ? (JSON.parse(raw) as DocumentEvent[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeDocumentEvents(events: DocumentEvent[]) {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(EVENTS_KEY, JSON.stringify(events));
-}
-
-function pushEvent(event: Omit<DocumentEvent, 'id' | 'createdAt'>) {
-  const nextEvents = [{
-    id: crypto.randomUUID(),
-    ...event,
-    createdAt: new Date().toISOString()
-  }, ...readDocumentEvents()].slice(0, 300);
-  writeDocumentEvents(nextEvents);
+function fromBackend(doc: BackendDocument): DocumentItem {
+  return {
+    id: doc.id,
+    name: doc.file_name,
+    entityType: doc.entity_type,
+    entityId: doc.entity_id,
+    category: doc.file_category,
+    filePath: doc.file_path ?? undefined,
+    createdAt: doc.created_at
+  };
 }
 
 export function useDocumentsState(entityType: DocumentEntityType, entityId: string) {
-  const [allDocs, setAllDocs] = useState<DocumentItem[]>([]);
+  const [docs, setDocs] = useState<DocumentItem[]>([]);
+
+  const load = useCallback(async () => {
+    if (!entityId) {
+      setDocs([]);
+      return;
+    }
+
+    try {
+      const remote = await DocumentsApi.list(entityType, entityId);
+      setDocs(remote.map(fromBackend));
+    } catch {
+      setDocs([]);
+    }
+  }, [entityId, entityType]);
 
   useEffect(() => {
-    setAllDocs(readDocs());
-  }, []);
+    void load();
+  }, [load]);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const sync = () => setAllDocs(readDocs());
-    const onStorage = (event: StorageEvent) => {
-      if (event.key === DOCS_KEY) sync();
-    };
-
-    window.addEventListener('storage', onStorage);
-    window.addEventListener(DOCS_UPDATED_EVENT, sync);
-    return () => {
-      window.removeEventListener('storage', onStorage);
-      window.removeEventListener(DOCS_UPDATED_EVENT, sync);
-    };
-  }, []);
-
-  const docs = useMemo(
-    () => allDocs
-      .filter((d) => d.entityType === entityType && d.entityId === entityId)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
-    [allDocs, entityId, entityType]
-  );
-
-  const add = useCallback((name: string, category: DocumentCategory): MutationResult => {
+  const add = useCallback(async (name: string, category: DocumentCategory): Promise<MutationResult> => {
     const clean = name.trim();
     if (!clean || clean.length > 120) return { ok: false, reason: 'invalid' };
 
-    const duplicate = allDocs.some((d) => d.entityType === entityType && d.entityId === entityId && d.category === category && d.name.toLowerCase() === clean.toLowerCase());
+    const duplicate = docs.some((d) => d.category === category && d.name.toLowerCase() === clean.toLowerCase());
     if (duplicate) return { ok: false, reason: 'duplicate' };
 
-    const doc: DocumentItem = {
-      id: crypto.randomUUID(),
-      name: clean,
-      category,
-      entityType,
-      entityId,
-      createdAt: new Date().toISOString()
-    };
-
-    setAllDocs((prev) => {
-      const next = [doc, ...prev];
-      writeDocs(next);
-      return next;
+    const created = await DocumentsApi.create({
+      entity_type: entityType,
+      entity_id: entityId,
+      file_name: clean,
+      file_category: category
     });
-    pushEvent({ entityType, entityId, action: 'added', documentName: clean });
+    const mapped = fromBackend(created as BackendDocument);
+    setDocs((prev) => [mapped, ...prev]);
+    return { ok: true, item: mapped };
+  }, [docs, entityId, entityType]);
 
-    return { ok: true, item: doc };
-  }, [allDocs, entityId, entityType]);
-
-  const remove = useCallback((id: string): MutationResult => {
-    const doc = allDocs.find((d) => d.id === id);
+  const remove = useCallback(async (id: string): Promise<MutationResult> => {
+    const doc = docs.find((d) => d.id === id);
     if (!doc) return { ok: false, reason: 'missing' };
 
-    setAllDocs((prev) => {
-      const next = prev.filter((d) => d.id !== id);
-      writeDocs(next);
-      return next;
-    });
-    pushEvent({ entityType, entityId, action: 'removed', documentName: doc.name });
-
+    await DocumentsApi.remove(id);
+    setDocs((prev) => prev.filter((d) => d.id !== id));
     return { ok: true };
-  }, [allDocs, entityId, entityType]);
+  }, [docs]);
 
   const groupedByCategory = useMemo(() => docs.reduce<Record<DocumentCategory, DocumentItem[]>>((acc, doc) => {
     acc[doc.category] = [...(acc[doc.category] ?? []), doc];
     return acc;
   }, { contract: [], report: [], photo: [], other: [] }), [docs]);
 
-  return { docs, add, remove, groupedByCategory };
+  return { docs, add, remove, groupedByCategory, reload: load };
 }

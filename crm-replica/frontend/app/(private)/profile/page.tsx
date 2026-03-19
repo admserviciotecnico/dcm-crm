@@ -40,11 +40,11 @@ export default function ProfilePage() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold tracking-tight">Mi Perfil</h1>
-      <p className="text-slate-400">{user?.email}</p>
+      <p className="text-[var(--text-secondary)]">{user?.email}</p>
       <form className="max-w-md space-y-2" onSubmit={handleSubmit(onSubmit)}>
-        <Input placeholder="Nombre" {...register('first_name')} />
-        <Input placeholder="Apellido" {...register('last_name')} />
-        <Input placeholder="Teléfono" {...register('phone')} />
+        <div className="space-y-1"><label className="text-xs text-[var(--text-secondary)]">Nombre</label><Input placeholder="Nombre" {...register('first_name')} /></div>
+        <div className="space-y-1"><label className="text-xs text-[var(--text-secondary)]">Apellido</label><Input placeholder="Apellido" {...register('last_name')} /></div>
+        <div className="space-y-1"><label className="text-xs text-[var(--text-secondary)]">Teléfono</label><Input placeholder="Teléfono" {...register('phone')} /></div>
         <Button disabled={isSubmitting} type="submit">Guardar cambios</Button>
       </form>
     </div>

@@ -1,3 +1,5 @@
+import { sendError } from '../utils/http.js';
+
 const buckets = new Map();
 
 export function rateLimit({ windowMs = 60_000, max = 20 } = {}) {
@@ -15,7 +17,7 @@ export function rateLimit({ windowMs = 60_000, max = 20 } = {}) {
     buckets.set(key, bucket);
 
     if (bucket.count > max) {
-      return res.status(429).json({ message: 'Too many requests' });
+      return sendError(res, 429, 'Too many requests');
     }
     next();
   };
