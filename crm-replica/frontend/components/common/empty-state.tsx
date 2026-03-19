@@ -4,7 +4,7 @@ type Variant = 'orders' | 'clients' | 'equipments' | 'default';
 
 function OrdersSvg() {
   return (
-    <svg viewBox="0 0 120 80" className="mx-auto h-20 w-28 text-slate-500" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg viewBox="0 0 120 80" className="mx-auto h-20 w-28 text-[var(--text-secondary)]" fill="none" stroke="currentColor" strokeWidth="2">
       <rect x="16" y="14" width="88" height="52" rx="8" />
       <path d="M28 30h64M28 42h52M28 54h36" />
       <circle cx="92" cy="54" r="8" />
@@ -14,7 +14,7 @@ function OrdersSvg() {
 
 function ClientsSvg() {
   return (
-    <svg viewBox="0 0 120 80" className="mx-auto h-20 w-28 text-slate-500" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg viewBox="0 0 120 80" className="mx-auto h-20 w-28 text-[var(--text-secondary)]" fill="none" stroke="currentColor" strokeWidth="2">
       <circle cx="40" cy="30" r="10" />
       <circle cx="74" cy="28" r="8" />
       <path d="M24 58c4-10 28-10 32 0M62 56c3-8 20-8 24 0" />
@@ -25,7 +25,7 @@ function ClientsSvg() {
 
 function EquipmentsSvg() {
   return (
-    <svg viewBox="0 0 120 80" className="mx-auto h-20 w-28 text-slate-500" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg viewBox="0 0 120 80" className="mx-auto h-20 w-28 text-[var(--text-secondary)]" fill="none" stroke="currentColor" strokeWidth="2">
       <rect x="18" y="24" width="84" height="34" rx="6" />
       <path d="M34 24v-8h52v8M34 58v6h12v-6M74 58v6h12v-6" />
       <circle cx="38" cy="41" r="4" />

@@ -21,7 +21,7 @@ export function KpiCards({ data, loading }: { data: Record<string, number> | nul
         return (
           <button key={d.key} type="button" onClick={() => { if (d.key === 'documentation_expired') router.push('/clients?expired=1'); }}>
             <Card className={danger ? 'border-red-500/70' : ''}>
-              <div className="flex items-center justify-between text-slate-400"><span className="text-sm">{d.label}</span><d.icon size={16} className={danger ? 'text-red-400' : ''} /></div>
+              <div className="flex items-center justify-between text-[var(--text-secondary)]"><span className="text-sm">{d.label}</span><d.icon size={16} className={danger ? 'text-red-400' : ''} /></div>
               {loading ? <Skeleton className="mt-3 h-8 w-20" /> : <p className={`mt-2 text-3xl font-bold ${danger ? 'text-red-400' : ''}`}>{value}</p>}
               <p className="mt-1 text-xs text-[var(--text-secondary)]">Comparativa semanal disponible en Analytics</p>
             </Card>

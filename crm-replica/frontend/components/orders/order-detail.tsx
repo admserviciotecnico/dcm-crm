@@ -22,6 +22,7 @@ import { FileUploader } from '@/modules/documents/components/file-uploader';
 import { FileList } from '@/modules/documents/components/file-list';
 import { useDocumentsState } from '@/modules/documents/hooks/use-documents-state';
 import { resolveActorName, resolveActorNameById } from '@/lib/actor-name';
+import { ORDER_STATUS_LABEL } from '@/constants/orderStatus';
 
 type LocalComment = { id: string; user: string; message: string; time: string };
 
@@ -115,9 +116,9 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
           <div>
             <p className="mb-2 text-sm text-[var(--text-secondary)]">Acciones de workflow</p>
             <div className="flex flex-wrap gap-2">
-              {user?.role === 'admin' ? adminAllowed.map((next) => <Button key={next} variant="secondary" onClick={async () => { try { await OrdersApi.patch(order.id, { estado: next }); toast({ type: 'success', message: `Estado actualizado a ${next}` }); onRefresh(); } catch { toast({ type: 'error', message: 'No se pudo actualizar el estado' }); } }}>{next}</Button>) : null}
+              {user?.role === 'admin' ? adminAllowed.map((next) => <Button key={next} variant="secondary" onClick={async () => { try { await OrdersApi.patch(order.id, { estado: next }); toast({ type: 'success', message: `Estado actualizado a ${next}` }); onRefresh(); } catch { toast({ type: 'error', message: 'No se pudo actualizar el estado' }); } }}>{ORDER_STATUS_LABEL[next as keyof typeof ORDER_STATUS_LABEL] ?? next}</Button>) : null}
               {canTechMove ? <Button variant="secondary" onClick={async () => { const next = order.estado === 'service_programado' ? 'en_ejecucion' : 'completado'; try { await OrdersApi.patch(order.id, { estado: next }); toast({ type: 'success', message: `Orden ${next}` }); onRefresh(); } catch { toast({ type: 'error', message: 'No se pudo actualizar la orden' }); } }}>{order.estado === 'service_programado' ? 'Iniciar' : 'Completar'}</Button> : null}
-              <Button variant="danger" onClick={async () => { try { await OrdersApi.patch(order.id, { estado: 'cancelado' }); toast({ type: 'info', message: 'Orden cancelada' }); onRefresh(); } catch { toast({ type: 'error', message: 'No se pudo cancelar la orden' }); } }}>cancelar</Button>
+              <Button variant="danger" onClick={async () => { try { await OrdersApi.patch(order.id, { estado: 'cancelado' }); toast({ type: 'info', message: 'Orden cancelada' }); onRefresh(); } catch { toast({ type: 'error', message: 'No se pudo cancelar la orden' }); } }}>{ORDER_STATUS_LABEL.cancelado}</Button>
             </div>
           </div>
 
@@ -133,7 +134,7 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
 
           <div>
             <p className="mb-2 text-sm text-[var(--text-secondary)]">Comentarios del equipo</p>
-            <div className="space-y-2">{comments.map((c) => <div key={c.id} className="rounded-lg border border-[var(--border)] p-2 text-sm"><div className="flex items-center gap-2"><Avatar name={c.user} className="h-6 w-6" /><p className="font-medium">{c.user}</p><span className="text-xs text-[var(--text-secondary)]"><RelativeTime value={c.time} /></span></div><p className="mt-1 text-[var(--text-primary)]">{c.message}</p></div>)}</div>
+            <div className="space-y-2">{comments.length === 0 ? <p className="text-xs text-[var(--text-muted)]">Sin comentarios aún. Sé el primero en comentar.</p> : comments.map((c) => <div key={c.id} className="rounded-lg border border-[var(--border)] p-2 text-sm"><div className="flex items-center gap-2"><Avatar name={c.user} className="h-6 w-6" /><p className="font-medium">{c.user}</p><span className="text-xs text-[var(--text-secondary)]"><RelativeTime value={c.time} /></span></div><p className="mt-1 text-[var(--text-primary)]">{c.message}</p></div>)}</div>
             <form className="mt-2 flex gap-2" onSubmit={handleSubmit(async ({ comment }) => { if (!comment.trim()) return; const payload = { id: crypto.randomUUID(), user: `${user?.first_name ?? 'Operador'} ${user?.last_name ?? ''}`.trim(), message: comment, time: new Date().toISOString() }; setComments((v) => [...v, payload]); getSocket().emit('orders:comment', { orderId: order.id, ...payload }); reset({ comment: '' }); })}><input {...register('comment')} className="h-9 flex-1 rounded-lg border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)]" placeholder="Escribir comentario interno..." /><Button type="submit">Enviar</Button></form>
           </div>
 

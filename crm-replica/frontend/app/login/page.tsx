@@ -68,7 +68,7 @@ export default function LoginPage() {
 
   return (
     <div className="grid min-h-screen bg-[var(--bg-app)] md:grid-cols-2">
-      <section className="hidden bg-[#1A2332] p-10 text-slate-100 md:block">
+      <section className="hidden bg-[#1A2332] p-10 text-white md:block">
         <p className="text-sm text-cyan-400">DCM SERVICE CRM</p>
         <h1 className="mt-6 text-4xl font-bold">Gestión industrial de field service con trazabilidad total.</h1>
       </section>

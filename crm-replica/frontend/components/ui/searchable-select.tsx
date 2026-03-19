@@ -57,7 +57,7 @@ export function SearchableSelect({ options, value, onChange, placeholder = 'Busc
         }}
       />
       {open ? (
-        <div className="absolute z-30 mt-1 max-h-56 w-full overflow-auto rounded-[8px] border border-[var(--border)] bg-[var(--surface)] p-1 shadow-lg">
+        <div className="absolute z-30 mt-1 max-h-56 w-full overflow-auto rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] p-1 shadow-lg">
           {filtered.length === 0 ? (
             <p className="px-2 py-1 text-sm text-[var(--text-secondary)]">{emptyMessage}</p>
           ) : (

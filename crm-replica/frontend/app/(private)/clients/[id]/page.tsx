@@ -221,7 +221,7 @@ export default function Client360Page() {
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <Badge className="border-blue-200 bg-blue-100 text-blue-700">Órdenes activas: {kpis.activeOrders}</Badge>
           <Badge className="border-emerald-200 bg-emerald-100 text-emerald-700">Órdenes completadas: {kpis.completedOrders}</Badge>
-          <Badge className="border-slate-300 bg-slate-100 text-slate-700">Órdenes totales: {kpis.totalOrders}</Badge>
+          <Badge className="border-[var(--border)] bg-[var(--bg-surface-muted)] text-[var(--text-secondary)]">Órdenes totales: {kpis.totalOrders}</Badge>
           <Badge className="border-amber-200 bg-amber-100 text-amber-700">Equipos instalados: {kpis.equipments}</Badge>
           <Badge className="border-purple-200 bg-purple-100 text-purple-700">Contactos: {kpis.contacts}</Badge>
         </div>

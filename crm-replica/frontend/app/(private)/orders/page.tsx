@@ -23,6 +23,7 @@ import { EmptyState } from '@/components/common/empty-state';
 import { PageHeader } from '@/components/layout/page-header';
 import { TableSkeleton } from '@/components/common/skeletons';
 import { getApiErrorMessage } from '@/lib/api/error-message';
+import { ORDER_STATUS_LABEL } from '@/constants/orderStatus';
 
 const schema = z.object({
   client_id: z.string().min(1),
@@ -167,10 +168,7 @@ export default function OrdersPage() {
           <div className="flex flex-wrap items-center gap-2">
             <Badge>{selectedIds.length} seleccionadas</Badge>
             <Select value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value as OrderStatus)} className="max-w-52">
-              <option value="service_programado">service_programado</option>
-              <option value="en_ejecucion">en_ejecucion</option>
-              <option value="completado">completado</option>
-              <option value="cancelado">cancelado</option>
+              {(['service_programado', 'en_ejecucion', 'completado', 'cancelado'] as OrderStatus[]).map((status) => <option key={status} value={status}>{ORDER_STATUS_LABEL[status]}</option>)}
             </Select>
             <Button onClick={bulkChangeStatus}>Cambiar estado</Button>
             <Select value={bulkTechnician} onChange={(e) => setBulkTechnician(e.target.value)} className="max-w-52"><option value="">Asignar técnico</option>{users.filter((u) => u.role === 'tecnico').map((u) => <option key={u.id} value={u.id}>{u.first_name} {u.last_name}</option>)}</Select>
@@ -186,7 +184,7 @@ export default function OrdersPage() {
       <Modal open={showCreate} title="Crear nueva orden" onClose={() => setShowCreate(false)}>
         <form className="grid gap-2" onSubmit={handleSubmit(onCreate)}>
           <div className="space-y-1"><label className="text-xs text-[var(--text-secondary)]">Cliente</label><Select {...register('client_id')}><option value="">Cliente</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.nombre_empresa}</option>)}</Select></div>
-          <div className="space-y-1"><label className="text-xs text-[var(--text-secondary)]">Estado</label><Select {...register('estado')}><option value="presupuesto_generado">presupuesto_generado</option><option value="service_programado">service_programado</option></Select></div>
+          <div className="space-y-1"><label className="text-xs text-[var(--text-secondary)]">Estado</label><Select {...register('estado')}>{(['presupuesto_generado', 'service_programado'] as OrderStatus[]).map((status) => <option key={status} value={status}>{ORDER_STATUS_LABEL[status]}</option>)}</Select></div>
           <div className="space-y-1"><label className="text-xs text-[var(--text-secondary)]">Prioridad</label><Select {...register('prioridad')}><option value="alta">Alta</option><option value="media">Media</option><option value="baja">Baja</option></Select></div>
           <div className="space-y-1"><label className="text-xs text-[var(--text-secondary)]">Fecha programada</label><Input type="date" {...register('fecha_programada')} /></div>
           <div className="space-y-1">

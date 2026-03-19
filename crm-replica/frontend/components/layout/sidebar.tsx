@@ -34,7 +34,7 @@ export function Sidebar() {
       <nav className="space-y-3">
         {groups.map((group) => (
           <div key={group.title}>
-            {!isCollapsed ? <p className="mb-1 px-2 text-xs uppercase text-slate-400/80">{group.title}</p> : null}
+            {!isCollapsed ? <p className="mb-1 px-2 text-xs uppercase text-[var(--text-secondary)]">{group.title}</p> : null}
             <div className="space-y-2">
               {group.links.filter((l) => !l.adminOnly || user?.role === 'admin').map((l) => {
                 const active = (l.match ?? [l.href]).some((m) => pathname.startsWith(m));
@@ -48,7 +48,7 @@ export function Sidebar() {
           </div>
         ))}
       </nav>
-      {!isCollapsed && user ? <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2 rounded-lg border border-white/15 p-2"><Avatar name={`${user.first_name} ${user.last_name}`} /><div><p className="text-sm">{user.first_name} {user.last_name}</p><p className="text-xs text-slate-400">{user.role}</p></div></div> : null}
+      {!isCollapsed && user ? <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2 rounded-lg border border-white/15 p-2"><Avatar name={`${user.first_name} ${user.last_name}`} /><div><p className="text-sm">{user.first_name} {user.last_name}</p><p className="text-xs text-[var(--text-secondary)]">{user.role}</p></div></div> : null}
     </aside>
   );
 
