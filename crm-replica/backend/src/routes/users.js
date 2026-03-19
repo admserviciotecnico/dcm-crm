@@ -2,20 +2,31 @@ import { Router } from 'express';
 import { prisma } from '../config/prisma.js';
 import { authRequired, requireRole } from '../middleware/auth.js';
 import { validateBody, validateIdParam } from '../middleware/validation.js';
-import { userAdminUpdateSchema, userProfileUpdateSchema } from '../services/schemas.js';
+import { registerSchema, userAdminUpdateSchema, userProfileUpdateSchema } from '../services/schemas.js';
 import { asyncHandler, sendError } from '../utils/http.js';
+import { createUserAccount, toSafeUser } from '../services/users.js';
 
 const router = Router();
 router.use(authRequired);
 
 router.get('/', requireRole('admin'), asyncHandler(async (_req, res) => {
   const users = await prisma.user.findMany({ include: { role: true } });
-  res.json(users.map((u) => ({ id: u.id, first_name: u.first_name, last_name: u.last_name, email: u.email, role: u.role.name, active: u.active })));
+  res.json(users.map(toSafeUser));
+}));
+
+router.post('/', requireRole('admin'), validateBody(registerSchema), asyncHandler(async (req, res) => {
+  const created = await createUserAccount(req.body);
+  if (!created.ok) return sendError(res, created.status, created.error);
+  res.status(201).json(toSafeUser(created.user));
+}));
+
+router.get('/me', asyncHandler(async (req, res) => {
+  res.json(toSafeUser(req.user));
 }));
 
 router.patch('/me', validateBody(userProfileUpdateSchema), asyncHandler(async (req, res) => {
-  const user = await prisma.user.update({ where: { id: req.user.id }, data: req.body });
-  res.json({ id: user.id, first_name: user.first_name, last_name: user.last_name, email: user.email, phone: user.phone });
+  const user = await prisma.user.update({ where: { id: req.user.id }, data: req.body, include: { role: true } });
+  res.json(toSafeUser(user));
 }));
 
 router.patch('/:id', requireRole('admin'), validateIdParam, validateBody(userAdminUpdateSchema), asyncHandler(async (req, res) => {
@@ -40,7 +51,7 @@ router.patch('/:id', requireRole('admin'), validateIdParam, validateBody(userAdm
     include: { role: true }
   });
 
-  res.json({ id: user.id, first_name: user.first_name, last_name: user.last_name, email: user.email, role: user.role.name, active: user.active });
+  res.json(toSafeUser(user));
 }));
 
 export default router;

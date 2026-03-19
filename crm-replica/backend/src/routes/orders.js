@@ -52,13 +52,25 @@ export default function ordersRouter(io) {
   router.get('/', asyncHandler(async (req, res) => {
     const page = Math.max(1, Number(req.query.page || 1));
     const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, Number(req.query.pageSize || 20)));
-    const { status, technician, client, priority, from, to } = req.query;
+    const { status, technician, client, priority, from, to, delayed } = req.query;
 
     const where = { is_active: true, deleted_at: null };
     if (status) where.estado = status;
     if (client) where.client_id = client;
     if (priority) where.prioridad = priority;
-    if (from || to) where.fecha_programada = { gte: from ? new Date(String(from)) : undefined, lte: to ? new Date(String(to)) : undefined };
+    if (from || to) {
+      where.fecha_programada = { gte: from ? new Date(String(from)) : undefined, lte: to ? new Date(String(to)) : undefined };
+    }
+    if (String(delayed) === 'true') {
+      where.fecha_programada = {
+        ...(where.fecha_programada ?? {}),
+        lt: new Date()
+      };
+      where.estado = {
+        notIn: ['completado', 'cancelado'],
+        ...(status ? { equals: String(status) } : {})
+      };
+    }
 
     if (req.user.role.name === 'tecnico') {
       where.technicians = { some: { technician_id: req.user.id } };
@@ -72,6 +84,22 @@ export default function ordersRouter(io) {
       prisma.serviceOrder.count({ where })
     ]);
     res.json({ items, total, page, pageSize });
+  }));
+
+  router.get('/:id', validateIdParam, asyncHandler(async (req, res) => {
+    const order = await prisma.serviceOrder.findUnique({
+      where: { id: req.params.id },
+      include: { technicians: true, client: true }
+    });
+
+    if (!order || order.deleted_at || !order.is_active) return sendError(res, 404, 'Not found');
+
+    if (req.user.role.name === 'tecnico') {
+      const assigned = order.technicians.some((t) => t.technician_id === req.user.id);
+      if (!assigned) return sendError(res, 403, 'Forbidden');
+    }
+
+    res.json(order);
   }));
 
   router.post('/', requireRole('admin'), validateBody(orderCreateSchema), asyncHandler(async (req, res) => {

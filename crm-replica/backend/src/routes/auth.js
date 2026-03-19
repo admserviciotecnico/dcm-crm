@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { prisma } from '../config/prisma.js';
@@ -9,17 +8,15 @@ import { authRequired } from '../middleware/auth.js';
 import { forgotPasswordSchema, loginSchema, registerSchema, resetPasswordSchema } from '../services/schemas.js';
 import { asyncHandler, sendError } from '../utils/http.js';
 import { sendPasswordResetEmail } from '../services/mailer.js';
+import { createUserAccount, toSafeUser } from '../services/users.js';
+import bcrypt from 'bcryptjs';
 
 const router = Router();
 
 router.post('/register', validateBody(registerSchema), asyncHandler(async (req, res) => {
-  const role = await prisma.role.findUnique({ where: { name: req.body.role } });
-  if (!role) return sendError(res, 400, 'Invalid role');
-  const hash = await bcrypt.hash(req.body.password, 10);
-  const user = await prisma.user.create({
-    data: { first_name: req.body.first_name, last_name: req.body.last_name, email: req.body.email, password: hash, role_id: role.id }
-  });
-  res.status(201).json({ id: user.id, email: user.email });
+  const created = await createUserAccount(req.body);
+  if (!created.ok) return sendError(res, created.status, created.error);
+  res.status(201).json({ id: created.user.id, email: created.user.email });
 }));
 
 router.post('/login', validateBody(loginSchema), asyncHandler(async (req, res) => {
@@ -83,8 +80,7 @@ router.post('/reset-password', validateBody(resetPasswordSchema), asyncHandler(a
 }));
 
 router.get('/me', authRequired, asyncHandler(async (req, res) => {
-  const { password, password_reset_token, password_reset_expires, ...safe } = req.user;
-  res.json({ ...safe, role: req.user.role.name });
+  res.json(toSafeUser(req.user));
 }));
 
 export default router;

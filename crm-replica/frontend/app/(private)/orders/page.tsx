@@ -153,7 +153,7 @@ export default function OrdersPage() {
         </div>
         {showFilters ? (
           <div className="mt-3 grid gap-2 rounded-[10px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 md:grid-cols-6">
-            <Select value={filters.status} onChange={(e) => setFilter('status', e.target.value)}><option value="">Estado</option><option value="service_programado">Programado</option><option value="en_ejecucion">En ejecución</option><option value="completado">Completado</option></Select>
+            <Select value={filters.status} onChange={(e) => setFilter('status', e.target.value)}><option value="">Estado</option>{(Object.entries(ORDER_STATUS_LABEL) as [OrderStatus, string][]).map(([status, label]) => <option key={status} value={status}>{label}</option>)}</Select>
             <Select value={filters.priority} onChange={(e) => setFilter('priority', e.target.value)}><option value="">Prioridad</option><option value="alta">Alta</option><option value="media">Media</option><option value="baja">Baja</option></Select>
             <Select value={filters.client} onChange={(e) => setFilter('client', e.target.value)}><option value="">Cliente</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.nombre_empresa}</option>)}</Select>
             <Select value={filters.technician} onChange={(e) => setFilter('technician', e.target.value)}><option value="">Técnico</option>{users.filter((u) => u.role === 'tecnico').map((u) => <option key={u.id} value={u.id}>{u.first_name}</option>)}</Select>
