@@ -96,9 +96,6 @@ export interface EventLog {
   created_at: string;
 }
 
-export type EventEntityType = 'order' | 'client' | 'equipment' | 'document' | 'system';
-export type EventType = 'created' | 'updated' | 'deleted' | 'status_changed' | 'document_added' | 'document_removed';
-
 export interface EventLog {
   id: string;
   entity_type: EventEntityType;
