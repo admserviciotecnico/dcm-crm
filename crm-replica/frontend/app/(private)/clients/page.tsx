@@ -142,7 +142,7 @@ export default function ClientsPage() {
   };
 
   const expiryCell = (date?: string) => {
-    if (!date) return <span className="text-slate-400">-</span>;
+    if (!date) return <span className="text-[var(--text-secondary)]">-</span>;
     const d = new Date(date);
     const days = Math.ceil((d.getTime() - Date.now()) / 86400000);
     if (days < 0) return <span className="inline-flex items-center gap-1 text-xs text-red-300"><AlertTriangle size={12} /> <Tooltip label={d.toISOString()}>{`Vencido ${formatDistanceToNow(d, { addSuffix: true, locale: es })}`}</Tooltip></span>;

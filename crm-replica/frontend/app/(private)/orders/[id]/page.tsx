@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/card';
 import { Avatar } from '@/components/ui/avatar';
 import { Timeline, TimelineItem } from '@/components/ui/timeline';
 import { RelativeTime } from '@/components/common/relative-time';
+import { resolveActorName } from '@/lib/actor-name';
 
 export default function OrderByIdPage() {
   const params = useParams<{ id: string }>();
@@ -30,17 +31,17 @@ export default function OrderByIdPage() {
     return user ? `${user.first_name} ${user.last_name}` : id;
   };
 
-  if (!order) return <p className="text-sm text-slate-400">Cargando orden...</p>;
+  if (!order) return <p className="text-sm text-[var(--text-secondary)]">Cargando orden...</p>;
 
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold tracking-tight">Orden #{order.id.slice(0, 8)}</h1>
       <Card>
         <div className="grid grid-cols-2 gap-3 text-sm">
-          <div><p className="text-slate-400">Cliente</p><p>{order.client?.nombre_empresa ?? order.client_id}</p></div>
-          <div><p className="text-slate-400">Estado</p><p>{order.estado}</p></div>
-          <div><p className="text-slate-400">Prioridad</p><p>{order.prioridad}</p></div>
-          <div><p className="text-slate-400">Fecha</p><p><RelativeTime value={order.fecha_programada} /></p></div>
+          <div><p className="text-[var(--text-secondary)]">Cliente</p><p>{order.client?.nombre_empresa ?? order.client_id}</p></div>
+          <div><p className="text-[var(--text-secondary)]">Estado</p><p>{order.estado}</p></div>
+          <div><p className="text-[var(--text-secondary)]">Prioridad</p><p>{order.prioridad}</p></div>
+          <div><p className="text-[var(--text-secondary)]">Fecha</p><p><RelativeTime value={order.fecha_programada} /></p></div>
         </div>
       </Card>
 
@@ -52,12 +53,12 @@ export default function OrderByIdPage() {
       <Card>
         <h2 className="mb-2 font-semibold">Timeline de auditoría</h2>
         <Timeline>
-          {history.map((h) => <TimelineItem key={h.id} title={`${h.usuario?.email ?? 'sistema'} · ${h.campo_modificado ?? 'estado'}`} subtitle={`${h.valor_anterior ?? '-'} → ${h.valor_nuevo ?? '-'} · ${new Date(h.created_at).toISOString()}`} />)}
+          {history.map((h) => <TimelineItem key={h.id} title={`${resolveActorName(h.usuario)} · ${h.campo_modificado ?? 'estado'}`} subtitle={`${h.valor_anterior ?? '-'} → ${h.valor_nuevo ?? '-'} · ${new Date(h.created_at).toISOString()}`} />)}
         </Timeline>
       </Card>
 
-      <Card><h2 className="mb-2 font-semibold">Comentarios</h2><p className="text-sm text-slate-400">Disponible desde el drawer y sincronizado por socket.</p></Card>
-      <Card><h2 className="mb-2 font-semibold">Adjuntos</h2><p className="text-sm text-slate-400">Disponible desde el drawer en esta etapa.</p></Card>
+      <Card><h2 className="mb-2 font-semibold">Comentarios</h2><p className="text-sm text-[var(--text-secondary)]">Disponible desde el drawer y sincronizado por socket.</p></Card>
+      <Card><h2 className="mb-2 font-semibold">Adjuntos</h2><p className="text-sm text-[var(--text-secondary)]">Disponible desde el drawer en esta etapa.</p></Card>
     </div>
   );
 }

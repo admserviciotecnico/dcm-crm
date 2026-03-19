@@ -46,7 +46,7 @@ export function Header() {
           }
         >
           <div className="max-h-72 overflow-auto">
-            {notifications.length === 0 ? <p className="p-3 text-sm text-slate-400">Sin notificaciones</p> : notifications.slice(0, 8).map((n) => <div key={n.id} className="border-b border-slate-800 p-3 text-sm"><p className="font-medium">{n.title}</p><p className="text-slate-400">{n.message}</p></div>)}
+            {notifications.length === 0 ? <p className="p-3 text-sm text-[var(--text-secondary)]">Sin notificaciones</p> : notifications.slice(0, 8).map((n) => <div key={n.id} className="border-b border-[var(--border)] p-3 text-sm"><p className="font-medium">{n.title}</p><p className="text-[var(--text-secondary)]">{n.message}</p></div>)}
           </div>
         </Dropdown>
         <Button variant="ghost" onClick={() => setDarkMode(!dark)} className="text-[var(--text-secondary)]">{dark ? <Sun size={16} /> : <Moon size={16} />}</Button>

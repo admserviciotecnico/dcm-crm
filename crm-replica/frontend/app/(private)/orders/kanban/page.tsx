@@ -48,11 +48,11 @@ export default function OrdersKanbanPage() {
               <p className="mb-3 text-sm font-semibold">{ORDER_STATUS_LABEL[col]} ({byStatus[col]?.length ?? 0})</p>
               <div className="space-y-2">
               {(byStatus[col] ?? []).map((order) => (
-                <button key={order.id} draggable onDragStart={(e) => e.dataTransfer.setData('order-id', order.id)} onClick={() => setSelected(order)} className="w-full rounded-lg border border-slate-700 bg-slate-900/70 p-3 text-left transition hover:border-blue-500">
+                <button key={order.id} draggable onDragStart={(e) => e.dataTransfer.setData('order-id', order.id)} onClick={() => setSelected(order)} className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] p-3 text-left transition hover:border-blue-500">
                   <p className="mono text-xs">#{order.id.slice(0, 8)}</p>
                   <p className="text-sm">{order.client?.nombre_empresa ?? order.client_id}</p>
-                  <div className="mt-2 flex items-center justify-between"><PriorityBadge value={order.prioridad} /><span className="text-xs text-slate-400"><RelativeTime value={order.fecha_programada} /></span></div>
-                  <div className="mt-2 flex items-center justify-between"><div className="flex -space-x-2">{(order.technicians ?? []).slice(0, 3).map((t) => <Avatar key={t.technician_id} name={users.find((u) => u.id === t.technician_id)?.first_name ?? t.technician_id} className="h-6 w-6 border border-slate-900" />)}</div><Link href={`/orders/${order.id}`} className="rounded p-1 hover:bg-slate-700"><ExternalLink size={14} /></Link></div>
+                  <div className="mt-2 flex items-center justify-between"><PriorityBadge value={order.prioridad} /><span className="text-xs text-[var(--text-secondary)]"><RelativeTime value={order.fecha_programada} /></span></div>
+                  <div className="mt-2 flex items-center justify-between"><div className="flex -space-x-2">{(order.technicians ?? []).slice(0, 3).map((t) => <Avatar key={t.technician_id} name={users.find((u) => u.id === t.technician_id)?.first_name ?? t.technician_id} className="h-6 w-6 border border-[var(--bg-surface)]" />)}</div><Link href={`/orders/${order.id}`} className="rounded p-1 hover:bg-[var(--bg-surface-hover)]"><ExternalLink size={14} /></Link></div>
                 </button>
               ))}
               </div>
