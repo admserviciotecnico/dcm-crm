@@ -23,10 +23,10 @@ export function resolveActorNameById(
 ): string {
   if (!actorUserId) return 'Sistema';
 
-  if (!usersById) return actorUserId;
+  if (!usersById) return 'Sistema';
 
   const user = usersById.get(actorUserId);
-  if (!user) return actorUserId;
+  if (!user) return 'Sistema';
 
   return resolveActorName(user);
 }

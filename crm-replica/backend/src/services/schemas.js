@@ -56,6 +56,11 @@ export const userProfileUpdateSchema = z.object({
   phone: z.string().optional()
 }).strict();
 
+export const userAdminUpdateSchema = z.object({
+  active: z.boolean().optional(),
+  role: z.enum(['admin', 'tecnico']).optional()
+}).strict();
+
 export const orderCreateSchema = z.object({
   client_id: z.string().min(1),
   estado: z.enum(['presupuesto_generado','oc_recibida','facturado','pago_recibido','documentacion_enviada','documentacion_aprobada','service_programado','en_ejecucion','completado','cancelado']).default('presupuesto_generado'),

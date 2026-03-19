@@ -110,10 +110,10 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
       <Drawer open={!!order} title={`Orden #${order.id.slice(0, 8)}`} onClose={requestClose}>
         <div className="space-y-5">
           <div className="flex items-center justify-between"><div className="flex items-center gap-2"><StatusBadge value={order.estado} /><PriorityBadge value={order.prioridad} /></div><Link href={`/orders/${order.id}`} className="inline-flex items-center gap-1 text-sm text-cyan-300"><ExternalLink size={14} /> Abrir página</Link></div>
-          <div className="grid grid-cols-2 gap-3 text-sm"><div><p className="text-slate-400">Cliente</p><p>{order.client?.nombre_empresa ?? order.client_id}</p></div><div><p className="text-slate-400">Dirección</p><p>{order.direccion_service ?? '-'}</p></div><div><p className="text-slate-400">Fecha</p><p><RelativeTime value={order.fecha_programada} /></p></div><div><p className="text-slate-400">Técnicos</p><div className="space-y-1">{(order.technicians ?? []).map((t) => <div key={t.technician_id} className="flex items-center gap-2"><Avatar name={techName(t.technician_id)} /><span>{techName(t.technician_id)}</span></div>)}</div>{user?.role === 'admin' ? <Button className="mt-2" variant="secondary" onClick={() => setReassignOpen(true)}>Reasignar técnicos</Button> : null}</div></div>
+          <div className="grid grid-cols-2 gap-3 text-sm"><div><p className="text-[var(--text-secondary)]">Cliente</p><p>{order.client?.nombre_empresa ?? order.client_id}</p></div><div><p className="text-[var(--text-secondary)]">Dirección</p><p>{order.direccion_service ?? '-'}</p></div><div><p className="text-[var(--text-secondary)]">Fecha</p><p><RelativeTime value={order.fecha_programada} /></p></div><div><p className="text-[var(--text-secondary)]">Técnicos</p><div className="space-y-1">{(order.technicians ?? []).map((t) => <div key={t.technician_id} className="flex items-center gap-2"><Avatar name={techName(t.technician_id)} /><span>{techName(t.technician_id)}</span></div>)}</div>{user?.role === 'admin' ? <Button className="mt-2" variant="secondary" onClick={() => setReassignOpen(true)}>Reasignar técnicos</Button> : null}</div></div>
 
           <div>
-            <p className="mb-2 text-sm text-slate-400">Acciones de workflow</p>
+            <p className="mb-2 text-sm text-[var(--text-secondary)]">Acciones de workflow</p>
             <div className="flex flex-wrap gap-2">
               {user?.role === 'admin' ? adminAllowed.map((next) => <Button key={next} variant="secondary" onClick={async () => { try { await OrdersApi.patch(order.id, { estado: next }); toast({ type: 'success', message: `Estado actualizado a ${next}` }); onRefresh(); } catch { toast({ type: 'error', message: 'No se pudo actualizar el estado' }); } }}>{next}</Button>) : null}
               {canTechMove ? <Button variant="secondary" onClick={async () => { const next = order.estado === 'service_programado' ? 'en_ejecucion' : 'completado'; try { await OrdersApi.patch(order.id, { estado: next }); toast({ type: 'success', message: `Orden ${next}` }); onRefresh(); } catch { toast({ type: 'error', message: 'No se pudo actualizar la orden' }); } }}>{order.estado === 'service_programado' ? 'Iniciar' : 'Completar'}</Button> : null}
@@ -122,7 +122,7 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
           </div>
 
           <div>
-            <p className="mb-2 text-sm text-slate-400">Timeline de auditoría</p>
+            <p className="mb-2 text-sm text-[var(--text-secondary)]">Timeline de auditoría</p>
             <Timeline>
               {history.map((h) => <TimelineItem key={h.id} title={`${resolveActorName(h.usuario)} · ${h.campo_modificado ?? 'estado'}`} subtitle={`${h.valor_anterior ?? '-'} → ${h.valor_nuevo ?? '-'} · ${new Date(h.created_at).toISOString()}`} />)}
             </Timeline>
@@ -132,13 +132,13 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
           </div>
 
           <div>
-            <p className="mb-2 text-sm text-slate-400">Comentarios del equipo</p>
-            <div className="space-y-2">{comments.map((c) => <div key={c.id} className="rounded-lg border border-slate-700 p-2 text-sm"><div className="flex items-center gap-2"><Avatar name={c.user} className="h-6 w-6" /><p className="font-medium">{c.user}</p><span className="text-xs text-slate-500"><RelativeTime value={c.time} /></span></div><p className="mt-1 text-slate-300">{c.message}</p></div>)}</div>
-            <form className="mt-2 flex gap-2" onSubmit={handleSubmit(async ({ comment }) => { if (!comment.trim()) return; const payload = { id: crypto.randomUUID(), user: `${user?.first_name ?? 'Operador'} ${user?.last_name ?? ''}`.trim(), message: comment, time: new Date().toISOString() }; setComments((v) => [...v, payload]); getSocket().emit('orders:comment', { orderId: order.id, ...payload }); reset({ comment: '' }); })}><input {...register('comment')} className="h-9 flex-1 rounded-lg border border-slate-600 bg-slate-900 px-3 text-sm" placeholder="Escribir comentario interno..." /><Button type="submit">Enviar</Button></form>
+            <p className="mb-2 text-sm text-[var(--text-secondary)]">Comentarios del equipo</p>
+            <div className="space-y-2">{comments.map((c) => <div key={c.id} className="rounded-lg border border-[var(--border)] p-2 text-sm"><div className="flex items-center gap-2"><Avatar name={c.user} className="h-6 w-6" /><p className="font-medium">{c.user}</p><span className="text-xs text-[var(--text-secondary)]"><RelativeTime value={c.time} /></span></div><p className="mt-1 text-[var(--text-primary)]">{c.message}</p></div>)}</div>
+            <form className="mt-2 flex gap-2" onSubmit={handleSubmit(async ({ comment }) => { if (!comment.trim()) return; const payload = { id: crypto.randomUUID(), user: `${user?.first_name ?? 'Operador'} ${user?.last_name ?? ''}`.trim(), message: comment, time: new Date().toISOString() }; setComments((v) => [...v, payload]); getSocket().emit('orders:comment', { orderId: order.id, ...payload }); reset({ comment: '' }); })}><input {...register('comment')} className="h-9 flex-1 rounded-lg border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)]" placeholder="Escribir comentario interno..." /><Button type="submit">Enviar</Button></form>
           </div>
 
           <div>
-            <p className="mb-2 text-sm text-slate-400">Archivos adjuntos</p>
+            <p className="mb-2 text-sm text-[var(--text-secondary)]">Archivos adjuntos</p>
             <FileUploader onAdd={async (name, category) => { const result = await addDocument(name, category); if (result.ok) toast({ type: 'success', message: 'Documento agregado' }); else if (result.reason === 'duplicate') toast({ type: 'info', message: 'Ese documento ya existe para esta orden' }); else toast({ type: 'error', message: 'Nombre de documento inválido' }); }} />
             <div className="mt-2"><FileList docs={docs} onRemove={async (id) => { const result = await removeDocument(id); if (result.ok) toast({ type: 'info', message: 'Documento eliminado' }); else toast({ type: 'error', message: 'No se pudo eliminar el documento' }); }} /></div>
           </div>
@@ -150,7 +150,7 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
           {techUsers.map((tech) => {
             const checked = selectedTechnicians.includes(tech.id);
             return (
-              <label key={tech.id} className="flex items-center gap-2 rounded border border-slate-700 p-2 text-sm">
+              <label key={tech.id} className="flex items-center gap-2 rounded border border-[var(--border)] p-2 text-sm">
                 <input type="checkbox" checked={checked} onChange={() => setSelectedTechnicians((prev) => checked ? prev.filter((id) => id !== tech.id) : [...prev, tech.id])} />
                 <span>{tech.first_name} {tech.last_name}</span>
               </label>

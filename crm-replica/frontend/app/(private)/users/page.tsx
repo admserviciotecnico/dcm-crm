@@ -42,7 +42,7 @@ export default function UsersPage() {
   };
   useEffect(() => { void load(); }, []);
 
-  if (me?.role !== 'admin') return <p className="text-sm text-slate-400">Acceso restringido.</p>;
+  if (me?.role !== 'admin') return <p className="text-sm text-[var(--text-secondary)]">Acceso restringido.</p>;
 
   const onSubmit = async (data: FormData) => {
     try {
@@ -90,17 +90,17 @@ export default function UsersPage() {
       <Table>
         <thead><tr><th className="p-2">Nombre completo</th><th className="p-2">Email</th><th className="p-2">Rol</th><th className="p-2">Estado</th><th className="p-2 text-right">Acciones</th></tr></thead>
         <tbody>
-          {users.map((u) => <tr key={u.id} className="border-t border-slate-700"><td className="p-2">{u.first_name} {u.last_name}</td><td className="p-2">{u.email}</td><td className="p-2"><div className="flex items-center gap-2"><Badge className={u.role === 'admin' ? 'border-blue-500 text-blue-300' : 'border-amber-500 text-amber-300'}>{u.role}</Badge>{u.id !== me?.id ? <Select value={u.role} disabled={updatingUserId === u.id} onChange={(event) => void updateRole(u, event.target.value as 'admin' | 'tecnico')} className="max-w-36"><option value="admin">admin</option><option value="tecnico">tecnico</option></Select> : <span className="text-xs text-slate-400">Usuario actual</span>}</div></td><td className="p-2">{u.active === false ? 'Inactivo' : 'Activo'}</td><td className="p-2"><Button disabled={updatingUserId === u.id || u.id === me?.id} variant="secondary" onClick={() => void toggleActive(u)}>{u.active === false ? 'Activar' : 'Desactivar'}</Button></td></tr>)}
+          {users.map((u) => <tr key={u.id} className="border-t border-[var(--border)]"><td className="p-2">{u.first_name} {u.last_name}</td><td className="p-2">{u.email}</td><td className="p-2"><div className="flex items-center gap-2"><Badge className={u.role === 'admin' ? 'border-blue-500 text-blue-300' : 'border-amber-500 text-amber-300'}>{u.role}</Badge>{u.id !== me?.id ? <Select value={u.role} disabled={updatingUserId === u.id} onChange={(event) => void updateRole(u, event.target.value as 'admin' | 'tecnico')} className="max-w-36"><option value="admin">admin</option><option value="tecnico">tecnico</option></Select> : <span className="text-xs text-[var(--text-secondary)]">Usuario actual</span>}</div></td><td className="p-2">{u.active === false ? 'Inactivo' : 'Activo'}</td><td className="p-2"><Button disabled={updatingUserId === u.id || u.id === me?.id} variant="secondary" onClick={() => void toggleActive(u)}>{u.active === false ? 'Activar' : 'Desactivar'}</Button></td></tr>)}
         </tbody>
       </Table>
 
       <Modal open={open} title="Nuevo usuario" onClose={() => setOpen(false)}>
         <form className="space-y-2" onSubmit={handleSubmit(onSubmit)}>
-          <Input placeholder="Nombre" {...register('first_name')} />
-          <Input placeholder="Apellido" {...register('last_name')} />
-          <Input placeholder="Email" {...register('email')} />
-          <Input type="password" placeholder="Contraseña" {...register('password')} />
-          <Select {...register('role')}><option value="admin">Admin</option><option value="tecnico">Técnico</option></Select>
+          <div className="space-y-1"><label className="text-xs text-[var(--text-secondary)]">Nombre</label><Input placeholder="Nombre" {...register('first_name')} /></div>
+          <div className="space-y-1"><label className="text-xs text-[var(--text-secondary)]">Apellido</label><Input placeholder="Apellido" {...register('last_name')} /></div>
+          <div className="space-y-1"><label className="text-xs text-[var(--text-secondary)]">Email</label><Input placeholder="Email" {...register('email')} /></div>
+          <div className="space-y-1"><label className="text-xs text-[var(--text-secondary)]">Contraseña</label><Input type="password" placeholder="Contraseña" {...register('password')} /></div>
+          <div className="space-y-1"><label className="text-xs text-[var(--text-secondary)]">Rol</label><Select {...register('role')}><option value="admin">Admin</option><option value="tecnico">Técnico</option></Select></div>
           {errors.email ? <p className="text-xs text-red-300">{errors.email.message}</p> : null}
           <div className="flex justify-end"><Button disabled={isSubmitting} type="submit">Guardar</Button></div>
         </form>

@@ -95,13 +95,3 @@ export interface EventLog {
   actor_user_id?: string | null;
   created_at: string;
 }
-
-export interface EventLog {
-  id: string;
-  entity_type: EventEntityType;
-  entity_id?: string | null;
-  event_type: EventType;
-  message: string;
-  actor_user_id?: string | null;
-  created_at: string;
-}
