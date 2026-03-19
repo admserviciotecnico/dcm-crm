@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -12,10 +13,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { appStore } from '@/stores/app-store';
+import { getApiErrorMessage } from '@/lib/api/error-message';
 
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),
-  password: z.string().min(1, 'Requerido')
+  password: z.string().min(1, 'Requerido'),
+  remember_me: z.boolean().default(false)
 });
 const registerSchema = z.object({
   first_name: z.string().min(1, 'Requerido'),
@@ -37,27 +40,35 @@ export default function LoginPage() {
   const [show, setShow] = useState(false);
   const [registerMode, setRegisterMode] = useState(false);
 
-  const loginForm = useForm<LoginFormData>({ resolver: zodResolver(loginSchema) });
+  const loginForm = useForm<LoginFormData>({ resolver: zodResolver(loginSchema), defaultValues: { remember_me: false } });
   const registerForm = useForm<RegisterFormData>({ resolver: zodResolver(registerSchema), defaultValues: { role: 'tecnico' } });
 
   const onLogin = async (data: LoginFormData) => {
-    const login = await AuthApi.login(data);
-    setToken(login.access_token);
-    const me = await AuthApi.me();
-    setUser(me);
-    router.replace('/dashboard');
+    try {
+      const login = await AuthApi.login({ email: data.email, password: data.password });
+      setToken(login.access_token, data.remember_me);
+      const me = await AuthApi.me();
+      setUser(me);
+      router.replace('/dashboard');
+    } catch (error) {
+      pushToast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo iniciar sesión') });
+    }
   };
 
   const onRegister = async (data: RegisterFormData) => {
-    await AuthApi.register({ first_name: data.first_name, last_name: data.last_name, email: data.email, password: data.password, role: data.role });
-    pushToast({ type: 'success', message: 'Usuario registrado correctamente' });
-    registerForm.reset({ first_name: '', last_name: '', email: '', password: '', confirm_password: '', role: 'tecnico' });
-    setRegisterMode(false);
+    try {
+      await AuthApi.register({ first_name: data.first_name, last_name: data.last_name, email: data.email, password: data.password, role: data.role });
+      pushToast({ type: 'success', message: 'Usuario registrado correctamente' });
+      registerForm.reset({ first_name: '', last_name: '', email: '', password: '', confirm_password: '', role: 'tecnico' });
+      setRegisterMode(false);
+    } catch (error) {
+      pushToast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo registrar el usuario') });
+    }
   };
 
   return (
     <div className="grid min-h-screen bg-[var(--bg-app)] md:grid-cols-2">
-      <section className="hidden bg-[#1A2332] p-10 text-slate-100 md:block">
+      <section className="hidden bg-[#1A2332] p-10 text-white md:block">
         <p className="text-sm text-cyan-400">DCM SERVICE CRM</p>
         <h1 className="mt-6 text-4xl font-bold">Gestión industrial de field service con trazabilidad total.</h1>
       </section>
@@ -67,7 +78,12 @@ export default function LoginPage() {
             <h2 className="text-2xl font-bold">Iniciar sesión</h2>
             <div><Input {...loginForm.register('email')} placeholder="Email corporativo" />{loginForm.formState.errors.email ? <p className="mt-1 text-xs text-red-300">{loginForm.formState.errors.email.message}</p> : null}</div>
             <div className="relative"><Input type={show ? 'text' : 'password'} {...loginForm.register('password')} placeholder="Contraseña" /> <button type="button" onClick={() => setShow((v) => !v)} className="absolute right-2 top-2 p-1">{show ? <EyeOff size={15} /> : <Eye size={15} />}</button>{loginForm.formState.errors.password ? <p className="mt-1 text-xs text-red-300">{loginForm.formState.errors.password.message}</p> : null}</div>
+            <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+              <input type="checkbox" {...loginForm.register('remember_me')} />
+              <span>Mantener sesión iniciada</span>
+            </label>
             <Button type="submit" disabled={loginForm.formState.isSubmitting} className="w-full">{loginForm.formState.isSubmitting ? 'Ingresando...' : 'Entrar'}</Button>
+            <Link href="/forgot-password" className="block text-center text-xs text-[var(--text-secondary)] hover:text-[var(--primary)]">¿Olvidaste tu contraseña?</Link>
             <button type="button" onClick={() => setRegisterMode(true)} className="text-xs text-[var(--primary)]">¿No tenés cuenta? Registrarte</button>
           </form>
         ) : (

@@ -62,9 +62,9 @@ export default function DashboardPage() {
       <h1 className="text-2xl font-semibold tracking-tight">Service Overview</h1>
       <KpiCards data={data} loading={loading} />
       <div className="grid gap-4 md:grid-cols-3">
-        <Card><p className="text-xs text-slate-400">Órdenes abiertas</p><p className="text-2xl font-bold">{orders.filter((o) => o.estado !== 'completado' && o.estado !== 'cancelado').length}</p></Card>
-        <Card><p className="text-xs text-slate-400">Tiempo promedio de resolución</p><p className="text-2xl font-bold">{avgResolution} días</p></Card>
-        <Card><p className="text-xs text-slate-400">Técnico con más órdenes</p><p className="text-xl font-bold">{topTech}</p></Card>
+        <Card><p className="text-xs text-[var(--text-secondary)]">Órdenes abiertas</p><p className="text-2xl font-bold">{orders.filter((o) => o.estado !== 'completado' && o.estado !== 'cancelado').length}</p></Card>
+        <Card><p className="text-xs text-[var(--text-secondary)]">Tiempo promedio de resolución</p><p className="text-2xl font-bold">{avgResolution} días</p></Card>
+        <Card><p className="text-xs text-[var(--text-secondary)]">Técnico con más órdenes</p><p className="text-xl font-bold">{topTech}</p></Card>
       </div>
       <div className="grid gap-4 xl:grid-cols-3">
         <Card className="xl:col-span-2">
@@ -82,14 +82,14 @@ export default function DashboardPage() {
       </div>
       <Card>
         <h2 className="mb-3 font-semibold">Órdenes por técnico</h2>
-        <div className="space-y-2">{byTech.map((t) => <div key={t.label}><div className="mb-1 flex justify-between text-xs"><span>{t.label}</span><span>{t.count}</span></div><div className="h-2 rounded bg-slate-700"><div className="h-2 rounded bg-cyan-500" style={{ width: `${Math.min(100, t.count * 20)}%` }} /></div></div>)}</div>
+        <div className="space-y-2">{byTech.map((t) => <div key={t.label}><div className="mb-1 flex justify-between text-xs"><span>{t.label}</span><span>{t.count}</span></div><div className="h-2 rounded bg-[var(--bg-surface-muted)]"><div className="h-2 rounded bg-cyan-500" style={{ width: `${Math.min(100, t.count * 20)}%` }} /></div></div>)}</div>
       </Card>
       <Card>
         <div className="mb-3 flex items-center justify-between"><h2 className="font-semibold">Órdenes recientes</h2><a href="/orders" className="text-sm text-blue-400">Ver todas</a></div>
         <Table>
-          <thead className="bg-slate-900/70 text-left text-xs uppercase text-slate-400"><tr><th className="p-2">ID</th><th className="p-2">Cliente</th><th className="p-2">Estado</th><th className="p-2">Prioridad</th><th className="p-2">Fecha</th></tr></thead>
+          <thead className="bg-[var(--bg-surface-muted)] text-left text-xs uppercase text-[var(--text-secondary)]"><tr><th className="p-2">ID</th><th className="p-2">Cliente</th><th className="p-2">Estado</th><th className="p-2">Prioridad</th><th className="p-2">Fecha</th></tr></thead>
           <tbody>
-            {orders.slice(0, 8).map((o) => <tr key={o.id} className="border-t border-slate-700"><td className="mono p-2">#{o.id.slice(0, 8)}</td><td className="p-2">{o.client?.nombre_empresa ?? o.client_id}</td><td className="p-2"><StatusBadge value={o.estado} /></td><td className="p-2"><PriorityBadge value={o.prioridad} /></td><td className="p-2"><RelativeTime value={o.fecha_programada} /></td></tr>)}
+            {orders.slice(0, 8).map((o) => <tr key={o.id} className="border-t border-[var(--border)]"><td className="mono p-2">#{o.id.slice(0, 8)}</td><td className="p-2">{o.client?.nombre_empresa ?? o.client_id}</td><td className="p-2"><StatusBadge value={o.estado} /></td><td className="p-2"><PriorityBadge value={o.prioridad} /></td><td className="p-2"><RelativeTime value={o.fecha_programada} /></td></tr>)}
           </tbody>
         </Table>
       </Card>

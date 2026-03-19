@@ -27,11 +27,11 @@ export function OrdersChart({ orders }: { orders: ServiceOrder[] }) {
     <div className="space-y-3">
       {grouped.map(([status, count]) => (
         <div key={status}>
-          <div className="mb-1 flex justify-between text-xs text-slate-300">
+          <div className="mb-1 flex justify-between text-xs text-[var(--text-secondary)]">
             <span>{status.replace(/_/g, ' ')}</span>
             <span>{count}</span>
           </div>
-          <div className="h-3 rounded bg-slate-700">
+          <div className="h-3 rounded bg-[var(--bg-surface-muted)]">
             <div className="h-3 rounded" style={{ width: `${(count / max) * 100}%`, backgroundColor: statusColors[status as OrderStatus] }} />
           </div>
         </div>

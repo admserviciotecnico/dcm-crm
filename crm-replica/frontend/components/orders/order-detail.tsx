@@ -4,8 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { ExternalLink } from 'lucide-react';
 import Link from 'next/link';
-import { OrderHistory, ServiceOrder, User } from '@/types/domain';
-import { OrdersApi } from '@/lib/api/endpoints';
+import { EventLog, OrderHistory, ServiceOrder, User } from '@/types/domain';
+import { EventsApi, OrdersApi } from '@/lib/api/endpoints';
 import { authStore } from '@/stores/auth-store';
 import { appStore } from '@/stores/app-store';
 import { Drawer } from '@/components/ui/drawer';
@@ -21,6 +21,8 @@ import { ActivityTimeline } from '@/components/timeline/activity-timeline';
 import { FileUploader } from '@/modules/documents/components/file-uploader';
 import { FileList } from '@/modules/documents/components/file-list';
 import { useDocumentsState } from '@/modules/documents/hooks/use-documents-state';
+import { resolveActorName, resolveActorNameById } from '@/lib/actor-name';
+import { ORDER_STATUS_LABEL } from '@/constants/orderStatus';
 
 type LocalComment = { id: string; user: string; message: string; time: string };
 
@@ -41,6 +43,7 @@ const workflow: Record<string, string[]> = {
 
 export function OrderDetail({ order, users, onClose, onRefresh }: { order: ServiceOrder | null; users: User[]; onClose: () => void; onRefresh: () => void }) {
   const [history, setHistory] = useState<OrderHistory[]>([]);
+  const [backendEvents, setBackendEvents] = useState<EventLog[]>([]);
   const [comments, setComments] = useState<LocalComment[]>([]);
   const [reassignOpen, setReassignOpen] = useState(false);
   const [selectedTechnicians, setSelectedTechnicians] = useState<string[]>([]);
@@ -54,6 +57,7 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
   useEffect(() => {
     if (!order) return;
     OrdersApi.history(order.id).then(setHistory).catch(() => setHistory([]));
+    EventsApi.list({ entityType: 'order', entityId: order.id, limit: 200 }).then(setBackendEvents).catch(() => setBackendEvents([]));
     const ids = (order.technicians ?? []).map((t) => t.technician_id);
     setSelectedTechnicians(ids);
     setInitialTechnicians(ids);
@@ -72,7 +76,16 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
 
   const adminAllowed = useMemo(() => (order ? workflow[order.estado] || [] : []), [order]);
   const techUsers = users.filter((u) => u.role === 'tecnico');
-  const timelineEvents = history.map((h) => ({ id: h.id, actor: h.usuario?.email ?? 'sistema', action: `cambió ${h.campo_modificado ?? 'estado'}`, entity: `${h.valor_nuevo ?? '-'}`, at: h.created_at }));
+  const usersById = useMemo(() => new Map(users.map((listedUser) => [listedUser.id, listedUser])), [users]);
+  const timelineEvents = history.map((h) => ({ id: h.id, actor: resolveActorName(h.usuario), action: `cambió ${h.campo_modificado ?? 'estado'}`, entity: `${h.valor_nuevo ?? '-'}`, at: h.created_at }));
+  const backendTimelineEvents = backendEvents.map((event) => ({
+    id: event.id,
+    actor: resolveActorNameById(event.actor_user_id, usersById),
+    action: event.event_type.replace('_', ' '),
+    entity: event.message,
+    at: event.created_at,
+    href: event.entity_type === 'order' && event.entity_id ? `/orders/${event.entity_id}` : undefined
+  }));
 
   if (!order) return null;
 
@@ -98,37 +111,37 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
       <Drawer open={!!order} title={`Orden #${order.id.slice(0, 8)}`} onClose={requestClose}>
         <div className="space-y-5">
           <div className="flex items-center justify-between"><div className="flex items-center gap-2"><StatusBadge value={order.estado} /><PriorityBadge value={order.prioridad} /></div><Link href={`/orders/${order.id}`} className="inline-flex items-center gap-1 text-sm text-cyan-300"><ExternalLink size={14} /> Abrir página</Link></div>
-          <div className="grid grid-cols-2 gap-3 text-sm"><div><p className="text-slate-400">Cliente</p><p>{order.client?.nombre_empresa ?? order.client_id}</p></div><div><p className="text-slate-400">Dirección</p><p>{order.direccion_service ?? '-'}</p></div><div><p className="text-slate-400">Fecha</p><p><RelativeTime value={order.fecha_programada} /></p></div><div><p className="text-slate-400">Técnicos</p><div className="space-y-1">{(order.technicians ?? []).map((t) => <div key={t.technician_id} className="flex items-center gap-2"><Avatar name={techName(t.technician_id)} /><span>{techName(t.technician_id)}</span></div>)}</div>{user?.role === 'admin' ? <Button className="mt-2" variant="secondary" onClick={() => setReassignOpen(true)}>Reasignar técnicos</Button> : null}</div></div>
+          <div className="grid grid-cols-2 gap-3 text-sm"><div><p className="text-[var(--text-secondary)]">Cliente</p><p>{order.client?.nombre_empresa ?? order.client_id}</p></div><div><p className="text-[var(--text-secondary)]">Dirección</p><p>{order.direccion_service ?? '-'}</p></div><div><p className="text-[var(--text-secondary)]">Fecha</p><p><RelativeTime value={order.fecha_programada} /></p></div><div><p className="text-[var(--text-secondary)]">Técnicos</p><div className="space-y-1">{(order.technicians ?? []).map((t) => <div key={t.technician_id} className="flex items-center gap-2"><Avatar name={techName(t.technician_id)} /><span>{techName(t.technician_id)}</span></div>)}</div>{user?.role === 'admin' ? <Button className="mt-2" variant="secondary" onClick={() => setReassignOpen(true)}>Reasignar técnicos</Button> : null}</div></div>
 
           <div>
-            <p className="mb-2 text-sm text-slate-400">Acciones de workflow</p>
+            <p className="mb-2 text-sm text-[var(--text-secondary)]">Acciones de workflow</p>
             <div className="flex flex-wrap gap-2">
-              {user?.role === 'admin' ? adminAllowed.map((next) => <Button key={next} variant="secondary" onClick={async () => { try { await OrdersApi.patch(order.id, { estado: next }); toast({ type: 'success', message: `Estado actualizado a ${next}` }); onRefresh(); } catch { toast({ type: 'error', message: 'No se pudo actualizar el estado' }); } }}>{next}</Button>) : null}
+              {user?.role === 'admin' ? adminAllowed.map((next) => <Button key={next} variant="secondary" onClick={async () => { try { await OrdersApi.patch(order.id, { estado: next }); toast({ type: 'success', message: `Estado actualizado a ${next}` }); onRefresh(); } catch { toast({ type: 'error', message: 'No se pudo actualizar el estado' }); } }}>{ORDER_STATUS_LABEL[next as keyof typeof ORDER_STATUS_LABEL] ?? next}</Button>) : null}
               {canTechMove ? <Button variant="secondary" onClick={async () => { const next = order.estado === 'service_programado' ? 'en_ejecucion' : 'completado'; try { await OrdersApi.patch(order.id, { estado: next }); toast({ type: 'success', message: `Orden ${next}` }); onRefresh(); } catch { toast({ type: 'error', message: 'No se pudo actualizar la orden' }); } }}>{order.estado === 'service_programado' ? 'Iniciar' : 'Completar'}</Button> : null}
-              <Button variant="danger" onClick={async () => { try { await OrdersApi.patch(order.id, { estado: 'cancelado' }); toast({ type: 'info', message: 'Orden cancelada' }); onRefresh(); } catch { toast({ type: 'error', message: 'No se pudo cancelar la orden' }); } }}>cancelar</Button>
+              <Button variant="danger" onClick={async () => { try { await OrdersApi.patch(order.id, { estado: 'cancelado' }); toast({ type: 'info', message: 'Orden cancelada' }); onRefresh(); } catch { toast({ type: 'error', message: 'No se pudo cancelar la orden' }); } }}>{ORDER_STATUS_LABEL.cancelado}</Button>
             </div>
           </div>
 
           <div>
-            <p className="mb-2 text-sm text-slate-400">Timeline de auditoría</p>
+            <p className="mb-2 text-sm text-[var(--text-secondary)]">Timeline de auditoría</p>
             <Timeline>
-              {history.map((h) => <TimelineItem key={h.id} title={`${h.usuario?.email ?? 'sistema'} · ${h.campo_modificado ?? 'estado'}`} subtitle={`${h.valor_anterior ?? '-'} → ${h.valor_nuevo ?? '-'} · ${new Date(h.created_at).toISOString()}`} />)}
+              {history.map((h) => <TimelineItem key={h.id} title={`${resolveActorName(h.usuario)} · ${h.campo_modificado ?? 'estado'}`} subtitle={`${h.valor_anterior ?? '-'} → ${h.valor_nuevo ?? '-'} · ${new Date(h.created_at).toISOString()}`} />)}
             </Timeline>
             <div className="mt-3">
-              <ActivityTimeline events={timelineEvents} />
+              <ActivityTimeline events={backendTimelineEvents.length > 0 ? backendTimelineEvents : timelineEvents} />
             </div>
           </div>
 
           <div>
-            <p className="mb-2 text-sm text-slate-400">Comentarios del equipo</p>
-            <div className="space-y-2">{comments.map((c) => <div key={c.id} className="rounded-lg border border-slate-700 p-2 text-sm"><div className="flex items-center gap-2"><Avatar name={c.user} className="h-6 w-6" /><p className="font-medium">{c.user}</p><span className="text-xs text-slate-500"><RelativeTime value={c.time} /></span></div><p className="mt-1 text-slate-300">{c.message}</p></div>)}</div>
-            <form className="mt-2 flex gap-2" onSubmit={handleSubmit(async ({ comment }) => { if (!comment.trim()) return; const payload = { id: crypto.randomUUID(), user: `${user?.first_name ?? 'Operador'} ${user?.last_name ?? ''}`.trim(), message: comment, time: new Date().toISOString() }; setComments((v) => [...v, payload]); getSocket().emit('orders:comment', { orderId: order.id, ...payload }); reset({ comment: '' }); })}><input {...register('comment')} className="h-9 flex-1 rounded-lg border border-slate-600 bg-slate-900 px-3 text-sm" placeholder="Escribir comentario interno..." /><Button type="submit">Enviar</Button></form>
+            <p className="mb-2 text-sm text-[var(--text-secondary)]">Comentarios del equipo</p>
+            <div className="space-y-2">{comments.length === 0 ? <p className="text-xs text-[var(--text-muted)]">Sin comentarios aún. Sé el primero en comentar.</p> : comments.map((c) => <div key={c.id} className="rounded-lg border border-[var(--border)] p-2 text-sm"><div className="flex items-center gap-2"><Avatar name={c.user} className="h-6 w-6" /><p className="font-medium">{c.user}</p><span className="text-xs text-[var(--text-secondary)]"><RelativeTime value={c.time} /></span></div><p className="mt-1 text-[var(--text-primary)]">{c.message}</p></div>)}</div>
+            <form className="mt-2 flex gap-2" onSubmit={handleSubmit(async ({ comment }) => { if (!comment.trim()) return; const payload = { id: crypto.randomUUID(), user: `${user?.first_name ?? 'Operador'} ${user?.last_name ?? ''}`.trim(), message: comment, time: new Date().toISOString() }; setComments((v) => [...v, payload]); getSocket().emit('orders:comment', { orderId: order.id, ...payload }); reset({ comment: '' }); })}><input {...register('comment')} className="h-9 flex-1 rounded-lg border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)]" placeholder="Escribir comentario interno..." /><Button type="submit">Enviar</Button></form>
           </div>
 
           <div>
-            <p className="mb-2 text-sm text-slate-400">Archivos adjuntos</p>
-            <FileUploader onAdd={(name, category) => { const result = addDocument(name, category); if (result.ok) toast({ type: 'success', message: 'Documento agregado' }); else if (result.reason === 'duplicate') toast({ type: 'info', message: 'Ese documento ya existe para esta orden' }); else toast({ type: 'error', message: 'Nombre de documento inválido' }); }} />
-            <div className="mt-2"><FileList docs={docs} onRemove={(id) => { const result = removeDocument(id); if (result.ok) toast({ type: 'info', message: 'Documento eliminado' }); else toast({ type: 'error', message: 'No se pudo eliminar el documento' }); }} /></div>
+            <p className="mb-2 text-sm text-[var(--text-secondary)]">Archivos adjuntos</p>
+            <FileUploader onAdd={async (name, category) => { const result = await addDocument(name, category); if (result.ok) toast({ type: 'success', message: 'Documento agregado' }); else if (result.reason === 'duplicate') toast({ type: 'info', message: 'Ese documento ya existe para esta orden' }); else toast({ type: 'error', message: 'Nombre de documento inválido' }); }} />
+            <div className="mt-2"><FileList docs={docs} onRemove={async (id) => { const result = await removeDocument(id); if (result.ok) toast({ type: 'info', message: 'Documento eliminado' }); else toast({ type: 'error', message: 'No se pudo eliminar el documento' }); }} /></div>
           </div>
         </div>
       </Drawer>
@@ -138,7 +151,7 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
           {techUsers.map((tech) => {
             const checked = selectedTechnicians.includes(tech.id);
             return (
-              <label key={tech.id} className="flex items-center gap-2 rounded border border-slate-700 p-2 text-sm">
+              <label key={tech.id} className="flex items-center gap-2 rounded border border-[var(--border)] p-2 text-sm">
                 <input type="checkbox" checked={checked} onChange={() => setSelectedTechnicians((prev) => checked ? prev.filter((id) => id !== tech.id) : [...prev, tech.id])} />
                 <span>{tech.first_name} {tech.last_name}</span>
               </label>
