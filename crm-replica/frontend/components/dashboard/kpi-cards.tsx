@@ -2,6 +2,7 @@ import { Activity, CheckCircle2, Clock3, ClipboardList, FileWarning } from 'luci
 import { useRouter } from 'next/navigation';
 import { Skeleton } from '@/components/common/skeleton';
 import { Card } from '@/components/ui/card';
+import { ErrorBoundary } from '@/components/common/error-boundary';
 
 const defs = [
   { label: 'Total órdenes', key: 'total_orders', icon: ClipboardList },
@@ -14,7 +15,8 @@ const defs = [
 export function KpiCards({ data, loading }: { data: Record<string, number> | null; loading: boolean }) {
   const router = useRouter();
   return (
-    <div className="grid gap-4 md:grid-cols-5">
+    <ErrorBoundary>
+      <div className="grid gap-4 md:grid-cols-5">
       {defs.map((d) => {
         const value = data?.[d.key] ?? 0;
         const danger = d.key === 'documentation_expired' && value > 0;
@@ -28,6 +30,7 @@ export function KpiCards({ data, loading }: { data: Record<string, number> | nul
           </button>
         );
       })}
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 }

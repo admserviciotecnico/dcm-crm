@@ -1,7 +1,6 @@
 import { api } from './client';
-import { Client, Equipment, EventEntityType, EventLog, OrderHistory, ServiceOrder, User } from '@/types/domain';
+import { Client, Equipment, EventEntityType, EventLog, NotificationItem, OrderHistory, ServiceOrder, User } from '@/types/domain';
 import { DocumentCategory, DocumentEntityType } from '@/modules/documents/types';
-
 
 type PaginatedResponse<T> = {
   items: T[];
@@ -23,6 +22,22 @@ type ApiDocument = {
   created_at: string;
 };
 
+export type TableListParams = {
+  page?: number;
+  pageSize?: number;
+  q?: string;
+  sortBy?: string;
+  sortDir?: 'asc' | 'desc';
+  [key: string]: string | number | undefined;
+};
+
+export type TableListResponse<T> = {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
 export const AuthApi = {
   login: (payload: { email: string; password: string }) => api.post('/api/auth/login', payload).then((r) => r.data),
   register: (payload: { first_name: string; last_name: string; email: string; password: string; role: 'admin' | 'tecnico' }) => api.post('/api/auth/register', payload).then((r) => r.data),
@@ -36,7 +51,7 @@ export const DashboardApi = {
 };
 
 export const OrdersApi = {
-  list: (params: Record<string, string | number>) => api.get<{ items: ServiceOrder[]; total: number; page: number; pageSize: number }>('/api/orders', { params }).then((r) => r.data),
+  list: (params: TableListParams) => api.get<TableListResponse<ServiceOrder>>('/api/orders', { params }).then((r) => r.data),
   get: (id: string) => api.get<ServiceOrder>(`/api/orders/${id}`).then((r) => r.data),
   patch: (id: string, payload: Record<string, unknown>) => api.patch(`/api/orders/${id}`, payload).then((r) => r.data),
   remove: (id: string) => api.delete(`/api/orders/${id}`).then((r) => r.data),
@@ -47,6 +62,7 @@ export const OrdersApi = {
 
 export const ClientsApi = {
   list: () => api.get<Client[]>('/api/clients').then((r) => r.data),
+  listPage: (params: TableListParams) => api.get<TableListResponse<Client>>('/api/clients', { params }).then((r) => r.data),
   create: (payload: Partial<Client>) => api.post('/api/clients', payload).then((r) => r.data),
   update: (id: string, payload: Partial<Client>) => api.patch(`/api/clients/${id}`, payload).then((r) => r.data),
   remove: (id: string) => api.delete(`/api/clients/${id}`).then((r) => r.data)
@@ -54,6 +70,7 @@ export const ClientsApi = {
 
 export const EquipmentsApi = {
   list: () => api.get<Equipment[]>('/api/equipments').then((r) => r.data),
+  listPage: (params: TableListParams) => api.get<TableListResponse<Equipment>>('/api/equipments', { params }).then((r) => r.data),
   create: (payload: Partial<Equipment>) => api.post('/api/equipments', payload).then((r) => r.data),
   update: (id: string, payload: Partial<Equipment>) => api.patch(`/api/equipments/${id}`, payload).then((r) => r.data),
   remove: (id: string) => api.delete(`/api/equipments/${id}`).then((r) => r.data)
@@ -66,6 +83,12 @@ export const UsersApi = {
   setRole: (id: string, role: 'admin' | 'tecnico') => api.patch(`/api/users/${id}`, { role }).then((r) => r.data),
   me: () => api.get<User>('/api/users/me').then((r) => r.data),
   updateMe: (payload: { first_name: string; last_name: string; phone?: string }) => api.patch('/api/users/me', payload).then((r) => r.data)
+};
+
+export const NotificationsApi = {
+  list: (params?: { page?: number; pageSize?: number }) => api.get<{ items: NotificationItem[]; total: number; unread: number; page: number; pageSize: number }>('/api/notifications', { params }).then((r) => r.data),
+  markRead: (id: string) => api.post(`/api/notifications/${id}/read`).then((r) => r.data),
+  markAllRead: () => api.post('/api/notifications/read-all').then((r) => r.data)
 };
 
 export const DocumentsApi = {

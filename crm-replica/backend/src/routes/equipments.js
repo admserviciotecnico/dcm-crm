@@ -6,12 +6,53 @@ import { equipmentCreateSchema, equipmentUpdateSchema } from '../services/schema
 import { logEvent } from '../services/event-log.js';
 import { asyncHandler } from '../utils/http.js';
 
+const MAX_PAGE_SIZE = 50;
+const SORT_FIELDS = {
+  tipo_equipo: 'tipo_equipo',
+  modelo: 'modelo',
+  numero_serie: 'numero_serie',
+  estado_actual: 'estado_actual',
+  created_at: 'created_at'
+};
+
 const router = Router();
 router.use(authRequired);
 
-router.get('/', asyncHandler(async (_req, res) => {
-  const items = await prisma.equipment.findMany({ where: { is_active: true, deleted_at: null }, orderBy: { created_at: 'desc' } });
-  res.json(items);
+router.get('/', asyncHandler(async (req, res) => {
+  const usePagination = ['page', 'pageSize', 'q', 'sortBy', 'sortDir'].some((key) => req.query[key] !== undefined);
+  const q = String(req.query.q || '').trim();
+  const status = String(req.query.status || '').trim();
+  const page = Math.max(1, Number(req.query.page || 1));
+  const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, Number(req.query.pageSize || 20)));
+  const sortBy = SORT_FIELDS[String(req.query.sortBy || 'created_at')] ?? 'created_at';
+  const sortDir = String(req.query.sortDir || 'desc') === 'asc' ? 'asc' : 'desc';
+
+  const where = {
+    is_active: true,
+    deleted_at: null,
+    ...(status ? { estado_actual: status } : {}),
+    ...(q ? {
+      OR: [
+        { tipo_equipo: { contains: q, mode: 'insensitive' } },
+        { modelo: { contains: q, mode: 'insensitive' } },
+        { numero_serie: { contains: q, mode: 'insensitive' } },
+        { ubicacion_planta: { contains: q, mode: 'insensitive' } },
+        { client: { is: { nombre_empresa: { contains: q, mode: 'insensitive' } } } }
+      ]
+    } : {})
+  };
+
+  if (!usePagination) {
+    const items = await prisma.equipment.findMany({ where, orderBy: [{ created_at: 'desc' }] });
+    return res.json(items);
+  }
+
+  const skip = (page - 1) * pageSize;
+  const [items, total] = await Promise.all([
+    prisma.equipment.findMany({ where, orderBy: [{ [sortBy]: sortDir }, { created_at: 'desc' }], skip, take: pageSize }),
+    prisma.equipment.count({ where })
+  ]);
+  res.json({ items, total, page, pageSize });
 }));
 
 router.post('/', requireRole('admin'), validateBody(equipmentCreateSchema), asyncHandler(async (req, res) => {

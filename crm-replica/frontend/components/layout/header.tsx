@@ -2,14 +2,17 @@
 
 import { Bell, LogOut, Menu, Moon, Search, Sun } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
 import { authStore } from '@/stores/auth-store';
 import { uiStore } from '@/stores/ui-store';
 import { appStore } from '@/stores/app-store';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dropdown } from '@/components/ui/dropdown';
+import { NotificationsApi } from '@/lib/api/endpoints';
+import { getApiErrorMessage } from '@/lib/api/error-message';
 
-const labels: Record<string, string> = { dashboard: 'Dashboard', orders: 'Órdenes', clients: 'Clientes', equipments: 'Equipos', calendar: 'Calendario', profile: 'Administración' };
+const labels: Record<string, string> = { dashboard: 'Dashboard', orders: 'Órdenes', clients: 'Clientes', equipments: 'Equipos', calendar: 'Calendario', profile: 'Administración', users: 'Usuarios' };
 
 export function Header() {
   const user = authStore((s) => s.user);
@@ -19,13 +22,42 @@ export function Header() {
   const setCommandOpen = uiStore((s) => s.setCommandOpen);
   const setMobileSidebarOpen = uiStore((s) => s.setMobileSidebarOpen);
   const notifications = appStore((s) => s.notifications);
+  const setNotifications = appStore((s) => s.setNotifications);
   const markNotificationsRead = appStore((s) => s.markNotificationsRead);
+  const pushToast = appStore((s) => s.pushToast);
   const pathname = usePathname();
   const router = useRouter();
+  const [unreadCount, setUnreadCount] = useState(0);
 
+  const loadNotifications = useCallback(async () => {
+    try {
+      const data = await NotificationsApi.list({ page: 1, pageSize: 8 });
+      setNotifications(data.items);
+      setUnreadCount(data.unread);
+    } catch (error) {
+      pushToast({ type: 'error', message: getApiErrorMessage(error, 'No se pudieron cargar las notificaciones') });
+    }
+  }, [pushToast, setNotifications]);
+
+  useEffect(() => {
+    void loadNotifications();
+  }, [loadNotifications]);
+
+  const openNotifications = useCallback(async () => {
+    await loadNotifications();
+    if (unreadCount > 0) {
+      try {
+        await NotificationsApi.markAllRead();
+        markNotificationsRead();
+        setUnreadCount(0);
+        await loadNotifications();
+      } catch (error) {
+        pushToast({ type: 'error', message: getApiErrorMessage(error, 'No se pudieron actualizar las notificaciones') });
+      }
+    }
+  }, [loadNotifications, markNotificationsRead, pushToast, unreadCount]);
 
   const crumbs = pathname.split('/').filter(Boolean).map((p) => labels[p] ?? p);
-  const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[var(--border)] bg-[var(--bg-surface)] px-6 shadow-sm">
@@ -40,13 +72,13 @@ export function Header() {
         <button className="hidden md:block" onClick={() => setCommandOpen(true)}><Input readOnly value="Buscar... (Ctrl/Cmd + K)" className="w-64 cursor-pointer border-[var(--border)] bg-[var(--bg-surface-muted)]" /></button>
         <Button variant="ghost" onClick={() => setCommandOpen(true)} className="text-[var(--text-secondary)]"><Search size={16} /></Button>
         <Dropdown
-          onOpen={markNotificationsRead}
+          onOpen={() => { void openNotifications(); }}
           trigger={
             <span className="relative inline-flex"><Bell size={16} />{unreadCount > 0 ? <span className="absolute -right-2 -top-2 rounded-full bg-blue-600 px-1 text-[10px] text-white">{unreadCount}</span> : null}</span>
           }
         >
           <div className="max-h-72 overflow-auto">
-            {notifications.length === 0 ? <p className="p-3 text-sm text-[var(--text-secondary)]">Sin notificaciones</p> : notifications.slice(0, 8).map((n) => <div key={n.id} className="border-b border-[var(--border)] p-3 text-sm"><p className="font-medium">{n.title}</p><p className="text-[var(--text-secondary)]">{n.message}</p></div>)}
+            {notifications.length === 0 ? <p className="p-3 text-sm text-[var(--text-secondary)]">Sin notificaciones</p> : notifications.slice(0, 8).map((n) => <div key={n.id} className="border-b border-[var(--border)] p-3 text-sm"><p className="font-medium">{n.title}</p><p className="text-[var(--text-secondary)]">{n.description}</p></div>)}
           </div>
         </Dropdown>
         <Button variant="ghost" onClick={() => setDarkMode(!dark)} className="text-[var(--text-secondary)]">{dark ? <Sun size={16} /> : <Moon size={16} />}</Button>

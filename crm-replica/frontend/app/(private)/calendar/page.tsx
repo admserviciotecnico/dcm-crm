@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/common/empty-state';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RelativeTime } from '@/components/common/relative-time';
+import { ErrorBoundary } from '@/components/common/error-boundary';
 
 export default function CalendarPage() {
   const [date, setDate] = useState(new Date());
@@ -22,6 +23,7 @@ export default function CalendarPage() {
   if (!orders.length) return <EmptyState title="Sin órdenes programadas" subtitle="Cuando haya fechas de service aparecerán aquí." />;
 
   return (
+    <ErrorBoundary>
     <div className="space-y-4">
       <div className="flex items-center justify-between"><h1 className="text-2xl font-semibold tracking-tight">Calendario de servicios</h1><div className="flex gap-2"><Button variant="secondary" onClick={() => setDate(subMonths(date, 1))}>Mes anterior</Button><Button variant="secondary" onClick={() => setDate(addMonths(date, 1))}>Mes siguiente</Button></div></div>
       <Card>
@@ -39,5 +41,6 @@ export default function CalendarPage() {
       {selectedDay ? <Card><p className="mb-2 text-sm text-[var(--text-secondary)]">Órdenes del <RelativeTime value={selectedDay} /></p>{selectedOrders.length ? selectedOrders.map((o) => <p key={o.id} className="text-sm">#{o.id.slice(0, 8)} · {o.client?.nombre_empresa ?? o.client_id}</p>) : <p className="text-sm text-[var(--text-secondary)]">Sin órdenes en este día</p>}</Card> : null}
 
     </div>
+    </ErrorBoundary>
   );
 }

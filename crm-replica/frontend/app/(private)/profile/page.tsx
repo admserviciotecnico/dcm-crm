@@ -9,6 +9,7 @@ import { UsersApi } from '@/lib/api/endpoints';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { appStore } from '@/stores/app-store';
+import { ErrorBoundary } from '@/components/common/error-boundary';
 
 const schema = z.object({
   first_name: z.string().min(2),
@@ -38,6 +39,7 @@ export default function ProfilePage() {
   };
 
   return (
+    <ErrorBoundary>
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold tracking-tight">Mi Perfil</h1>
       <p className="text-[var(--text-secondary)]">{user?.email}</p>
@@ -48,5 +50,6 @@ export default function ProfilePage() {
         <Button disabled={isSubmitting} type="submit">Guardar cambios</Button>
       </form>
     </div>
+    </ErrorBoundary>
   );
 }

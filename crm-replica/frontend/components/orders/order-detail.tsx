@@ -23,6 +23,7 @@ import { FileList } from '@/modules/documents/components/file-list';
 import { useDocumentsState } from '@/modules/documents/hooks/use-documents-state';
 import { resolveActorName, resolveActorNameById } from '@/lib/actor-name';
 import { ORDER_STATUS_LABEL, ORDER_STATUS_WORKFLOW } from '@/constants/orderStatus';
+import { ErrorBoundary } from '@/components/common/error-boundary';
 
 type LocalComment = { id: string; user: string; message: string; time: string };
 
@@ -36,6 +37,8 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
   const [selectedTechnicians, setSelectedTechnicians] = useState<string[]>([]);
   const [initialTechnicians, setInitialTechnicians] = useState<string[]>([]);
   const [confirmClose, setConfirmClose] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
   const user = authStore((s) => s.user);
   const toast = appStore((s) => s.pushToast);
   const { register, handleSubmit, reset, formState: { isDirty } } = useForm<CommentForm>({ defaultValues: { comment: '' } });
@@ -95,18 +98,47 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
 
 
   return (
-    <>
+    <ErrorBoundary>
+      <>
       <Drawer open={!!order} title={`Orden #${order.id.slice(0, 8)}`} onClose={requestClose}>
         <div className="space-y-5">
-          <div className="flex items-center justify-between"><div className="flex items-center gap-2"><StatusBadge value={order.estado} /><PriorityBadge value={order.prioridad} /></div><Link href={`/orders/${order.id}`} className="inline-flex items-center gap-1 text-sm text-cyan-300"><ExternalLink size={14} /> Abrir página</Link></div>
-          <div className="grid grid-cols-2 gap-3 text-sm"><div><p className="text-[var(--text-secondary)]">Cliente</p><p>{order.client?.nombre_empresa ?? order.client_id}</p></div><div><p className="text-[var(--text-secondary)]">Dirección</p><p>{order.direccion_service ?? '-'}</p></div><div><p className="text-[var(--text-secondary)]">Fecha</p><p><RelativeTime value={order.fecha_programada} /></p></div><div><p className="text-[var(--text-secondary)]">Técnicos</p><div className="space-y-1">{(order.technicians ?? []).map((t) => <div key={t.technician_id} className="flex items-center gap-2"><Avatar name={techName(t.technician_id)} /><span>{techName(t.technician_id)}</span></div>)}</div>{user?.role === 'admin' ? <Button className="mt-2" variant="secondary" onClick={() => setReassignOpen(true)}>Reasignar técnicos</Button> : null}</div></div>
+          <div className="flex items-center justify-between">
+<div className="flex items-center gap-2">
+<StatusBadge value={order.estado} />
+<PriorityBadge value={order.prioridad} />
+</div>
+<Link href={`/orders/${order.id}`} className="inline-flex items-center gap-1 text-sm text-cyan-300">
+<ExternalLink size={14} /> Abrir página</Link>
+</div>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+<div>
+<p className="text-[var(--text-secondary)]">Cliente</p>
+<p>{order.client?.nombre_empresa ?? order.client_id}</p>
+</div>
+<div>
+<p className="text-[var(--text-secondary)]">Dirección</p>
+<p>{order.direccion_service ?? '-'}</p>
+</div>
+<div>
+<p className="text-[var(--text-secondary)]">Fecha</p>
+<p>
+<RelativeTime value={order.fecha_programada} />
+</p>
+</div>
+<div>
+<p className="text-[var(--text-secondary)]">Técnicos</p>
+<div className="space-y-1">{(order.technicians ?? []).map((t) => <div key={t.technician_id} className="flex items-center gap-2">
+<Avatar name={techName(t.technician_id)} />
+<span>{techName(t.technician_id)}</span>
+</div>)}</div>{user?.role === 'admin' ? <Button className="mt-2" variant="secondary" onClick={() => setReassignOpen(true)}>Reasignar técnicos</Button> : null}</div>
+</div>
 
           <div>
             <p className="mb-2 text-sm text-[var(--text-secondary)]">Acciones de workflow</p>
             <div className="flex flex-wrap gap-2">
               {user?.role === 'admin' ? adminAllowed.map((next) => <Button key={next} variant="secondary" onClick={async () => { try { await OrdersApi.patch(order.id, { estado: next }); toast({ type: 'success', message: `Estado actualizado a ${next}` }); onRefresh(); } catch { toast({ type: 'error', message: 'No se pudo actualizar el estado' }); } }}>{ORDER_STATUS_LABEL[next as keyof typeof ORDER_STATUS_LABEL] ?? next}</Button>) : null}
               {canTechMove ? <Button variant="secondary" onClick={async () => { const next = order.estado === 'service_programado' ? 'en_ejecucion' : 'completado'; try { await OrdersApi.patch(order.id, { estado: next }); toast({ type: 'success', message: `Orden ${next}` }); onRefresh(); } catch { toast({ type: 'error', message: 'No se pudo actualizar la orden' }); } }}>{ORDER_STATUS_LABEL[order.estado === 'service_programado' ? 'en_ejecucion' : 'completado']}</Button> : null}
-              {canCancel ? <Button variant="danger" onClick={async () => { try { await OrdersApi.patch(order.id, { estado: 'cancelado' }); toast({ type: 'info', message: 'Orden cancelada' }); onRefresh(); } catch { toast({ type: 'error', message: 'No se pudo cancelar la orden' }); } }}>{ORDER_STATUS_LABEL.cancelado}</Button> : null}
+              {canCancel ? <Button variant="danger" onClick={() => setConfirmCancel(true)}>{ORDER_STATUS_LABEL.cancelado}</Button> : null}
             </div>
           </div>
 
@@ -122,14 +154,28 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
 
           <div>
             <p className="mb-2 text-sm text-[var(--text-secondary)]">Comentarios del equipo</p>
-            <div className="space-y-2">{comments.length === 0 ? <p className="text-xs text-[var(--text-muted)]">Sin comentarios aún. Sé el primero en comentar.</p> : comments.map((c) => <div key={c.id} className="rounded-lg border border-[var(--border)] p-2 text-sm"><div className="flex items-center gap-2"><Avatar name={c.user} className="h-6 w-6" /><p className="font-medium">{c.user}</p><span className="text-xs text-[var(--text-secondary)]"><RelativeTime value={c.time} /></span></div><p className="mt-1 text-[var(--text-primary)]">{c.message}</p></div>)}</div>
-            <form className="mt-2 flex gap-2" onSubmit={handleSubmit(async ({ comment }) => { if (!comment.trim()) return; const payload = { id: crypto.randomUUID(), user: `${user?.first_name ?? 'Operador'} ${user?.last_name ?? ''}`.trim(), message: comment, time: new Date().toISOString() }; setComments((v) => [...v, payload]); getSocket().emit('orders:comment', { orderId: order.id, ...payload }); reset({ comment: '' }); })}><input {...register('comment')} className="h-9 flex-1 rounded-lg border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)]" placeholder="Escribir comentario interno..." /><Button type="submit">Enviar</Button></form>
+            <div className="space-y-2">{comments.length === 0 ? <p className="text-xs text-[var(--text-muted)]">Sin comentarios aún. Sé el primero en comentar.</p> : comments.map((c) => <div key={c.id} className="rounded-lg border border-[var(--border)] p-2 text-sm">
+<div className="flex items-center gap-2">
+<Avatar name={c.user} className="h-6 w-6" />
+<p className="font-medium">{c.user}</p>
+<span className="text-xs text-[var(--text-secondary)]">
+<RelativeTime value={c.time} />
+</span>
+</div>
+<p className="mt-1 text-[var(--text-primary)]">{c.message}</p>
+</div>)}</div>
+            <form className="mt-2 flex gap-2" onSubmit={handleSubmit(async ({ comment }) => { if (!comment.trim()) return; const payload = { id: crypto.randomUUID(), user: `${user?.first_name ?? 'Operador'} ${user?.last_name ?? ''}`.trim(), message: comment, time: new Date().toISOString() }; setComments((v) => [...v, payload]); getSocket().emit('orders:comment', { orderId: order.id, ...payload }); reset({ comment: '' }); })}>
+<input {...register('comment')} className="h-9 flex-1 rounded-lg border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)]" placeholder="Escribir comentario interno..." />
+<Button type="submit">Enviar</Button>
+</form>
           </div>
 
           <div>
             <p className="mb-2 text-sm text-[var(--text-secondary)]">Archivos adjuntos</p>
             <FileUploader onAdd={async (name, category) => { const result = await addDocument(name, category); if (result.ok) toast({ type: 'success', message: 'Documento agregado' }); else if (result.reason === 'duplicate') toast({ type: 'info', message: 'Ese documento ya existe para esta orden' }); else toast({ type: 'error', message: 'Nombre de documento inválido' }); }} />
-            <div className="mt-2"><FileList docs={docs} onRemove={async (id) => { const result = await removeDocument(id); if (result.ok) toast({ type: 'info', message: 'Documento eliminado' }); else toast({ type: 'error', message: 'No se pudo eliminar el documento' }); }} /></div>
+            <div className="mt-2">
+<FileList docs={docs} onRemove={async (id) => { const result = await removeDocument(id); if (result.ok) toast({ type: 'info', message: 'Documento eliminado' }); else toast({ type: 'error', message: 'No se pudo eliminar el documento' }); }} />
+</div>
           </div>
         </div>
       </Drawer>
@@ -153,6 +199,8 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
       </Modal>
 
       <ConfirmModal open={confirmClose} title="Descartar cambios" message="Tenés cambios sin guardar en comentarios o reasignación. ¿Cerrar igualmente?" onCancel={() => setConfirmClose(false)} onConfirm={() => { setConfirmClose(false); onClose(); }} />
-    </>
+      <ConfirmModal open={confirmCancel} title="Cancelar orden" message={`¿Cancelar la orden #${order.id.slice(0, 8)}? Esta acción impactará el seguimiento operativo.`} onCancel={() => { if (!cancelLoading) setConfirmCancel(false); }} onConfirm={async () => { setCancelLoading(true); try { await OrdersApi.patch(order.id, { estado: 'cancelado' }); toast({ type: 'info', message: 'Orden cancelada' }); setConfirmCancel(false); onRefresh(); } catch { toast({ type: 'error', message: 'No se pudo cancelar la orden' }); } finally { setCancelLoading(false); } }} confirmDisabled={cancelLoading} cancelDisabled={cancelLoading} />
+      </>
+    </ErrorBoundary>
   );
 }

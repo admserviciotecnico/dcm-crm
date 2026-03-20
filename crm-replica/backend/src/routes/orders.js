@@ -6,8 +6,16 @@ import { validateBody, validateIdParam } from '../middleware/validation.js';
 import { orderCreateSchema, orderPatchSchema, techniciansUpdateSchema } from '../services/schemas.js';
 import { logEvent } from '../services/event-log.js';
 import { asyncHandler, sendError } from '../utils/http.js';
+import { notifyAssignedTechnicians, ORDER_STATUS_LABEL, shortId } from '../services/notifications.js';
 
 const MAX_PAGE_SIZE = 100;
+const SORT_FIELDS = {
+  fecha_programada: 'fecha_programada',
+  estado: 'estado',
+  prioridad: 'prioridad_peso',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
 
 function toHistoryEntries({ before, after, userId, comment }) {
   const entries = [];
@@ -53,11 +61,22 @@ export default function ordersRouter(io) {
     const page = Math.max(1, Number(req.query.page || 1));
     const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, Number(req.query.pageSize || 20)));
     const { status, technician, client, priority, from, to, delayed } = req.query;
+    const q = String(req.query.q || '').trim();
+    const sortBy = SORT_FIELDS[String(req.query.sortBy || 'updated_at')] ?? 'updated_at';
+    const sortDir = String(req.query.sortDir || 'desc') === 'asc' ? 'asc' : 'desc';
 
     const where = { is_active: true, deleted_at: null };
     if (status) where.estado = status;
     if (client) where.client_id = client;
     if (priority) where.prioridad = priority;
+    if (q) {
+      where.OR = [
+        { id: { contains: q, mode: 'insensitive' } },
+        { client: { is: { nombre_empresa: { contains: q, mode: 'insensitive' } } } },
+        { direccion_service: { contains: q, mode: 'insensitive' } },
+        { observaciones: { contains: q, mode: 'insensitive' } }
+      ];
+    }
     if (from || to) {
       where.fecha_programada = { gte: from ? new Date(String(from)) : undefined, lte: to ? new Date(String(to)) : undefined };
     }
@@ -80,7 +99,7 @@ export default function ordersRouter(io) {
 
     const skip = (page - 1) * pageSize;
     const [items, total] = await Promise.all([
-      prisma.serviceOrder.findMany({ where, include: { technicians: true, client: true }, orderBy: [{ prioridad_peso: 'desc' }, { updated_at: 'desc' }], skip, take: pageSize }),
+      prisma.serviceOrder.findMany({ where, include: { technicians: true, client: true }, orderBy: [{ [sortBy]: sortDir }, { updated_at: 'desc' }], skip, take: pageSize }),
       prisma.serviceOrder.count({ where })
     ]);
     res.json({ items, total, page, pageSize });
@@ -112,6 +131,13 @@ export default function ordersRouter(io) {
         await db.serviceOrderTechnician.createMany({
           data: technicians.map((t) => ({ service_order_id: order.id, technician_id: t, asignado_por: req.user.email }))
         });
+        await notifyAssignedTechnicians(db, {
+          orderId: order.id,
+          technicianIds: technicians,
+          title: 'Nueva orden asignada',
+          description: `Se te asignó la orden #${shortId(order.id)}`,
+          kind: 'order_created_assignment'
+        });
       }
 
       await db.serviceOrderStatusHistory.create({
@@ -132,7 +158,7 @@ export default function ordersRouter(io) {
 
     io.emit('orders:changed', { type: 'created', orderId: tx.id });
     io.emit('dashboard:refresh', { reason: 'order_created' });
-    await logEvent({ entity_type: 'order', entity_id: tx.id, event_type: 'created', message: `Orden creada #${tx.id.slice(0, 8)}`, actor_user_id: req.user.id });
+    await logEvent({ entity_type: 'order', entity_id: tx.id, event_type: 'created', message: `Orden creada #${shortId(tx.id)}`, actor_user_id: req.user.id });
     res.status(201).json(tx);
   }));
 
@@ -161,6 +187,15 @@ export default function ordersRouter(io) {
       if (historyEntries.length) {
         await db.serviceOrderStatusHistory.createMany({ data: historyEntries });
       }
+      if (order.estado !== newOrder.estado) {
+        await notifyAssignedTechnicians(db, {
+          orderId: order.id,
+          technicianIds: order.technicians.map((technician) => technician.technician_id),
+          title: 'Orden actualizada',
+          description: `La orden #${shortId(order.id)} cambió a ${ORDER_STATUS_LABEL[newOrder.estado] ?? newOrder.estado}`,
+          kind: 'order_status_changed'
+        });
+      }
       return newOrder;
     });
 
@@ -172,7 +207,7 @@ export default function ordersRouter(io) {
     io.emit('dashboard:refresh', { reason: 'order_updated' });
 
     if (order.estado === updated.estado) {
-      await logEvent({ entity_type: 'order', entity_id: order.id, event_type: 'updated', message: `Orden actualizada #${order.id.slice(0, 8)}`, actor_user_id: req.user.id });
+      await logEvent({ entity_type: 'order', entity_id: order.id, event_type: 'updated', message: `Orden actualizada #${shortId(order.id)}`, actor_user_id: req.user.id });
     }
 
     res.json(updated);
@@ -182,7 +217,7 @@ export default function ordersRouter(io) {
     await prisma.serviceOrder.update({ where: { id: req.params.id }, data: { is_active: false, deleted_at: new Date() } });
     io.emit('orders:changed', { type: 'deleted', orderId: req.params.id });
     io.emit('dashboard:refresh', { reason: 'order_deleted' });
-    await logEvent({ entity_type: 'order', entity_id: req.params.id, event_type: 'deleted', message: `Orden eliminada #${req.params.id.slice(0, 8)}`, actor_user_id: req.user.id });
+    await logEvent({ entity_type: 'order', entity_id: req.params.id, event_type: 'deleted', message: `Orden eliminada #${shortId(req.params.id)}`, actor_user_id: req.user.id });
     res.json({ ok: true });
   }));
 
@@ -195,8 +230,10 @@ export default function ordersRouter(io) {
     const order = await prisma.serviceOrder.findUnique({ where: { id: req.params.id }, include: { technicians: true } });
     if (!order || order.deleted_at) return sendError(res, 404, 'Not found');
 
-    const oldList = order.technicians.map((t) => t.technician_id).sort().join(',');
+    const previousIds = order.technicians.map((t) => t.technician_id);
+    const oldList = previousIds.sort().join(',');
     const newList = [...req.body.technicians].sort().join(',');
+    const newlyAdded = req.body.technicians.filter((technicianId) => !previousIds.includes(technicianId));
 
     await prisma.$transaction(async (db) => {
       await db.serviceOrderTechnician.deleteMany({ where: { service_order_id: req.params.id } });
@@ -218,11 +255,21 @@ export default function ordersRouter(io) {
           usuario_id: req.user.id
         }
       });
+
+      if (newlyAdded.length) {
+        await notifyAssignedTechnicians(db, {
+          orderId: req.params.id,
+          technicianIds: newlyAdded,
+          title: 'Orden asignada',
+          description: `Se te asignó la orden #${shortId(req.params.id)}`,
+          kind: 'order_reassignment'
+        });
+      }
     });
 
     io.emit('orders:changed', { type: 'tech_assignment', orderId: req.params.id });
     io.emit('dashboard:refresh', { reason: 'technician_assignment' });
-    await logEvent({ entity_type: 'order', entity_id: req.params.id, event_type: 'updated', message: `Técnicos reasignados en orden #${req.params.id.slice(0, 8)}`, actor_user_id: req.user.id });
+    await logEvent({ entity_type: 'order', entity_id: req.params.id, event_type: 'updated', message: `Técnicos reasignados en orden #${shortId(req.params.id)}`, actor_user_id: req.user.id });
     res.json({ ok: true });
   }));
 

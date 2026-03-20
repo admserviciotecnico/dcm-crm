@@ -97,3 +97,12 @@ export interface EventLog {
   actor_user_id?: string | null;
   created_at: string;
 }
+
+export interface NotificationItem {
+  id: string;
+  title: string;
+  description: string;
+  read: boolean;
+  created_at: string;
+  service_order_id?: string | null;
+}

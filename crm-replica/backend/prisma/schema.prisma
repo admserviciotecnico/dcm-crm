@@ -196,12 +196,17 @@ model Notification {
   id               String        @id @default(cuid())
   user_id          String
   service_order_id String?
+  client_id        String?
+  kind             String?
   title            String
   description      String
   read             Boolean       @default(false)
   created_at       DateTime      @default(now())
   user             User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
   service_order    ServiceOrder? @relation(fields: [service_order_id], references: [id], onDelete: SetNull)
+
+  @@index([user_id, kind, service_order_id, created_at])
+  @@index([user_id, kind, client_id, created_at])
 }
 
 model Attachment {

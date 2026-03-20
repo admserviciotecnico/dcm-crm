@@ -12,6 +12,7 @@ import { ServiceOrder, User } from '@/types/domain';
 import { OrdersChart } from '@/components/dashboard/orders-chart';
 import { appStore } from '@/stores/app-store';
 import { RelativeTime } from '@/components/common/relative-time';
+import { ErrorBoundary } from '@/components/common/error-boundary';
 
 export default function DashboardPage() {
   const [data, setData] = useState<Record<string, number> | null>(null);
@@ -64,6 +65,7 @@ export default function DashboardPage() {
   }, [orders, users]);
 
   return (
+    <ErrorBoundary>
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold tracking-tight">Service Overview</h1>
       <KpiCards data={data} loading={loading} />
@@ -81,7 +83,7 @@ export default function DashboardPage() {
           <h2 className="mb-3 font-semibold">Actividad del sistema</h2>
           <Timeline>
             {notifications.slice(0, 4).map((n) => (
-              <TimelineItem key={n.id} title={n.title} subtitle={`${n.message} · ${new Date(n.createdAt).toLocaleTimeString()}`} />
+              <TimelineItem key={n.id} title={n.title} subtitle={`${n.description} · ${new Date(n.created_at).toLocaleTimeString()}`} />
             ))}
           </Timeline>
         </Card>
@@ -100,5 +102,6 @@ export default function DashboardPage() {
         </Table>
       </Card>
     </div>
+    </ErrorBoundary>
   );
 }
