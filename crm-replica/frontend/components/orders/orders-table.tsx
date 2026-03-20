@@ -65,7 +65,7 @@ function OrdersTableComponent({ rows, users, selectedIds, onToggleSelect, onTogg
               <td className="p-2"><input type="checkbox" checked={checked} onChange={() => onToggleSelect(o.id)} /></td>
               <td className="mono p-2"><button className="inline-flex items-center gap-1" onClick={(e) => { e.stopPropagation(); void navigator.clipboard.writeText(o.id); }}><span>#{o.id.slice(0, 8)}</span><Copy size={12} /></button></td>
               <td className="p-2">
-                <div className="relative" onClick={() => onClick(o)}>
+                <div className="relative">
                   {o.client?.nombre_empresa ?? o.client_id}
                   <div className="pointer-events-none absolute left-0 top-6 z-10 hidden min-w-44 rounded border border-[var(--border)] bg-[var(--bg-surface)] p-2 text-xs text-[var(--text-secondary)] group-hover:block">Contacto cliente y métricas rápidas</div>
                 </div>
