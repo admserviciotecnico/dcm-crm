@@ -42,6 +42,8 @@ export interface Equipment {
   tipo_equipo: string;
   modelo?: string;
   numero_serie: string;
+  ubicacion_planta?: string;
+  fecha_instalacion?: string;
   estado_actual: EquipmentStatus | string;
   observaciones?: string;
   created_at?: string;
@@ -55,6 +57,8 @@ export interface ServiceOrder {
   estado: OrderStatus;
   prioridad: Priority;
   prioridad_peso: number;
+  created_at?: string;
+  updated_at?: string;
   fecha_programada?: string;
   direccion_service?: string;
   contacto_planta?: string;
@@ -74,5 +78,31 @@ export interface OrderHistory {
   valor_nuevo?: string;
   comentario?: string;
   created_at: string;
-  usuario?: { email: string };
+  usuario?: {
+    email?: string;
+    first_name?: string;
+    last_name?: string;
+  };
+}
+
+export type EventEntityType = 'order' | 'client' | 'equipment' | 'document' | 'system';
+export type EventType = 'created' | 'updated' | 'deleted' | 'status_changed' | 'document_added' | 'document_removed';
+
+export interface EventLog {
+  id: string;
+  entity_type: EventEntityType;
+  entity_id?: string | null;
+  event_type: EventType;
+  message: string;
+  actor_user_id?: string | null;
+  created_at: string;
+}
+
+export interface NotificationItem {
+  id: string;
+  title: string;
+  description: string;
+  read: boolean;
+  created_at: string;
+  service_order_id?: string | null;
 }
