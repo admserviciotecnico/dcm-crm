@@ -36,9 +36,15 @@ export default function DashboardPage() {
   useRealtime(load);
 
   const avgResolution = useMemo(() => {
-    const completed = orders.filter((o) => o.estado === 'completado' && o.fecha_programada);
+    const completed = orders.filter((o) => o.estado === 'completado');
     if (completed.length === 0) return 0;
-    const avgDays = completed.reduce((acc, o) => acc + Math.max(1, Math.ceil((Date.now() - new Date(o.fecha_programada ?? new Date()).getTime()) / 86400000)), 0) / completed.length;
+    const avgDays = completed.reduce((acc, o) => {
+      const createdAt = new Date(o.created_at ?? o.updated_at ?? new Date());
+      const updatedAt = new Date(o.updated_at ?? o.created_at ?? new Date());
+      const diffMs = Math.max(0, updatedAt.getTime() - createdAt.getTime());
+      const days = Math.max(1, Math.ceil(diffMs / 86400000));
+      return acc + days;
+    }, 0) / completed.length;
     return Math.round(avgDays);
   }, [orders]);
 

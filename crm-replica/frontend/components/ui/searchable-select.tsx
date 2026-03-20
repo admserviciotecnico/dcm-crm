@@ -14,11 +14,11 @@ type SearchableSelectProps = {
 };
 
 export function SearchableSelect({ options, value, onChange, placeholder = 'Buscar...', emptyMessage = 'Sin resultados' }: SearchableSelectProps) {
-  const [query, setQuery] = useState('');
+  const selected = useMemo(() => options.find((option) => option.value === value), [options, value]);
+  const selectedLabel = selected?.label ?? '';
+  const [query, setQuery] = useState(() => selectedLabel);
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
-
-  const selected = useMemo(() => options.find((option) => option.value === value), [options, value]);
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     if (!normalizedQuery) return options;
@@ -27,9 +27,9 @@ export function SearchableSelect({ options, value, onChange, placeholder = 'Busc
 
   useEffect(() => {
     if (!open) {
-      setQuery(selected?.label ?? '');
+      setQuery(selectedLabel);
     }
-  }, [open, selected?.label]);
+  }, [open, selectedLabel]);
 
   useEffect(() => {
     const onClickOutside = (event: MouseEvent) => {
@@ -45,11 +45,11 @@ export function SearchableSelect({ options, value, onChange, placeholder = 'Busc
   return (
     <div className="relative" ref={rootRef}>
       <Input
-        value={open ? query : (selected?.label ?? '')}
+        value={open ? query : selectedLabel}
         placeholder={placeholder}
         onFocus={() => {
           setOpen(true);
-          setQuery(selected?.label ?? '');
+          setQuery(selectedLabel);
         }}
         onChange={(event) => {
           setOpen(true);

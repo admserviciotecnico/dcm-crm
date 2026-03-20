@@ -22,24 +22,11 @@ import { FileUploader } from '@/modules/documents/components/file-uploader';
 import { FileList } from '@/modules/documents/components/file-list';
 import { useDocumentsState } from '@/modules/documents/hooks/use-documents-state';
 import { resolveActorName, resolveActorNameById } from '@/lib/actor-name';
-import { ORDER_STATUS_LABEL } from '@/constants/orderStatus';
+import { ORDER_STATUS_LABEL, ORDER_STATUS_WORKFLOW } from '@/constants/orderStatus';
 
 type LocalComment = { id: string; user: string; message: string; time: string };
 
 type CommentForm = { comment: string };
-
-const workflow: Record<string, string[]> = {
-  presupuesto_generado: ['service_programado', 'cancelado'],
-  service_programado: ['en_ejecucion', 'cancelado'],
-  en_ejecucion: ['completado', 'cancelado'],
-  completado: [],
-  cancelado: [],
-  oc_recibida: ['facturado', 'cancelado'],
-  facturado: ['pago_recibido', 'cancelado'],
-  pago_recibido: ['documentacion_enviada'],
-  documentacion_enviada: ['documentacion_aprobada'],
-  documentacion_aprobada: ['service_programado']
-};
 
 export function OrderDetail({ order, users, onClose, onRefresh }: { order: ServiceOrder | null; users: User[]; onClose: () => void; onRefresh: () => void }) {
   const [history, setHistory] = useState<OrderHistory[]>([]);
@@ -74,7 +61,7 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
     return () => { socket.off('orders:comment', onRemoteComment); };
   }, [order]);
 
-  const adminAllowed = useMemo(() => (order ? workflow[order.estado] || [] : []), [order]);
+  const adminAllowed = useMemo(() => (order ? ORDER_STATUS_WORKFLOW[order.estado] ?? [] : []), [order]);
   const techUsers = users.filter((u) => u.role === 'tecnico');
   const usersById = useMemo(() => new Map(users.map((listedUser) => [listedUser.id, listedUser])), [users]);
   const timelineEvents = history.map((h) => ({ id: h.id, actor: resolveActorName(h.usuario), action: `cambió ${h.campo_modificado ?? 'estado'}`, entity: `${h.valor_nuevo ?? '-'}`, at: h.created_at }));
@@ -118,7 +105,7 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
             <p className="mb-2 text-sm text-[var(--text-secondary)]">Acciones de workflow</p>
             <div className="flex flex-wrap gap-2">
               {user?.role === 'admin' ? adminAllowed.map((next) => <Button key={next} variant="secondary" onClick={async () => { try { await OrdersApi.patch(order.id, { estado: next }); toast({ type: 'success', message: `Estado actualizado a ${next}` }); onRefresh(); } catch { toast({ type: 'error', message: 'No se pudo actualizar el estado' }); } }}>{ORDER_STATUS_LABEL[next as keyof typeof ORDER_STATUS_LABEL] ?? next}</Button>) : null}
-              {canTechMove ? <Button variant="secondary" onClick={async () => { const next = order.estado === 'service_programado' ? 'en_ejecucion' : 'completado'; try { await OrdersApi.patch(order.id, { estado: next }); toast({ type: 'success', message: `Orden ${next}` }); onRefresh(); } catch { toast({ type: 'error', message: 'No se pudo actualizar la orden' }); } }}>{order.estado === 'service_programado' ? 'Iniciar' : 'Completar'}</Button> : null}
+              {canTechMove ? <Button variant="secondary" onClick={async () => { const next = order.estado === 'service_programado' ? 'en_ejecucion' : 'completado'; try { await OrdersApi.patch(order.id, { estado: next }); toast({ type: 'success', message: `Orden ${next}` }); onRefresh(); } catch { toast({ type: 'error', message: 'No se pudo actualizar la orden' }); } }}>{ORDER_STATUS_LABEL[order.estado === 'service_programado' ? 'en_ejecucion' : 'completado']}</Button> : null}
               {canCancel ? <Button variant="danger" onClick={async () => { try { await OrdersApi.patch(order.id, { estado: 'cancelado' }); toast({ type: 'info', message: 'Orden cancelada' }); onRefresh(); } catch { toast({ type: 'error', message: 'No se pudo cancelar la orden' }); } }}>{ORDER_STATUS_LABEL.cancelado}</Button> : null}
             </div>
           </div>

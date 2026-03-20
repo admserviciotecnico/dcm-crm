@@ -1,6 +1,6 @@
 'use client';
 
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { Copy, Eye, ExternalLink, MoreHorizontal, Pencil, XCircle } from 'lucide-react';
 
 import { ServiceOrder, User, OrderStatus } from '@/types/domain';
@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { RelativeTime } from '@/components/common/relative-time';
 import { Dropdown } from '@/components/ui/dropdown';
+import { ConfirmModal } from '@/components/common/confirm-modal';
 
 type Props = {
   rows: ServiceOrder[];
@@ -19,17 +20,34 @@ type Props = {
   onToggleSelect: (id: string) => void;
   onToggleSelectAll: () => void;
   onClick: (row: ServiceOrder) => void;
-  onStatusQuickChange: (order: ServiceOrder, status: OrderStatus) => void;
+  onStatusQuickChange: (order: ServiceOrder, status: OrderStatus) => Promise<void> | void;
 };
 
 function OrdersTableComponent({ rows, users, selectedIds, onToggleSelect, onToggleSelectAll, onClick, onStatusQuickChange }: Props) {
+  const [confirmOrder, setConfirmOrder] = useState<ServiceOrder | null>(null);
+  const [cancelLoading, setCancelLoading] = useState(false);
+
   const getTechName = (techId: string) => {
     const user = users.find((u) => u.id === techId);
     return user ? `${user.first_name} ${user.last_name}` : techId;
   };
 
+  const requestCancel = (order: ServiceOrder) => setConfirmOrder(order);
+
+  const confirmCancel = async () => {
+    if (!confirmOrder) return;
+    setCancelLoading(true);
+    try {
+      await onStatusQuickChange(confirmOrder, 'cancelado');
+      setConfirmOrder(null);
+    } finally {
+      setCancelLoading(false);
+    }
+  };
+
   return (
-    <Table>
+    <>
+      <Table>
       <thead className="text-left text-xs uppercase text-[var(--text-secondary)]">
         <tr>
           <th className="p-2"><input type="checkbox" checked={rows.length > 0 && selectedIds.length === rows.length} onChange={onToggleSelectAll} /></th>
@@ -62,11 +80,11 @@ function OrdersTableComponent({ rows, users, selectedIds, onToggleSelect, onTogg
                   <Button variant="ghost" onClick={() => onClick(o)} title="Ver detalle"><Eye size={14} /></Button>
                   <Button variant="ghost" onClick={() => onStatusQuickChange(o, 'service_programado')} title="Editar / Programar"><Pencil size={14} /></Button>
                   <Link href={`/orders/${o.id}`} className="inline-flex items-center rounded-lg p-2 hover:bg-[var(--bg-surface-hover)]" title="Abrir página"><ExternalLink size={14} /></Link>
-                  <Button variant="ghost" onClick={() => onStatusQuickChange(o, 'cancelado')} title="Cancelar"><XCircle size={14} /></Button>
+                  <Button variant="ghost" onClick={() => requestCancel(o)} title="Cancelar"><XCircle size={14} /></Button>
                   <Dropdown trigger={<Button variant="ghost"><MoreHorizontal size={16} /></Button>}>
                     <button className="block w-full rounded-[8px] px-3 py-2 text-left text-sm hover:bg-[var(--bg-surface-hover)]" onClick={() => onClick(o)}>Ver detalle</button>
                     <button className="block w-full rounded-[8px] px-3 py-2 text-left text-sm hover:bg-[var(--bg-surface-hover)]" onClick={() => onStatusQuickChange(o, 'service_programado')}>Marcar programada</button>
-                    <button className="block w-full rounded-[8px] px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50" onClick={() => onStatusQuickChange(o, 'cancelado')}>Cancelar orden</button>
+                    <button className="block w-full rounded-[8px] px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50" onClick={() => requestCancel(o)}>Cancelar orden</button>
                   </Dropdown>
                 </div>
               </td>
@@ -74,7 +92,17 @@ function OrdersTableComponent({ rows, users, selectedIds, onToggleSelect, onTogg
           );
         })}
       </tbody>
-    </Table>
+      </Table>
+      <ConfirmModal
+        open={!!confirmOrder}
+        title="Cancelar orden"
+        message={confirmOrder ? `¿Cancelar la orden #${confirmOrder.id.slice(0, 8)}?` : ''}
+        onCancel={() => { if (!cancelLoading) setConfirmOrder(null); }}
+        onConfirm={() => { void confirmCancel(); }}
+        confirmDisabled={cancelLoading}
+        cancelDisabled={cancelLoading}
+      />
+    </>
   );
 }
 

@@ -3,6 +3,7 @@ import cors from 'cors';
 import morgan from 'morgan';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+import jwt from 'jsonwebtoken';
 import { env } from './config/env.js';
 import authRoutes from './routes/auth.js';
 import usersRoutes from './routes/users.js';
@@ -19,6 +20,27 @@ import { rateLimit } from './middleware/rate-limit.js';
 const app = express();
 const server = createServer(app);
 const io = new Server(server, { cors: { origin: env.corsOrigin } });
+
+io.use((socket, next) => {
+  const authToken = typeof socket.handshake.auth?.token === 'string' ? socket.handshake.auth.token : null;
+  const headerAuth = typeof socket.handshake.headers.authorization === 'string' ? socket.handshake.headers.authorization : null;
+  const headerToken = headerAuth?.startsWith('Bearer ') ? headerAuth.slice(7) : null;
+  const token = authToken || headerToken;
+
+  if (!token) {
+    next(new Error('Unauthorized'));
+    return;
+  }
+
+  try {
+    const payload = jwt.verify(token, env.jwtSecret);
+    socket.data.userId = payload.sub;
+    socket.data.role = payload.role;
+    next();
+  } catch {
+    next(new Error('Unauthorized'));
+  }
+});
 
 io.on('connection', (socket) => {
   socket.emit('connected', { ok: true, ts: Date.now() });

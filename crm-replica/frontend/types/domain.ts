@@ -57,6 +57,8 @@ export interface ServiceOrder {
   estado: OrderStatus;
   prioridad: Priority;
   prioridad_peso: number;
+  created_at?: string;
+  updated_at?: string;
   fecha_programada?: string;
   direccion_service?: string;
   contacto_planta?: string;
