@@ -1,7 +1,7 @@
 import { create } from 'zustand';
+import { NotificationItem } from '@/types/domain';
 
 export type Toast = { id: string; type: 'success' | 'error' | 'info'; message: string };
-export type NotificationItem = { id: string; title: string; message: string; createdAt: string; read: boolean };
 
 type State = {
   loadingCount: number;
@@ -11,8 +11,9 @@ type State = {
   stopLoading: () => void;
   pushToast: (toast: Omit<Toast, 'id'>) => void;
   removeToast: (id: string) => void;
-  pushNotification: (payload: Omit<NotificationItem, 'id' | 'createdAt' | 'read'>) => void;
-  markNotificationsRead: () => void;
+  pushNotification: (payload: { title: string; message: string }) => void;
+  setNotifications: (items: NotificationItem[]) => void;
+  markNotificationsRead: (ids?: string[]) => void;
 };
 
 export const appStore = create<State>((set) => ({
@@ -30,13 +31,17 @@ export const appStore = create<State>((set) => ({
         {
           id: crypto.randomUUID(),
           title: payload.title,
-          message: payload.message,
-          createdAt: new Date().toISOString(),
-          read: false
+          description: payload.message,
+          created_at: new Date().toISOString(),
+          read: false,
+          service_order_id: null
         },
         ...s.notifications
       ].slice(0, 20)
     })),
-  markNotificationsRead: () =>
-    set((s) => ({ notifications: s.notifications.map((n) => ({ ...n, read: true })) }))
+  setNotifications: (items) => set({ notifications: items }),
+  markNotificationsRead: (ids) =>
+    set((s) => ({
+      notifications: s.notifications.map((n) => (!ids || ids.includes(n.id) ? { ...n, read: true } : n))
+    }))
 }));
