@@ -1,15 +1,17 @@
 'use client';
 
-export function ConfirmModal({ open, title, message, onCancel, onConfirm }: { open: boolean; title: string; message: string; onCancel: () => void; onConfirm: () => void }) {
+import { Button } from '@/components/ui/button';
+
+export function ConfirmModal({ open, title, message, onCancel, onConfirm, confirmDisabled = false, cancelDisabled = false }: { open: boolean; title: string; message: string; onCancel: () => void; onConfirm: () => void; confirmDisabled?: boolean; cancelDisabled?: boolean }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[210] bg-black/50 grid place-items-center p-4">
-      <div className="w-full max-w-md rounded-xl bg-white dark:bg-slate-900 border p-5 space-y-4">
+    <div className="fixed inset-0 z-[210] grid place-items-center bg-black/50 p-4">
+      <div className="w-full max-w-md space-y-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-5">
         <h3 className="text-lg font-semibold">{title}</h3>
-        <p className="text-sm text-slate-500">{message}</p>
+        <p className="text-sm text-[var(--text-secondary)]">{message}</p>
         <div className="flex justify-end gap-2">
-          <button className="px-3 py-2 rounded border" onClick={onCancel}>Cancelar</button>
-          <button className="px-3 py-2 rounded bg-red-600 text-white" onClick={onConfirm}>Confirmar</button>
+          <Button variant="secondary" onClick={onCancel} disabled={cancelDisabled}>Cancelar</Button>
+          <Button variant="danger" onClick={onConfirm} disabled={confirmDisabled}>Confirmar</Button>
         </div>
       </div>
     </div>

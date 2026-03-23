@@ -7,6 +7,7 @@ export type DocumentItem = {
   entityType: DocumentEntityType;
   entityId: string;
   category: DocumentCategory;
+  filePath?: string;
   createdAt: string;
 };
 

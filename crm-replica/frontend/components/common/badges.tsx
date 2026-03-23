@@ -3,7 +3,7 @@ import { OrderStatus, Priority } from '@/types/domain';
 import { Badge } from '@/components/ui/badge';
 
 const statusColors: Record<OrderStatus, string> = {
-  presupuesto_generado: 'border-slate-300 bg-slate-100 text-slate-700',
+  presupuesto_generado: 'border-[var(--border)] bg-[var(--bg-surface-muted)] text-[var(--text-secondary)]',
   oc_recibida: 'border-sky-200 bg-sky-100 text-sky-700',
   facturado: 'border-blue-200 bg-blue-100 text-blue-700',
   pago_recibido: 'border-cyan-200 bg-cyan-100 text-cyan-700',
