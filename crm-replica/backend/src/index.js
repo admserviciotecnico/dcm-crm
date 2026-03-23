@@ -14,6 +14,7 @@ import dashboardRoutes from './routes/dashboard.js';
 import documentsRoutes from './routes/documents.js';
 import eventsRoutes from './routes/events.js';
 import notificationsRoutes from './routes/notifications.js';
+import searchRoutes from './routes/search.js';
 import { sanitizeBody } from './middleware/sanitize.js';
 import { errorHandler, notFoundHandler } from './middleware/error-handler.js';
 import { rateLimit } from './middleware/rate-limit.js';
@@ -62,6 +63,7 @@ app.use('/api/documents', documentsRoutes);
 app.use('/api/events', eventsRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/search', searchRoutes);
 app.use(notFoundHandler);
 app.use(errorHandler);
 

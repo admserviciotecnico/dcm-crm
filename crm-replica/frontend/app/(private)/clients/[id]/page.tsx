@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { Plus, Trash2, UserRound } from 'lucide-react';
 import { ClientsApi, EquipmentsApi, EventsApi, OrdersApi, UsersApi } from '@/lib/api/endpoints';
-import { Client, Equipment, EventLog, ServiceOrder, User } from '@/types/domain';
+import { Client, ClientHealth, Equipment, EventLog, ServiceOrder, User } from '@/types/domain';
 import { Tabs } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
 import { Table } from '@/components/ui/table';
@@ -23,7 +23,6 @@ import { OrderDetail } from '@/components/orders/order-detail';
 import { PageHeader } from '@/components/layout/page-header';
 import { CardSkeleton, TableSkeleton } from '@/components/common/skeletons';
 import { EmptyState } from '@/components/common/empty-state';
-import { Skeleton } from '@/components/common/skeleton';
 import { appStore } from '@/stores/app-store';
 import { FileUploader } from '@/modules/documents/components/file-uploader';
 import { FileList } from '@/modules/documents/components/file-list';
@@ -51,6 +50,7 @@ export default function Client360Page() {
   const [equipments, setEquipments] = useState<Equipment[]>([]);
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [health, setHealth] = useState<ClientHealth | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<ServiceOrder | null>(null);
   const [contactModalOpen, setContactModalOpen] = useState(false);
@@ -74,17 +74,19 @@ export default function Client360Page() {
   const load = async () => {
     setLoading(true);
     try {
-      const [clientsRes, equipmentsRes, ordersRes, usersRes] = await Promise.all([
+      const [clientsRes, equipmentsRes, ordersRes, usersRes, healthRes] = await Promise.all([
         ClientsApi.list(),
         EquipmentsApi.list(),
         OrdersApi.list({ page: 1, pageSize: 300, client: id }),
-        UsersApi.list()
+        UsersApi.list(),
+        ClientsApi.health(id).catch(() => null)
       ]);
 
       setClient(clientsRes.find((c) => c.id === id) ?? null);
       setEquipments(equipmentsRes.filter((e) => e.client_id === id));
       setOrders(ordersRes.items.filter((o) => o.client_id === id));
       setUsers(usersRes);
+      setHealth(healthRes);
       try {
         const backendEvents = await EventsApi.list({ entityType: 'client', entityId: id, limit: 200 });
         setBackendActivityEvents(backendEvents);
@@ -220,6 +222,7 @@ export default function Client360Page() {
 
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <Badge className="border-blue-200 bg-blue-100 text-blue-700">Órdenes activas: {kpis.activeOrders}</Badge>
+          <Badge className="border-sky-200 bg-sky-100 text-sky-700">Cumplimiento: {health?.on_time_rate ?? '-'}%</Badge>
           <Badge className="border-emerald-200 bg-emerald-100 text-emerald-700">Órdenes completadas: {kpis.completedOrders}</Badge>
           <Badge className="border-[var(--border)] bg-[var(--bg-surface-muted)] text-[var(--text-secondary)]">Órdenes totales: {kpis.totalOrders}</Badge>
           <Badge className="border-amber-200 bg-amber-100 text-amber-700">Equipos instalados: {kpis.equipments}</Badge>
@@ -241,6 +244,21 @@ export default function Client360Page() {
               <div><p className="text-[var(--text-secondary)]">Email principal</p><p>{primaryContact?.email ?? '-'}</p></div>
               <div><p className="text-[var(--text-secondary)]">Teléfono principal</p><p>{primaryContact?.telefono ?? '-'}</p></div>
               <div><p className="text-[var(--text-secondary)]">Vencimiento documentación</p><p>{client.fecha_vencimiento_documentacion ?? '-'}</p></div>
+            </div>
+          </Card>
+
+          <Card>
+            <h2 className="text-lg font-medium">Salud del cliente</h2>
+            <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-[10px] border border-[var(--border)] p-3 text-sm"><p className="text-[var(--text-secondary)]">Última interacción</p><p className="mt-1 font-medium">{health?.last_interaction_at ? <RelativeTime value={health.last_interaction_at} /> : 'Sin actividad'}</p></div>
+              <div className="rounded-[10px] border border-[var(--border)] p-3 text-sm"><p className="text-[var(--text-secondary)]">Resolución promedio</p><p className="mt-1 font-medium">{health?.avg_resolution_hours != null ? `${health.avg_resolution_hours} h` : '-'}</p></div>
+              <div className="rounded-[10px] border border-[var(--border)] p-3 text-sm"><p className="text-[var(--text-secondary)]">Documentación</p><div className="mt-2"><Badge className={health?.documentation_status === 'vigente' ? 'border-emerald-200 bg-emerald-100 text-emerald-700' : health?.documentation_status === 'proxima_a_vencer' ? 'border-amber-200 bg-amber-100 text-amber-700' : health?.documentation_status === 'vencida' ? 'border-red-200 bg-red-100 text-red-700' : 'border-[var(--border)] bg-[var(--bg-surface-muted)] text-[var(--text-secondary)]'}>{health?.documentation_status?.replace(/_/g, ' ') ?? '-'}</Badge></div></div>
+              <div className="rounded-[10px] border border-[var(--border)] p-3 text-sm"><p className="text-[var(--text-secondary)]">Costo estimado materiales</p><p className="mt-1 font-medium">${health?.materials_summary.estimated_cost?.toFixed(2) ?? '0.00'}</p></div>
+            </div>
+            <div className="mt-3 grid gap-3 md:grid-cols-3">
+              <div className="rounded-[10px] bg-[var(--bg-surface-hover)] p-3 text-sm"><p className="text-[var(--text-secondary)]">Órdenes a tiempo</p><p className="mt-1 text-lg font-semibold">{health?.completed_on_time ?? 0}</p></div>
+              <div className="rounded-[10px] bg-[var(--bg-surface-hover)] p-3 text-sm"><p className="text-[var(--text-secondary)]">Órdenes demoradas</p><p className="mt-1 text-lg font-semibold">{health?.completed_late ?? 0}</p></div>
+              <div className="rounded-[10px] bg-[var(--bg-surface-hover)] p-3 text-sm"><p className="text-[var(--text-secondary)]">Materiales cargados</p><p className="mt-1 text-lg font-semibold">{health?.materials_summary.total_items ?? 0}</p></div>
             </div>
           </Card>
 

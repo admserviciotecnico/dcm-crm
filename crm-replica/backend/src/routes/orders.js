@@ -3,11 +3,12 @@ import { prisma } from '../config/prisma.js';
 import { authRequired, requireRole } from '../middleware/auth.js';
 import { computePriorityWeight, validateStateTransition, validateTechnicianRestrictedFields } from '../services/order-rules.js';
 import { validateBody, validateIdParam } from '../middleware/validation.js';
-import { orderCreateSchema, orderPatchSchema, techniciansUpdateSchema } from '../services/schemas.js';
+import { materialCreateSchema, materialUpdateSchema, orderCreateSchema, orderPatchSchema, techniciansUpdateSchema } from '../services/schemas.js';
 import { logEvent } from '../services/event-log.js';
 import { asyncHandler, sendError } from '../utils/http.js';
 import { notifyAssignedTechnicians, ORDER_STATUS_LABEL, shortId } from '../services/notifications.js';
 import { computeSlaDeadline, getSlaStatus } from '../utils/sla.js';
+import { createSimplePdf } from '../utils/pdf.js';
 
 const MAX_PAGE_SIZE = 100;
 const SORT_FIELDS = {
@@ -18,6 +19,11 @@ const SORT_FIELDS = {
   updated_at: 'updated_at'
 };
 
+const ORDER_INCLUDE = {
+  technicians: { include: { technician: true } },
+  client: true,
+  materials: true
+};
 
 function enrichOrderWithSla(order) {
   const slaDeadline = computeSlaDeadline(order.created_at, order.prioridad);
@@ -44,9 +50,9 @@ function toHistoryEntries({ before, after, userId, comment }) {
     });
   }
 
-  for (const field of ['prioridad', 'fecha_programada']) {
-    const prev = before[field] instanceof Date ? before[field].toISOString() : before[field];
-    const next = after[field] instanceof Date ? after[field].toISOString() : after[field];
+  for (const field of ['prioridad', 'fecha_programada', 'observaciones_cierre', 'tiempo_trabajado_horas', 'firma_cliente', 'foto_trabajo_url', 'checklist_cierre']) {
+    const prev = before[field] instanceof Date ? before[field].toISOString() : typeof before[field] === 'object' && before[field] !== null ? JSON.stringify(before[field]) : before[field];
+    const next = after[field] instanceof Date ? after[field].toISOString() : typeof after[field] === 'object' && after[field] !== null ? JSON.stringify(after[field]) : after[field];
     if (prev !== next) {
       entries.push({
         service_order_id: before.id,
@@ -62,6 +68,26 @@ function toHistoryEntries({ before, after, userId, comment }) {
   }
 
   return entries;
+}
+
+function ensureOrderAccess(order, user) {
+  if (!order || order.deleted_at || !order.is_active) return { ok: false, status: 404, message: 'Not found' };
+  if (user.role.name === 'tecnico') {
+    const assigned = order.technicians.some((technician) => technician.technician_id === user.id);
+    if (!assigned) return { ok: false, status: 403, message: 'Forbidden' };
+  }
+  return { ok: true };
+}
+
+async function getAccessibleOrder(orderId, user) {
+  const order = await prisma.serviceOrder.findUnique({ where: { id: orderId }, include: ORDER_INCLUDE });
+  const access = ensureOrderAccess(order, user);
+  return { order, access };
+}
+
+function formatChecklist(checklist) {
+  if (!checklist || typeof checklist !== 'object') return 'Sin checklist';
+  return Object.entries(checklist).map(([key, value]) => `${key}: ${value ? 'sí' : 'no'}`).join(' | ');
 }
 
 export default function ordersRouter(io) {
@@ -110,26 +136,46 @@ export default function ordersRouter(io) {
 
     const skip = (page - 1) * pageSize;
     const [items, total] = await Promise.all([
-      prisma.serviceOrder.findMany({ where, include: { technicians: true, client: true }, orderBy: [{ [sortBy]: sortDir }, { updated_at: 'desc' }], skip, take: pageSize }),
+      prisma.serviceOrder.findMany({ where, include: ORDER_INCLUDE, orderBy: [{ [sortBy]: sortDir }, { updated_at: 'desc' }], skip, take: pageSize }),
       prisma.serviceOrder.count({ where })
     ]);
     res.json({ items: items.map(enrichOrderWithSla), total, page, pageSize });
   }));
 
   router.get('/:id', validateIdParam, asyncHandler(async (req, res) => {
-    const order = await prisma.serviceOrder.findUnique({
-      where: { id: req.params.id },
-      include: { technicians: true, client: true }
-    });
-
-    if (!order || order.deleted_at || !order.is_active) return sendError(res, 404, 'Not found');
-
-    if (req.user.role.name === 'tecnico') {
-      const assigned = order.technicians.some((t) => t.technician_id === req.user.id);
-      if (!assigned) return sendError(res, 403, 'Forbidden');
-    }
-
+    const { order, access } = await getAccessibleOrder(req.params.id, req.user);
+    if (!access.ok) return sendError(res, access.status, access.message);
     res.json(enrichOrderWithSla(order));
+  }));
+
+  router.get('/:id/pdf', validateIdParam, asyncHandler(async (req, res) => {
+    const { order, access } = await getAccessibleOrder(req.params.id, req.user);
+    if (!access.ok) return sendError(res, access.status, access.message);
+
+    const technicianNames = order.technicians.map((item) => `${item.technician.first_name} ${item.technician.last_name}`.trim()).join(', ') || 'Sin técnicos asignados';
+    const materialsTotal = order.materials.reduce((sum, material) => sum + (material.quantity * material.unit_cost), 0);
+    const lines = [
+      'DCM CRM - Orden de Servicio',
+      `Orden: #${shortId(order.id)}`,
+      `Cliente: ${order.client?.nombre_empresa ?? order.client_id}`,
+      `Estado: ${ORDER_STATUS_LABEL[order.estado] ?? order.estado}`,
+      `Prioridad: ${order.prioridad}`,
+      `Técnicos: ${technicianNames}`,
+      `Fecha programada: ${order.fecha_programada ? new Date(order.fecha_programada).toLocaleString() : 'Sin fecha'}`,
+      `Observaciones: ${order.observaciones ?? '-'}`,
+      `Cierre: ${order.observaciones_cierre ?? '-'}`,
+      `Horas trabajadas: ${order.tiempo_trabajado_horas ?? '-'}`,
+      `Checklist: ${formatChecklist(order.checklist_cierre)}`,
+      `Firma cliente: ${order.firma_cliente ?? '-'}`,
+      `Foto trabajo: ${order.foto_trabajo_url ?? '-'}`,
+      `Materiales: ${order.materials.length ? order.materials.map((material) => `${material.name} x${material.quantity} ($${material.unit_cost})`).join(' | ') : 'Sin materiales'}`,
+      `Total materiales: $${materialsTotal.toFixed(2)}`
+    ];
+
+    const pdf = createSimplePdf(lines);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="service-order-${shortId(order.id)}.pdf"`);
+    res.send(pdf);
   }));
 
   router.post('/', requireRole('admin'), validateBody(orderCreateSchema), asyncHandler(async (req, res) => {
@@ -140,7 +186,14 @@ export default function ordersRouter(io) {
       const order = await db.serviceOrder.create({ data });
       if (technicians.length) {
         await db.serviceOrderTechnician.createMany({
-          data: technicians.map((t) => ({ service_order_id: order.id, technician_id: t, asignado_por: req.user.email }))
+          data: technicians.map((technicianId) => ({ service_order_id: order.id, technician_id: technicianId, asignado_por: req.user.email }))
+        });
+        await notifyAssignedTechnicians(db, {
+          orderId: order.id,
+          technicianIds: technicians,
+          title: 'Nueva orden asignada',
+          description: `Se te asignó la orden #${shortId(order.id)}`,
+          kind: 'order_created_assignment'
         });
         await notifyAssignedTechnicians(db, {
           orderId: order.id,
@@ -178,7 +231,7 @@ export default function ordersRouter(io) {
     if (!order || order.deleted_at) return sendError(res, 404, 'Not found');
 
     const role = req.user.role.name;
-    const assigned = order.technicians.some((t) => t.technician_id === req.user.id);
+    const assigned = order.technicians.some((technician) => technician.technician_id === req.user.id);
     if (role === 'tecnico' && !assigned) return sendError(res, 403, 'Forbidden');
 
     if (role === 'tecnico') {
@@ -195,8 +248,15 @@ export default function ordersRouter(io) {
     const updated = await prisma.$transaction(async (db) => {
       const newOrder = await db.serviceOrder.update({ where: { id: order.id }, data: patch });
       const historyEntries = toHistoryEntries({ before: order, after: newOrder, userId: req.user.id, comment: req.body.comentario });
-      if (historyEntries.length) {
-        await db.serviceOrderStatusHistory.createMany({ data: historyEntries });
+      if (historyEntries.length) await db.serviceOrderStatusHistory.createMany({ data: historyEntries });
+      if (order.estado !== newOrder.estado) {
+        await notifyAssignedTechnicians(db, {
+          orderId: order.id,
+          technicianIds: order.technicians.map((technician) => technician.technician_id),
+          title: 'Orden actualizada',
+          description: `La orden #${shortId(order.id)} cambió a ${ORDER_STATUS_LABEL[newOrder.estado] ?? newOrder.estado}`,
+          kind: 'order_status_changed'
+        });
       }
       if (order.estado !== newOrder.estado) {
         await notifyAssignedTechnicians(db, {
@@ -221,7 +281,8 @@ export default function ordersRouter(io) {
       await logEvent({ entity_type: 'order', entity_id: order.id, event_type: 'updated', message: `Orden actualizada #${shortId(order.id)}`, actor_user_id: req.user.id });
     }
 
-    res.json(updated);
+    const refreshed = await prisma.serviceOrder.findUnique({ where: { id: order.id }, include: ORDER_INCLUDE });
+    res.json(enrichOrderWithSla(refreshed));
   }));
 
   router.delete('/:id', requireRole('admin'), validateIdParam, asyncHandler(async (req, res) => {
@@ -234,12 +295,8 @@ export default function ordersRouter(io) {
 
   router.get('/:id/history', validateIdParam, asyncHandler(async (req, res) => {
     const order = await prisma.serviceOrder.findUnique({ where: { id: req.params.id }, include: { technicians: true } });
-    if (!order || order.deleted_at || !order.is_active) return sendError(res, 404, 'Not found');
-
-    if (req.user.role.name === 'tecnico') {
-      const assigned = order.technicians.some((technician) => technician.technician_id === req.user.id);
-      if (!assigned) return sendError(res, 403, 'Forbidden');
-    }
+    const access = ensureOrderAccess(order, req.user);
+    if (!access.ok) return sendError(res, access.status, access.message);
 
     const data = await prisma.serviceOrderStatusHistory.findMany({
       where: { service_order_id: req.params.id },
@@ -254,11 +311,81 @@ export default function ordersRouter(io) {
     })));
   }));
 
+  router.get('/:id/materials', validateIdParam, asyncHandler(async (req, res) => {
+    const { order, access } = await getAccessibleOrder(req.params.id, req.user);
+    if (!access.ok) return sendError(res, access.status, access.message);
+    res.json(order.materials);
+  }));
+
+  router.post('/:id/materials', validateIdParam, validateBody(materialCreateSchema), asyncHandler(async (req, res) => {
+    const order = await prisma.serviceOrder.findUnique({ where: { id: req.params.id }, include: { technicians: true } });
+    const access = ensureOrderAccess(order, req.user);
+    if (!access.ok) return sendError(res, access.status, access.message);
+
+    const material = await prisma.orderMaterial.create({ data: { order_id: req.params.id, ...req.body } });
+    await prisma.serviceOrderStatusHistory.create({
+      data: {
+        service_order_id: req.params.id,
+        estado_anterior: order.estado,
+        estado_nuevo: order.estado,
+        campo_modificado: 'materials',
+        valor_anterior: null,
+        valor_nuevo: `${material.name} x${material.quantity}`,
+        comentario: 'Material agregado',
+        usuario_id: req.user.id
+      }
+    });
+    await logEvent({ entity_type: 'order', entity_id: req.params.id, event_type: 'updated', message: `Material agregado en orden #${shortId(req.params.id)}`, actor_user_id: req.user.id });
+    res.status(201).json(material);
+  }));
+
+  router.patch('/:id/materials/:materialId', validateIdParam, validateBody(materialUpdateSchema), asyncHandler(async (req, res) => {
+    const order = await prisma.serviceOrder.findUnique({ where: { id: req.params.id }, include: { technicians: true } });
+    const access = ensureOrderAccess(order, req.user);
+    if (!access.ok) return sendError(res, access.status, access.message);
+
+    const material = await prisma.orderMaterial.update({ where: { id: req.params.materialId }, data: req.body });
+    await prisma.serviceOrderStatusHistory.create({
+      data: {
+        service_order_id: req.params.id,
+        estado_anterior: order.estado,
+        estado_nuevo: order.estado,
+        campo_modificado: 'materials',
+        valor_anterior: null,
+        valor_nuevo: `${material.name} x${material.quantity}`,
+        comentario: 'Material actualizado',
+        usuario_id: req.user.id
+      }
+    });
+    res.json(material);
+  }));
+
+  router.delete('/:id/materials/:materialId', validateIdParam, asyncHandler(async (req, res) => {
+    const order = await prisma.serviceOrder.findUnique({ where: { id: req.params.id }, include: { technicians: true } });
+    const access = ensureOrderAccess(order, req.user);
+    if (!access.ok) return sendError(res, access.status, access.message);
+
+    await prisma.orderMaterial.delete({ where: { id: req.params.materialId } });
+    await prisma.serviceOrderStatusHistory.create({
+      data: {
+        service_order_id: req.params.id,
+        estado_anterior: order.estado,
+        estado_nuevo: order.estado,
+        campo_modificado: 'materials',
+        valor_anterior: null,
+        valor_nuevo: null,
+        comentario: 'Material eliminado',
+        usuario_id: req.user.id
+      }
+    });
+    res.json({ ok: true });
+  }));
+
   router.put('/:id/technicians', requireRole('admin'), validateIdParam, validateBody(techniciansUpdateSchema), asyncHandler(async (req, res) => {
     const order = await prisma.serviceOrder.findUnique({ where: { id: req.params.id }, include: { technicians: true } });
     if (!order || order.deleted_at) return sendError(res, 404, 'Not found');
 
-    const previousIds = order.technicians.map((t) => t.technician_id);
+    const previousIds = order.technicians.map((technician) => technician.technician_id);
     const oldList = previousIds.sort().join(',');
     const newList = [...req.body.technicians].sort().join(',');
     const newlyAdded = req.body.technicians.filter((technicianId) => !previousIds.includes(technicianId));
@@ -267,7 +394,7 @@ export default function ordersRouter(io) {
       await db.serviceOrderTechnician.deleteMany({ where: { service_order_id: req.params.id } });
       if (req.body.technicians.length) {
         await db.serviceOrderTechnician.createMany({
-          data: req.body.technicians.map((t) => ({ service_order_id: req.params.id, technician_id: t, asignado_por: req.user.email }))
+          data: req.body.technicians.map((technicianId) => ({ service_order_id: req.params.id, technician_id: technicianId, asignado_por: req.user.email }))
         });
       }
 

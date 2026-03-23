@@ -61,6 +61,19 @@ export const userAdminUpdateSchema = z.object({
   role: z.enum(['admin', 'tecnico']).optional()
 }).strict();
 
+const closureChecklistSchema = z.object({
+  trabajo_realizado: z.boolean().optional(),
+  area_limpia: z.boolean().optional(),
+  equipo_probado: z.boolean().optional(),
+  documentacion_entregada: z.boolean().optional()
+}).strict();
+
+export const materialSchema = z.object({
+  name: z.string().min(1),
+  quantity: z.coerce.number().positive(),
+  unit_cost: z.coerce.number().min(0)
+}).strict();
+
 export const orderCreateSchema = z.object({
   client_id: z.string().min(1),
   estado: z.enum(['presupuesto_generado','oc_recibida','facturado','pago_recibido','documentacion_enviada','documentacion_aprobada','service_programado','en_ejecucion','completado','cancelado']).default('presupuesto_generado'),
@@ -71,6 +84,10 @@ export const orderCreateSchema = z.object({
   telefono_contacto_planta: z.string().optional(),
   observaciones: z.string().optional(),
   observaciones_cierre: z.string().optional(),
+  tiempo_trabajado_horas: z.coerce.number().min(0).optional(),
+  firma_cliente: z.string().optional(),
+  foto_trabajo_url: z.string().optional(),
+  checklist_cierre: closureChecklistSchema.optional(),
   is_active: z.boolean().optional(),
   technicians: z.array(z.string()).optional().default([])
 }).strict();
@@ -84,6 +101,10 @@ export const orderPatchSchema = z.object({
   telefono_contacto_planta: z.string().optional(),
   observaciones: z.string().optional(),
   observaciones_cierre: z.string().optional(),
+  tiempo_trabajado_horas: z.coerce.number().min(0).optional(),
+  firma_cliente: z.string().optional(),
+  foto_trabajo_url: z.string().optional(),
+  checklist_cierre: closureChecklistSchema.optional(),
   is_active: z.boolean().optional(),
   comentario: z.string().optional()
 }).strict();
@@ -91,6 +112,14 @@ export const orderPatchSchema = z.object({
 export const techniciansUpdateSchema = z.object({
   technicians: z.array(z.string()).default([])
 }).strict();
+
+export const searchQuerySchema = z.object({
+  q: z.string().trim().min(2),
+  limit: z.coerce.number().int().min(1).max(20).default(10)
+}).strict();
+
+export const materialCreateSchema = materialSchema;
+export const materialUpdateSchema = materialSchema.partial().strict();
 
 const documentEntityTypeSchema = z.enum(['order', 'client', 'equipment']);
 const documentCategorySchema = z.enum(['contract', 'report', 'photo', 'other']);

@@ -1,5 +1,5 @@
 import { api } from './client';
-import { Client, DashboardKpis, Equipment, EventEntityType, EventLog, NotificationItem, OrderHistory, ServiceOrder, User } from '@/types/domain';
+import { Client, ClientHealth, DashboardKpis, Equipment, EventEntityType, EventLog, NotificationItem, OrderHistory, OrderMaterial, SearchResultGroup, ServiceOrder, User } from '@/types/domain';
 import { DocumentCategory, DocumentEntityType } from '@/modules/documents/types';
 
 type PaginatedResponse<T> = {
@@ -57,7 +57,12 @@ export const OrdersApi = {
   remove: (id: string) => api.delete(`/api/orders/${id}`).then((r) => r.data),
   history: (id: string) => api.get<OrderHistory[]>(`/api/orders/${id}/history`).then((r) => r.data),
   create: (payload: Record<string, unknown>) => api.post('/api/orders', payload).then((r) => r.data),
-  assignTechnicians: (id: string, technicianIds: string[]) => api.put(`/api/orders/${id}/technicians`, { technicians: technicianIds }).then((r) => r.data)
+  assignTechnicians: (id: string, technicianIds: string[]) => api.put(`/api/orders/${id}/technicians`, { technicians: technicianIds }).then((r) => r.data),
+  materials: (id: string) => api.get<OrderMaterial[]>(`/api/orders/${id}/materials`).then((r) => r.data),
+  addMaterial: (id: string, payload: { name: string; quantity: number; unit_cost: number }) => api.post<OrderMaterial>(`/api/orders/${id}/materials`, payload).then((r) => r.data),
+  updateMaterial: (id: string, materialId: string, payload: Partial<{ name: string; quantity: number; unit_cost: number }>) => api.patch<OrderMaterial>(`/api/orders/${id}/materials/${materialId}`, payload).then((r) => r.data),
+  removeMaterial: (id: string, materialId: string) => api.delete(`/api/orders/${id}/materials/${materialId}`).then((r) => r.data),
+  exportPdf: (id: string) => api.get<Blob>(`/api/orders/${id}/pdf`, { responseType: 'blob' }).then((r) => r.data)
 };
 
 export const ClientsApi = {
@@ -65,7 +70,8 @@ export const ClientsApi = {
   listPage: (params: TableListParams) => api.get<TableListResponse<Client>>('/api/clients', { params }).then((r) => r.data),
   create: (payload: Partial<Client>) => api.post('/api/clients', payload).then((r) => r.data),
   update: (id: string, payload: Partial<Client>) => api.patch(`/api/clients/${id}`, payload).then((r) => r.data),
-  remove: (id: string) => api.delete(`/api/clients/${id}`).then((r) => r.data)
+  remove: (id: string) => api.delete(`/api/clients/${id}`).then((r) => r.data),
+  health: (id: string) => api.get<ClientHealth>(`/api/clients/${id}/health`).then((r) => r.data)
 };
 
 export const EquipmentsApi = {
@@ -83,6 +89,10 @@ export const UsersApi = {
   setRole: (id: string, role: 'admin' | 'tecnico') => api.patch(`/api/users/${id}`, { role }).then((r) => r.data),
   me: () => api.get<User>('/api/users/me').then((r) => r.data),
   updateMe: (payload: { first_name: string; last_name: string; phone?: string }) => api.patch('/api/users/me', payload).then((r) => r.data)
+};
+
+export const SearchApi = {
+  global: (q: string, limit = 10) => api.get<SearchResultGroup>('/api/search', { params: { q, limit } }).then((r) => r.data)
 };
 
 export const NotificationsApi = {

@@ -145,9 +145,14 @@ model ServiceOrder {
   telefono_contacto_planta String?
   observaciones            String?
   observaciones_cierre     String?
+  tiempo_trabajado_horas   Float?
+  firma_cliente            String?
+  foto_trabajo_url         String?
+  checklist_cierre         Json?
   is_active                Boolean                     @default(true)
   deleted_at               DateTime?
   technicians              ServiceOrderTechnician[]
+  materials                OrderMaterial[]
   status_history           ServiceOrderStatusHistory[]
   attachments              Attachment[]
   notifications            Notification[]
@@ -172,6 +177,20 @@ model ServiceOrderTechnician {
   @@unique([service_order_id, technician_id])
   @@index([service_order_id])
   @@index([technician_id])
+}
+
+
+model OrderMaterial {
+  id          String       @id @default(cuid())
+  order_id    String
+  order       ServiceOrder @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  name        String
+  quantity    Float
+  unit_cost   Float        @default(0)
+  created_at  DateTime     @default(now())
+  updated_at  DateTime     @updatedAt
+
+  @@index([order_id, created_at])
 }
 
 model ServiceOrderStatusHistory {

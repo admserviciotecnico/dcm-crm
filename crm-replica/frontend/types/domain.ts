@@ -48,6 +48,20 @@ export interface Client {
   delayed?: boolean;
 }
 
+export interface ClientHealth {
+  total_orders: number;
+  completed_on_time: number;
+  completed_late: number;
+  avg_resolution_hours: number | null;
+  last_interaction_at?: string | null;
+  on_time_rate?: number | null;
+  documentation_status: 'vigente' | 'proxima_a_vencer' | 'vencida' | 'sin_fecha';
+  materials_summary: {
+    total_items: number;
+    estimated_cost: number;
+  };
+}
+
 export type EquipmentStatus = 'operativo' | 'mantenimiento' | 'fuera_servicio' | 'en_revision' | 'revision';
 
 export interface Equipment {
@@ -65,6 +79,23 @@ export interface Equipment {
   delayed?: boolean;
 }
 
+export interface OrderMaterial {
+  id: string;
+  order_id: string;
+  name: string;
+  quantity: number;
+  unit_cost: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface OrderChecklist {
+  trabajo_realizado?: boolean;
+  area_limpia?: boolean;
+  equipo_probado?: boolean;
+  documentacion_entregada?: boolean;
+}
+
 export interface ServiceOrder {
   id: string;
   client_id: string;
@@ -79,11 +110,16 @@ export interface ServiceOrder {
   telefono_contacto_planta?: string;
   observaciones?: string;
   observaciones_cierre?: string;
+  tiempo_trabajado_horas?: number | null;
+  firma_cliente?: string | null;
+  foto_trabajo_url?: string | null;
+  checklist_cierre?: OrderChecklist | null;
   deleted_at?: string | null;
   delayed?: boolean;
   sla_deadline?: string | null;
   sla_status?: SlaStatus;
   client?: Client;
+  materials?: OrderMaterial[];
   technicians?: { technician_id: string; technician?: Pick<User, 'id' | 'first_name' | 'last_name' | 'email'> }[];
 }
 
@@ -121,6 +157,13 @@ export interface DashboardKpis {
   avg_resolution_days: number | null;
   sla_compliance_rate: number;
   orders_by_status?: Partial<Record<OrderStatus, number>>;
+}
+
+export interface SearchResultGroup {
+  orders: ServiceOrder[];
+  clients: Client[];
+  equipments: Equipment[];
+  users: User[];
 }
 
 export type EventEntityType = 'order' | 'client' | 'equipment' | 'document' | 'system';

@@ -6,7 +6,13 @@ const FIELD_LABELS: Record<string, string> = {
   estado: 'Estado',
   prioridad: 'Prioridad',
   fecha_programada: 'Fecha programada',
-  technicians: 'Técnicos asignados'
+  technicians: 'Técnicos asignados',
+  materials: 'Materiales',
+  observaciones_cierre: 'Observaciones de cierre',
+  tiempo_trabajado_horas: 'Horas trabajadas',
+  checklist_cierre: 'Checklist de cierre',
+  firma_cliente: 'Firma del cliente',
+  foto_trabajo_url: 'Foto del trabajo'
 };
 
 function parseTechnicianTokens(value: string | null | undefined) {
@@ -17,6 +23,16 @@ function parseTechnicianTokens(value: string | null | undefined) {
 function resolveUserLabel(id: string, usersById?: Map<string, User>) {
   const user = usersById?.get(id);
   return user ? `${user.first_name} ${user.last_name}`.trim() : null;
+}
+
+function formatChecklistValue(value: string | null | undefined) {
+  if (!value) return <span className="text-[var(--text-secondary)]">—</span>;
+  try {
+    const parsed = JSON.parse(value) as Record<string, boolean>;
+    return Object.entries(parsed).map(([key, checked]) => `${key.replace(/_/g, ' ')}: ${checked ? 'sí' : 'no'}`).join(' · ');
+  } catch {
+    return value;
+  }
 }
 
 export function formatTechniciansAudit(value: string | null | undefined, usersById?: Map<string, User>) {
@@ -37,9 +53,9 @@ function formatRawValue(field: string | undefined, value: string | null | undefi
     const parsed = new Date(value);
     return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString();
   }
-  if (field === 'technicians') {
-    return formatTechniciansAudit(value, usersById);
-  }
+  if (field === 'technicians') return formatTechniciansAudit(value, usersById);
+  if (field === 'checklist_cierre') return formatChecklistValue(value);
+  if (field === 'tiempo_trabajado_horas') return `${value} h`;
 
   return value;
 }
