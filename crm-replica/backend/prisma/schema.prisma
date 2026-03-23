@@ -38,6 +38,36 @@ enum EquipmentStatus {
   en_revision
 }
 
+enum DocumentEntityType {
+  order
+  client
+  equipment
+}
+
+enum DocumentCategory {
+  contract
+  report
+  photo
+  other
+}
+
+enum EventEntityType {
+  order
+  client
+  equipment
+  document
+  system
+}
+
+enum EventType {
+  created
+  updated
+  deleted
+  status_changed
+  document_added
+  document_removed
+}
+
 model Role {
   id    String   @id @default(cuid())
   name  UserRole @unique
@@ -52,6 +82,8 @@ model User {
   password       String
   phone          String?
   active         Boolean                    @default(true)
+  password_reset_token   String?
+  password_reset_expires DateTime?
   role_id        String
   role           Role                       @relation(fields: [role_id], references: [id])
   orders         ServiceOrderTechnician[]
@@ -88,6 +120,8 @@ model Equipment {
   modelo           String?
   numero_serie     String          @unique
   ubicacion_planta String?
+  observaciones    String?
+  fecha_instalacion DateTime?
   estado_actual    EquipmentStatus @default(operativo)
   is_active        Boolean         @default(true)
   deleted_at       DateTime?
@@ -111,9 +145,14 @@ model ServiceOrder {
   telefono_contacto_planta String?
   observaciones            String?
   observaciones_cierre     String?
+  tiempo_trabajado_horas   Float?
+  firma_cliente            String?
+  foto_trabajo_url         String?
+  checklist_cierre         Json?
   is_active                Boolean                     @default(true)
   deleted_at               DateTime?
   technicians              ServiceOrderTechnician[]
+  materials                OrderMaterial[]
   status_history           ServiceOrderStatusHistory[]
   attachments              Attachment[]
   notifications            Notification[]
@@ -140,6 +179,20 @@ model ServiceOrderTechnician {
   @@index([technician_id])
 }
 
+
+model OrderMaterial {
+  id          String       @id @default(cuid())
+  order_id    String
+  order       ServiceOrder @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  name        String
+  quantity    Float
+  unit_cost   Float        @default(0)
+  created_at  DateTime     @default(now())
+  updated_at  DateTime     @updatedAt
+
+  @@index([order_id, created_at])
+}
+
 model ServiceOrderStatusHistory {
   id               String       @id @default(cuid())
   service_order_id String
@@ -162,12 +215,17 @@ model Notification {
   id               String        @id @default(cuid())
   user_id          String
   service_order_id String?
+  client_id        String?
+  kind             String?
   title            String
   description      String
   read             Boolean       @default(false)
   created_at       DateTime      @default(now())
   user             User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
   service_order    ServiceOrder? @relation(fields: [service_order_id], references: [id], onDelete: SetNull)
+
+  @@index([user_id, kind, service_order_id, created_at])
+  @@index([user_id, kind, client_id, created_at])
 }
 
 model Attachment {
@@ -181,4 +239,31 @@ model Attachment {
   service_order    ServiceOrder @relation(fields: [service_order_id], references: [id], onDelete: Cascade)
 
   @@index([service_order_id])
+}
+
+model Document {
+  id          String             @id @default(cuid())
+  entity_type DocumentEntityType
+  entity_id   String
+  file_name   String
+  file_category DocumentCategory @default(other)
+  file_path   String?
+  created_at  DateTime           @default(now())
+  updated_at  DateTime           @updatedAt
+
+  @@index([entity_type, entity_id, created_at])
+  @@index([created_at])
+}
+
+model EventLog {
+  id            String          @id @default(cuid())
+  entity_type   EventEntityType
+  entity_id     String?
+  event_type    EventType
+  message       String
+  actor_user_id String?
+  created_at    DateTime        @default(now())
+
+  @@index([entity_type, entity_id, created_at])
+  @@index([created_at])
 }
