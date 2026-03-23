@@ -4,14 +4,30 @@ import { authRequired, requireRole } from '../middleware/auth.js';
 import { validateBody, validateIdParam } from '../middleware/validation.js';
 import { registerSchema, userAdminUpdateSchema, userProfileUpdateSchema } from '../services/schemas.js';
 import { asyncHandler, sendError } from '../utils/http.js';
-import { createUserAccount, toSafeUser } from '../services/users.js';
+import { buildSafeUsers, createUserAccount, toSafeUser } from '../services/users.js';
 
 const router = Router();
 router.use(authRequired);
 
-router.get('/', requireRole('admin'), asyncHandler(async (_req, res) => {
-  const users = await prisma.user.findMany({ include: { role: true } });
-  res.json(users.map(toSafeUser));
+router.get('/', asyncHandler(async (_req, res) => {
+  const [users, assignments] = await Promise.all([
+    prisma.user.findMany({ include: { role: true }, orderBy: [{ first_name: 'asc' }, { last_name: 'asc' }] }),
+    prisma.serviceOrderTechnician.findMany({
+      include: {
+        service_order: {
+          select: {
+            estado: true,
+            fecha_programada: true,
+            deleted_at: true,
+            is_active: true
+          }
+        }
+      }
+    })
+  ]);
+
+  const activeAssignments = assignments.filter((assignment) => assignment.service_order?.is_active && !assignment.service_order?.deleted_at);
+  res.json(buildSafeUsers(users, activeAssignments));
 }));
 
 router.post('/', requireRole('admin'), validateBody(registerSchema), asyncHandler(async (req, res) => {

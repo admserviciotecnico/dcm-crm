@@ -7,6 +7,7 @@ import { orderCreateSchema, orderPatchSchema, techniciansUpdateSchema } from '..
 import { logEvent } from '../services/event-log.js';
 import { asyncHandler, sendError } from '../utils/http.js';
 import { notifyAssignedTechnicians, ORDER_STATUS_LABEL, shortId } from '../services/notifications.js';
+import { computeSlaDeadline, getSlaStatus } from '../utils/sla.js';
 
 const MAX_PAGE_SIZE = 100;
 const SORT_FIELDS = {
@@ -16,6 +17,16 @@ const SORT_FIELDS = {
   created_at: 'created_at',
   updated_at: 'updated_at'
 };
+
+
+function enrichOrderWithSla(order) {
+  const slaDeadline = computeSlaDeadline(order.created_at, order.prioridad);
+  return {
+    ...order,
+    sla_deadline: slaDeadline?.toISOString() ?? null,
+    sla_status: getSlaStatus(slaDeadline, order.estado)
+  };
+}
 
 function toHistoryEntries({ before, after, userId, comment }) {
   const entries = [];
@@ -102,7 +113,7 @@ export default function ordersRouter(io) {
       prisma.serviceOrder.findMany({ where, include: { technicians: true, client: true }, orderBy: [{ [sortBy]: sortDir }, { updated_at: 'desc' }], skip, take: pageSize }),
       prisma.serviceOrder.count({ where })
     ]);
-    res.json({ items, total, page, pageSize });
+    res.json({ items: items.map(enrichOrderWithSla), total, page, pageSize });
   }));
 
   router.get('/:id', validateIdParam, asyncHandler(async (req, res) => {
@@ -118,7 +129,7 @@ export default function ordersRouter(io) {
       if (!assigned) return sendError(res, 403, 'Forbidden');
     }
 
-    res.json(order);
+    res.json(enrichOrderWithSla(order));
   }));
 
   router.post('/', requireRole('admin'), validateBody(orderCreateSchema), asyncHandler(async (req, res) => {
@@ -222,8 +233,25 @@ export default function ordersRouter(io) {
   }));
 
   router.get('/:id/history', validateIdParam, asyncHandler(async (req, res) => {
-    const data = await prisma.serviceOrderStatusHistory.findMany({ where: { service_order_id: req.params.id }, include: { usuario: true }, orderBy: { created_at: 'desc' } });
-    res.json(data);
+    const order = await prisma.serviceOrder.findUnique({ where: { id: req.params.id }, include: { technicians: true } });
+    if (!order || order.deleted_at || !order.is_active) return sendError(res, 404, 'Not found');
+
+    if (req.user.role.name === 'tecnico') {
+      const assigned = order.technicians.some((technician) => technician.technician_id === req.user.id);
+      if (!assigned) return sendError(res, 403, 'Forbidden');
+    }
+
+    const data = await prisma.serviceOrderStatusHistory.findMany({
+      where: { service_order_id: req.params.id },
+      include: { usuario: { include: { role: true } } },
+      orderBy: { created_at: 'desc' }
+    });
+    res.json(data.map((entry) => ({
+      ...entry,
+      actor_name: `${entry.usuario.first_name ?? ''} ${entry.usuario.last_name ?? ''}`.trim() || entry.usuario.email,
+      actor_role: entry.usuario.role?.name ?? null,
+      summary: `${entry.campo_modificado ?? 'estado'}: ${entry.valor_anterior ?? '-'} → ${entry.valor_nuevo ?? '-'}`
+    })));
   }));
 
   router.put('/:id/technicians', requireRole('admin'), validateIdParam, validateBody(techniciansUpdateSchema), asyncHandler(async (req, res) => {

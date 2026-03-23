@@ -1,5 +1,5 @@
 import { api } from './client';
-import { Client, Equipment, EventEntityType, EventLog, NotificationItem, OrderHistory, ServiceOrder, User } from '@/types/domain';
+import { Client, DashboardKpis, Equipment, EventEntityType, EventLog, NotificationItem, OrderHistory, ServiceOrder, User } from '@/types/domain';
 import { DocumentCategory, DocumentEntityType } from '@/modules/documents/types';
 
 type PaginatedResponse<T> = {
@@ -47,7 +47,7 @@ export const AuthApi = {
 };
 
 export const DashboardApi = {
-  kpis: () => api.get('/api/dashboard/kpis').then((r) => r.data)
+  kpis: () => api.get<DashboardKpis>('/api/dashboard/kpis').then((r) => r.data)
 };
 
 export const OrdersApi = {

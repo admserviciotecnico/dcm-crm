@@ -12,6 +12,16 @@ export type OrderStatus =
   | 'completado'
   | 'cancelado';
 
+export type SlaStatus = 'ok' | 'warning' | 'critical' | 'breached' | 'met';
+
+export interface UserMetrics {
+  assigned_orders: number;
+  active_orders: number;
+  completed_orders: number;
+  overdue_orders: number;
+  last_assignment_at?: string | null;
+}
+
 export interface User {
   id: string;
   first_name: string;
@@ -20,6 +30,10 @@ export interface User {
   role: Role;
   phone?: string;
   active?: boolean;
+  created_at?: string | null;
+  updated_at?: string | null;
+  last_activity_at?: string | null;
+  metrics?: UserMetrics;
 }
 
 export interface Client {
@@ -67,22 +81,46 @@ export interface ServiceOrder {
   observaciones_cierre?: string;
   deleted_at?: string | null;
   delayed?: boolean;
+  sla_deadline?: string | null;
+  sla_status?: SlaStatus;
   client?: Client;
-  technicians?: { technician_id: string }[];
+  technicians?: { technician_id: string; technician?: Pick<User, 'id' | 'first_name' | 'last_name' | 'email'> }[];
 }
 
 export interface OrderHistory {
   id: string;
   campo_modificado?: string;
-  valor_anterior?: string;
-  valor_nuevo?: string;
-  comentario?: string;
+  valor_anterior?: string | null;
+  valor_nuevo?: string | null;
+  comentario?: string | null;
   created_at: string;
+  actor_name?: string;
+  actor_role?: Role | null;
+  summary?: string;
   usuario?: {
     email?: string;
     first_name?: string;
     last_name?: string;
   };
+}
+
+export interface DashboardKpis {
+  total_orders: number;
+  open_orders: number;
+  in_progress: number;
+  completed_this_month: number;
+  completed_last_week?: number;
+  completed_prev_week?: number;
+  delayed: number;
+  high_priority: number;
+  documentation_expired: number;
+  sla_breached?: number;
+  sla_critical?: number;
+  sla_at_risk: number;
+  avg_resolution_hours: number | null;
+  avg_resolution_days: number | null;
+  sla_compliance_rate: number;
+  orders_by_status?: Partial<Record<OrderStatus, number>>;
 }
 
 export type EventEntityType = 'order' | 'client' | 'equipment' | 'document' | 'system';

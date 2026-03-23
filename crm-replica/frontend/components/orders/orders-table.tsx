@@ -5,6 +5,7 @@ import { Copy, Eye, ExternalLink, MoreHorizontal, Pencil, XCircle } from 'lucide
 
 import { ServiceOrder, User, OrderStatus } from '@/types/domain';
 import { PriorityBadge, StatusBadge } from '@/components/common/badges';
+import { SlaBadge } from '@/components/common/sla-badge';
 import { Avatar } from '@/components/ui/avatar';
 import { Table } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -51,7 +52,7 @@ function OrdersTableComponent({ rows, users, selectedIds, onToggleSelect, onTogg
       <thead className="text-left text-xs uppercase text-[var(--text-secondary)]">
         <tr>
           <th className="p-2"><input type="checkbox" checked={rows.length > 0 && selectedIds.length === rows.length} onChange={onToggleSelectAll} /></th>
-          <th className="p-2">ID</th><th className="p-2">Cliente</th><th className="p-2">Estado</th><th className="p-2">Prioridad</th><th className="p-2">Técnicos</th><th className="p-2">Fecha</th><th className="p-2">Demorado</th><th className="p-2 text-right">Acciones</th>
+          <th className="p-2">ID</th><th className="p-2">Cliente</th><th className="p-2">Estado</th><th className="p-2">Prioridad</th><th className="p-2">SLA</th><th className="p-2">Técnicos</th><th className="p-2">Fecha</th><th className="p-2">Demorado</th><th className="p-2 text-right">Acciones</th>
         </tr>
       </thead>
       <tbody>
@@ -72,6 +73,7 @@ function OrdersTableComponent({ rows, users, selectedIds, onToggleSelect, onTogg
               </td>
               <td className="p-2" onClick={() => onClick(o)}><StatusBadge value={o.estado} /></td>
               <td className="p-2" onClick={() => onClick(o)}><PriorityBadge value={o.prioridad} /></td>
+              <td className="p-2" onClick={() => onClick(o)}><SlaBadge status={o.sla_status} slaDeadline={o.sla_deadline} /></td>
               <td className="p-2" onClick={() => onClick(o)}><div className="flex items-center">{visible.map((t, idx) => <Avatar key={t.technician_id} name={getTechName(t.technician_id)} className={`h-7 w-7 border-2 border-white ${idx > 0 ? '-ml-1.5' : ''}`} />)}{extra > 0 ? <span className="ml-1 grid h-7 w-7 place-items-center rounded-full border-2 border-white bg-[var(--bg-surface-muted)] text-xs">+{extra}</span> : null}</div></td>
               <td className="p-2" onClick={() => onClick(o)}><RelativeTime value={o.fecha_programada} /></td>
               <td className="p-2" onClick={() => onClick(o)}>{o.delayed ? <span className="rounded bg-red-500/20 px-2 py-1 text-xs text-red-300">⚠ Demorado</span> : '-'}</td>
