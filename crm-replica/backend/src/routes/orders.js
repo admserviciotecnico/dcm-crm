@@ -195,6 +195,13 @@ export default function ordersRouter(io) {
           description: `Se te asignó la orden #${shortId(order.id)}`,
           kind: 'order_created_assignment'
         });
+        await notifyAssignedTechnicians(db, {
+          orderId: order.id,
+          technicianIds: technicians,
+          title: 'Nueva orden asignada',
+          description: `Se te asignó la orden #${shortId(order.id)}`,
+          kind: 'order_created_assignment'
+        });
       }
 
       await db.serviceOrderStatusHistory.create({
@@ -242,6 +249,15 @@ export default function ordersRouter(io) {
       const newOrder = await db.serviceOrder.update({ where: { id: order.id }, data: patch });
       const historyEntries = toHistoryEntries({ before: order, after: newOrder, userId: req.user.id, comment: req.body.comentario });
       if (historyEntries.length) await db.serviceOrderStatusHistory.createMany({ data: historyEntries });
+      if (order.estado !== newOrder.estado) {
+        await notifyAssignedTechnicians(db, {
+          orderId: order.id,
+          technicianIds: order.technicians.map((technician) => technician.technician_id),
+          title: 'Orden actualizada',
+          description: `La orden #${shortId(order.id)} cambió a ${ORDER_STATUS_LABEL[newOrder.estado] ?? newOrder.estado}`,
+          kind: 'order_status_changed'
+        });
+      }
       if (order.estado !== newOrder.estado) {
         await notifyAssignedTechnicians(db, {
           orderId: order.id,
