@@ -59,6 +59,12 @@ function toGeoJson(orders: MapOrderMarker[], technicians: TechnicianMapLocation[
   };
 }
 
+function readThemeColor(variableName: string, fallback: string) {
+  if (typeof window === 'undefined') return fallback;
+  const value = window.getComputedStyle(document.documentElement).getPropertyValue(variableName).trim();
+  return value || fallback;
+}
+
 async function ensureMapboxGlLoaded() {
   if (typeof window === 'undefined') return null;
   if (window.mapboxgl) return window.mapboxgl;
@@ -92,6 +98,13 @@ export function RealMapView({ orders, technicians }: Props) {
       try {
         const mapboxgl = await ensureMapboxGlLoaded();
         if (!mounted || !mapboxgl) return;
+        const theme = {
+          primary: readThemeColor('--primary', '#2563EB'),
+          danger: readThemeColor('--danger', '#DC2626'),
+          info: readThemeColor('--info', '#0284C7'),
+          success: readThemeColor('--success', '#059669'),
+          borderStrong: readThemeColor('--border-strong', '#334155')
+        };
 
         mapboxgl.accessToken = token;
         const map = new mapboxgl.Map({
@@ -118,7 +131,7 @@ export function RealMapView({ orders, technicians }: Props) {
             source: 'crm-points',
             filter: ['has', 'point_count'],
             paint: {
-              'circle-color': '#2563EB',
+              'circle-color': theme.primary,
               'circle-radius': ['step', ['get', 'point_count'], 15, 15, 19, 40, 23],
               'circle-opacity': 0.85
             }
@@ -139,10 +152,10 @@ export function RealMapView({ orders, technicians }: Props) {
             source: 'crm-points',
             filter: ['all', ['!', ['has', 'point_count']], ['==', ['get', 'type'], 'order']],
             paint: {
-              'circle-color': ['case', ['==', ['get', 'delayed'], true], '#DC2626', '#0284C7'],
+              'circle-color': ['case', ['==', ['get', 'delayed'], true], theme.danger, theme.info],
               'circle-radius': 8,
               'circle-stroke-width': 1,
-              'circle-stroke-color': '#0F172A'
+              'circle-stroke-color': theme.borderStrong
             }
           });
 
@@ -152,10 +165,10 @@ export function RealMapView({ orders, technicians }: Props) {
             source: 'crm-points',
             filter: ['all', ['!', ['has', 'point_count']], ['==', ['get', 'type'], 'technician']],
             paint: {
-              'circle-color': '#059669',
+              'circle-color': theme.success,
               'circle-radius': 8,
               'circle-stroke-width': 1,
-              'circle-stroke-color': '#0F172A'
+              'circle-stroke-color': theme.borderStrong
             }
           });
 
@@ -179,13 +192,33 @@ export function RealMapView({ orders, technicians }: Props) {
             if (!feature || feature.geometry.type !== 'Point') return;
             const props = feature.properties as FeatureProperties;
             const coordinates = [...feature.geometry.coordinates] as [number, number];
-            const details = props.url
-              ? `<a href="${props.url}" style="color:#2563eb;text-decoration:underline">Abrir orden</a>`
-              : '<span>Técnico en ubicación activa</span>';
-            new mapboxgl.Popup({ closeButton: true })
-              .setLngLat(coordinates)
-              .setHTML(`<div><strong>${props.label}</strong><br/>${props.subtitle ?? ''}<br/>${details}</div>`)
-              .addTo(map);
+            const popupContainer = document.createElement('div');
+            const title = document.createElement('strong');
+            title.textContent = props.label;
+            popupContainer.appendChild(title);
+
+            if (props.subtitle) {
+              popupContainer.appendChild(document.createElement('br'));
+              const subtitle = document.createElement('span');
+              subtitle.textContent = props.subtitle;
+              popupContainer.appendChild(subtitle);
+            }
+
+            popupContainer.appendChild(document.createElement('br'));
+            if (props.url) {
+              const link = document.createElement('a');
+              link.href = props.url;
+              link.textContent = 'Abrir orden';
+              link.style.color = 'var(--primary)';
+              link.style.textDecoration = 'underline';
+              popupContainer.appendChild(link);
+            } else {
+              const info = document.createElement('span');
+              info.textContent = 'Técnico en ubicación activa';
+              popupContainer.appendChild(info);
+            }
+
+            new mapboxgl.Popup({ closeButton: true }).setLngLat(coordinates).setDOMContent(popupContainer).addTo(map);
           });
 
           setMapReady(true);
@@ -206,7 +239,7 @@ export function RealMapView({ orders, technicians }: Props) {
         mapRef.current = null;
       }
     };
-  }, [geoJson, token]);
+  }, [token]);
 
   useEffect(() => {
     const map = mapRef.current;
