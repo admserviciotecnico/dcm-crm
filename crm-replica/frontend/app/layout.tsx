@@ -19,21 +19,6 @@ const themeBootstrapScript = `
 })();
 `;
 
-const themeBootstrapScript = `
-(function () {
-  try {
-    var darkMode = localStorage.getItem('darkMode');
-    if (darkMode === 'false') {
-      document.documentElement.classList.remove('dark');
-    } else {
-      document.documentElement.classList.add('dark');
-    }
-  } catch (_error) {
-    document.documentElement.classList.add('dark');
-  }
-})();
-`;
-
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="es" suppressHydrationWarning>
