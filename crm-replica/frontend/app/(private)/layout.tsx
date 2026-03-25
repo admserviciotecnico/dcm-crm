@@ -9,6 +9,7 @@ import { CommandPalette } from '@/components/command/command-palette';
 import { uiStore } from '@/stores/ui-store';
 import { appStore } from '@/stores/app-store';
 import { getSocket } from '@/lib/api/socket';
+import { ErrorBoundary } from '@/components/common/error-boundary';
 
 export default function PrivateLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -56,7 +57,9 @@ export default function PrivateLayout({ children }: { children: ReactNode }) {
         <div className="flex-1">
           <Header />
           <main className="bg-[var(--bg-app)] px-6 py-6">
-            <div className="mx-auto w-full max-w-[1400px]">{children}</div>
+            <div className="mx-auto w-full max-w-[1400px]">
+              <ErrorBoundary>{children}</ErrorBoundary>
+            </div>
           </main>
         </div>
       </div>

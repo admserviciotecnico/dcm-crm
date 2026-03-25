@@ -1,19 +1,51 @@
 import { create } from 'zustand';
 import { User } from '@/types/domain';
 
+const AUTH_TOKEN_KEY = 'auth_token';
+
+function readStoredToken() {
+  if (typeof window === 'undefined') return null;
+
+  const localToken = localStorage.getItem(AUTH_TOKEN_KEY);
+  const sessionToken = sessionStorage.getItem(AUTH_TOKEN_KEY);
+
+  // Single source of truth: if both exist, prefer persistent session and clean sessionStorage.
+  if (localToken && sessionToken) {
+    sessionStorage.removeItem(AUTH_TOKEN_KEY);
+    return localToken;
+  }
+
+  return localToken ?? sessionToken;
+}
+
 type State = {
   token: string | null;
   user: User | null;
-  setToken: (v: string | null) => void;
+  setToken: (v: string | null, rememberMe?: boolean) => void;
   setUser: (u: User | null) => void;
   logout: () => void;
 };
 
-// Security: token is memory-only (no localStorage/sessionStorage persistence).
 export const authStore = create<State>((set) => ({
-  token: null,
+  token: readStoredToken(),
   user: null,
-  setToken: (token) => set({ token }),
+  setToken: (token, rememberMe = false) => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+      sessionStorage.removeItem(AUTH_TOKEN_KEY);
+      if (token) {
+        if (rememberMe) localStorage.setItem(AUTH_TOKEN_KEY, token);
+        else sessionStorage.setItem(AUTH_TOKEN_KEY, token);
+      }
+    }
+    set({ token });
+  },
   setUser: (user) => set({ user }),
-  logout: () => set({ token: null, user: null })
+  logout: () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+      sessionStorage.removeItem(AUTH_TOKEN_KEY);
+    }
+    set({ token: null, user: null });
+  }
 }));

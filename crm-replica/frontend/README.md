@@ -10,7 +10,7 @@
 - Socket.IO client (singleton)
 
 ## Seguridad y acceso
-- JWT manejado en memoria (Zustand), **no** en localStorage/sessionStorage.
+- JWT persistido como `auth_token` (solo token): `localStorage` con "Mantener sesión iniciada" y `sessionStorage` en sesión estándar.
 - Rutas privadas protegidas vía layout guard (`app/(private)/layout.tsx` + `Protected`).
 - Manejo global 401/403: logout automático + redirección a login.
 - Renderizado de acciones críticas con control por rol (botones de transición/admin).
@@ -41,4 +41,5 @@ npm run dev
 ## Variables
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:4000
+NEXT_PUBLIC_MAPBOX_TOKEN=
 ```
