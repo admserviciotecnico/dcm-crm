@@ -54,3 +54,25 @@ Servicios:
 ## Realtime
 - Eventos suscritos: `orders:changed`, `orders:status_changed`, `dashboard:refresh`.
 - Socket singleton para evitar conexiones duplicadas.
+
+## Variables de entorno nuevas/relevantes (M18 + M20)
+
+### Backend (`crm-replica/backend/.env`)
+```env
+# M20 - mapa real (fallback operativo si falta)
+MAPBOX_TOKEN=
+
+# M18 - OAuth Google Calendar (si falta, no se puede conectar proveedor)
+CALENDAR_GOOGLE_CLIENT_ID=
+CALENDAR_GOOGLE_CLIENT_SECRET=
+CALENDAR_GOOGLE_REDIRECT_URI=http://localhost:4000/api/calendar-integrations/callback
+```
+
+### Frontend (`crm-replica/frontend/.env.local`)
+```env
+NEXT_PUBLIC_MAPBOX_TOKEN=
+```
+
+Notas:
+- Si `NEXT_PUBLIC_MAPBOX_TOKEN` no está definido, la UI usa el mapa fallback existente sin romper operaciones.
+- Si no hay conexión de calendario OAuth, las órdenes siguen funcionando sin sincronización externa.
