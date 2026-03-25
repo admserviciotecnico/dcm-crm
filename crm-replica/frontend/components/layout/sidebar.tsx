@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, ClipboardList, Calendar, Users, Package, Settings, PanelLeftClose, PanelLeftOpen, KanbanSquare, Activity, CalendarRange, LineChart, MapPinned } from 'lucide-react';
+import { LayoutDashboard, ClipboardList, Calendar, Users, Package, Settings, PanelLeftClose, PanelLeftOpen, KanbanSquare, Activity, CalendarRange, LineChart, MapPinned, Bot } from 'lucide-react';
 import { useState } from 'react';
 import { authStore } from '@/stores/auth-store';
 import { Avatar } from '@/components/ui/avatar';
@@ -15,7 +15,7 @@ const groups: { title: string; links: LinkItem[] }[] = [
   { title: 'Clientes', links: [{ href: '/clients', label: 'Empresas', icon: Users }] },
   { title: 'Equipos', links: [{ href: '/equipments', label: 'Instalados', icon: Package }] },
   { title: 'Colaboración', links: [{ href: '/activity', label: 'Actividad', icon: Activity }, { href: '/analytics', label: 'Analytics', icon: LineChart }] },
-  { title: 'Administración', links: [{ href: '/users', label: 'Usuarios', icon: Users, adminOnly: true }, { href: '/profile', label: 'Configuración', icon: Settings }] }
+  { title: 'Administración', links: [{ href: '/users', label: 'Usuarios', icon: Users, adminOnly: true }, { href: '/automation-rules', label: 'Automatizaciones', icon: Bot, adminOnly: true }, { href: '/profile', label: 'Configuración', icon: Settings }] }
 ];
 
 export function Sidebar() {

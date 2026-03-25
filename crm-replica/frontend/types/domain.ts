@@ -89,6 +89,18 @@ export interface OrderMaterial {
   updated_at?: string;
 }
 
+
+export interface OrderLocationEvent {
+  id: string;
+  order_id: string;
+  user_id: string;
+  event_type: 'arrival' | 'departure' | string;
+  latitude: number;
+  longitude: number;
+  created_at: string;
+  user?: Pick<User, 'id' | 'first_name' | 'last_name' | 'email' | 'role'>;
+}
+
 export interface OrderChecklist {
   trabajo_realizado?: boolean;
   area_limpia?: boolean;
@@ -120,6 +132,8 @@ export interface ServiceOrder {
   sla_status?: SlaStatus;
   client?: Client;
   materials?: OrderMaterial[];
+  location_events?: OrderLocationEvent[];
+  invoice_draft?: InvoiceDraft | null;
   technicians?: { technician_id: string; technician?: Pick<User, 'id' | 'first_name' | 'last_name' | 'email'> }[];
 }
 
@@ -186,4 +200,119 @@ export interface NotificationItem {
   read: boolean;
   created_at: string;
   service_order_id?: string | null;
+}
+
+export interface AutomationRule {
+  id: string;
+  name: string;
+  active: boolean;
+  trigger_type: 'delayed_in_status';
+  target_status: OrderStatus;
+  threshold_hours: number;
+  action_type: 'set_priority_alta_notify_admin';
+  action_payload?: { priority?: 'alta' } | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AutomationRunResult {
+  ruleId: string;
+  matched: number;
+  updated: number;
+}
+
+export interface InvoiceDraftMaterial {
+  name: string;
+  quantity: number;
+  unit_cost: number;
+  subtotal: number;
+}
+
+export interface InvoiceDraft {
+  id: string;
+  order_id: string;
+  client_id: string;
+  status: string;
+  labor_hours: number;
+  labor_rate: number;
+  labor_amount: number;
+  materials_amount: number;
+  total_amount: number;
+  currency: string;
+  payload?: {
+    materials?: InvoiceDraftMaterial[];
+    generated_from_status?: OrderStatus;
+    generated_by_user_id?: string;
+  } | null;
+  created_at: string;
+  updated_at: string;
+  order?: Pick<ServiceOrder, 'id' | 'estado' | 'created_at' | 'updated_at'>;
+  client?: Pick<Client, 'id' | 'nombre_empresa' | 'email'>;
+}
+
+export interface PortalUser {
+  id: string;
+  email: string;
+  client_id: string;
+  client_name?: string | null;
+  last_login_at?: string | null;
+  active?: boolean;
+}
+
+export interface ExternalCalendarConnection {
+  id: string;
+  provider: 'google' | 'outlook';
+  expires_at?: string | null;
+  external_calendar_id?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ExternalCalendarEventStatus {
+  id: string;
+  order_id: string;
+  user_id: string;
+  provider: 'google' | 'outlook';
+  external_event_id: string;
+  sync_status: 'synced' | 'pending' | 'error';
+  last_error?: string | null;
+  last_synced_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MapOrderMarker {
+  id: string;
+  client_id: string;
+  client_name?: string | null;
+  estado: OrderStatus;
+  prioridad: Priority;
+  delayed: boolean;
+  direccion_service?: string | null;
+  lat: number;
+  lng: number;
+  latest_location_at: string;
+  technicians: Array<{ id: string; first_name: string; last_name: string; email: string }>;
+}
+
+export interface TechnicianMapLocation {
+  user_id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  lat: number;
+  lng: number;
+  accuracy?: number | null;
+  captured_at: string;
+}
+
+export interface PortalDocument {
+  id: string;
+  entity_type: 'order' | 'client' | 'equipment';
+  entity_id: string;
+  file_name: string;
+  file_category: 'contract' | 'report' | 'photo' | 'other';
+  file_path?: string | null;
+  created_at: string;
+  updated_at?: string;
 }

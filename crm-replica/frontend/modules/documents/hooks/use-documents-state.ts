@@ -49,7 +49,7 @@ export function useDocumentsState(entityType: DocumentEntityType, entityId: stri
     void load();
   }, [load]);
 
-  const add = useCallback(async (name: string, category: DocumentCategory): Promise<MutationResult> => {
+  const add = useCallback(async (name: string, category: DocumentCategory, options?: { filePath?: string }): Promise<MutationResult> => {
     const clean = name.trim();
     if (!clean || clean.length > 120) return { ok: false, reason: 'invalid' };
 
@@ -60,7 +60,8 @@ export function useDocumentsState(entityType: DocumentEntityType, entityId: stri
       entity_type: entityType,
       entity_id: entityId,
       file_name: clean,
-      file_category: category
+      file_category: category,
+      file_path: options?.filePath
     });
     const mapped = fromBackend(created as BackendDocument);
     setDocs((prev) => [mapped, ...prev]);

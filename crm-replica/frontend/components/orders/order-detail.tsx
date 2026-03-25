@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Download, ExternalLink, PackagePlus, Trash2 } from 'lucide-react';
+import { Camera, Download, ExternalLink, MapPin, PackagePlus, Save, Trash2, WifiOff } from 'lucide-react';
 import Link from 'next/link';
-import { EventLog, OrderHistory, OrderMaterial, ServiceOrder, User } from '@/types/domain';
-import { EventsApi, OrdersApi } from '@/lib/api/endpoints';
+import { EventLog, ExternalCalendarEventStatus, InvoiceDraft, OrderHistory, OrderMaterial, ServiceOrder, User } from '@/types/domain';
+import { CalendarIntegrationsApi, EventsApi, OrdersApi } from '@/lib/api/endpoints';
 import { authStore } from '@/stores/auth-store';
 import { appStore } from '@/stores/app-store';
 import { Drawer } from '@/components/ui/drawer';
@@ -27,12 +27,34 @@ import { ORDER_STATUS_LABEL, ORDER_STATUS_WORKFLOW } from '@/constants/orderStat
 import { ErrorBoundary } from '@/components/common/error-boundary';
 import { getOrderHistoryFieldLabel } from '@/lib/order-history';
 import { Input } from '@/components/ui/input';
+import { useOnlineStatus } from '@/hooks/use-online-status';
+import { getApiErrorMessage } from '@/lib/api/error-message';
 
 type LocalComment = { id: string; user: string; message: string; time: string };
 type CommentForm = { comment: string };
 type MaterialForm = { name: string; quantity: number; unit_cost: number };
+type ClosureForm = {
+  tiempo_trabajado_horas: number;
+  observaciones_cierre: string;
+  firma_cliente: string;
+  foto_trabajo_url: string;
+  trabajo_realizado: boolean;
+  area_limpia: boolean;
+  equipo_probado: boolean;
+  documentacion_entregada: boolean;
+};
 
 const DEFAULT_MATERIAL: MaterialForm = { name: '', quantity: 1, unit_cost: 0 };
+const DEFAULT_CLOSURE: ClosureForm = {
+  tiempo_trabajado_horas: 0,
+  observaciones_cierre: '',
+  firma_cliente: '',
+  foto_trabajo_url: '',
+  trabajo_realizado: false,
+  area_limpia: false,
+  equipo_probado: false,
+  documentacion_entregada: false
+};
 
 function buildDownloadUrl(blob: Blob) {
   return window.URL.createObjectURL(blob);
@@ -57,10 +79,19 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
   const [materialModalOpen, setMaterialModalOpen] = useState(false);
   const [materialSaving, setMaterialSaving] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<OrderMaterial | null>(null);
+  const [locationEvents, setLocationEvents] = useState(order?.location_events ?? []);
+  const [calendarStatuses, setCalendarStatuses] = useState<ExternalCalendarEventStatus[]>([]);
+  const [calendarSyncing, setCalendarSyncing] = useState(false);
+  const [invoiceDraft, setInvoiceDraft] = useState<InvoiceDraft | null>(order?.invoice_draft ?? null);
+  const [invoiceDraftLoading, setInvoiceDraftLoading] = useState(false);
+  const [locationSaving, setLocationSaving] = useState<'arrival' | 'departure' | null>(null);
+  const [closureSaving, setClosureSaving] = useState(false);
   const user = authStore((s) => s.user);
   const toast = appStore((s) => s.pushToast);
+  const online = useOnlineStatus();
   const { register, handleSubmit, reset, formState: { isDirty } } = useForm<CommentForm>({ defaultValues: { comment: '' } });
   const materialForm = useForm<MaterialForm>({ defaultValues: DEFAULT_MATERIAL });
+  const closureForm = useForm<ClosureForm>({ defaultValues: DEFAULT_CLOSURE });
   const { docs, add: addDocument, remove: removeDocument } = useDocumentsState('order', order?.id ?? '');
 
   useEffect(() => {
@@ -72,14 +103,27 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
       .then(setMaterials)
       .catch(() => setMaterials([]))
       .finally(() => setMaterialsLoading(false));
+    OrdersApi.locationEvents(order.id).then(setLocationEvents).catch(() => setLocationEvents(order.location_events ?? []));
+    CalendarIntegrationsApi.orderStatus(order.id).then(setCalendarStatuses).catch(() => setCalendarStatuses([]));
+    setInvoiceDraft(order.invoice_draft ?? null);
     const ids = (order.technicians ?? []).map((t) => t.technician_id);
     setSelectedTechnicians(ids);
     setInitialTechnicians(ids);
     reset({ comment: '' });
     materialForm.reset(DEFAULT_MATERIAL);
+    closureForm.reset({
+      tiempo_trabajado_horas: order.tiempo_trabajado_horas ?? 0,
+      observaciones_cierre: order.observaciones_cierre ?? '',
+      firma_cliente: order.firma_cliente ?? '',
+      foto_trabajo_url: order.foto_trabajo_url ?? '',
+      trabajo_realizado: Boolean(order.checklist_cierre?.trabajo_realizado),
+      area_limpia: Boolean(order.checklist_cierre?.area_limpia),
+      equipo_probado: Boolean(order.checklist_cierre?.equipo_probado),
+      documentacion_entregada: Boolean(order.checklist_cierre?.documentacion_entregada)
+    });
     setEditingMaterial(null);
     setMaterialModalOpen(false);
-  }, [order, reset, materialForm]);
+  }, [closureForm, materialForm, order, reset]);
 
   useEffect(() => {
     const socket = getSocket();
@@ -114,10 +158,16 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
   const canTechMove = user?.role === 'tecnico' && (order.estado === 'service_programado' || order.estado === 'en_ejecucion');
   const canCancel = order.estado !== 'completado' && order.estado !== 'cancelado';
   const canManageMaterials = user?.role === 'admin' || user?.role === 'tecnico';
+  const canRegisterLocation = user?.role === 'tecnico' && (order.estado === 'service_programado' || order.estado === 'en_ejecucion');
+  const canEditClosure = user?.role === 'admin' || user?.role === 'tecnico';
   const reassignmentDirty = [...selectedTechnicians].sort().join(',') !== [...initialTechnicians].sort().join(',');
   const recentHistory = history.slice(0, 5);
   const materialsCost = materialTotal(materials);
   const closureChecklist = order.checklist_cierre ? Object.entries(order.checklist_cierre) : [];
+  const latestArrival = locationEvents.find((event) => event.event_type === 'arrival');
+  const latestDeparture = locationEvents.find((event) => event.event_type === 'departure');
+  const canGenerateInvoiceDraft = user?.role === 'admin' && order.estado === 'completado';
+  const canRetryCalendarSync = user?.role === 'admin';
 
   const requestClose = () => {
     if (isDirty || reassignmentDirty) {
@@ -139,9 +189,90 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
       link.remove();
       window.URL.revokeObjectURL(url);
       toast({ type: 'success', message: 'PDF descargado correctamente' });
-    } catch {
-      toast({ type: 'error', message: 'No se pudo exportar el PDF' });
+    } catch (error) {
+      toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo exportar el PDF') });
     }
+  };
+
+  const handleGenerateInvoiceDraft = async () => {
+    setInvoiceDraftLoading(true);
+    try {
+      const created = await OrdersApi.createInvoiceDraft(order.id, { labor_rate: 0 });
+      setInvoiceDraft(created);
+      toast({ type: 'success', message: 'Borrador de factura generado' });
+      onRefresh();
+    } catch (error) {
+      toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo generar el borrador de factura') });
+    } finally {
+      setInvoiceDraftLoading(false);
+    }
+  };
+
+  const retryCalendarSync = async () => {
+    if (!canRetryCalendarSync) return;
+    setCalendarSyncing(true);
+    try {
+      const result = await CalendarIntegrationsApi.syncOrderNow(order.id);
+      const statuses = await CalendarIntegrationsApi.orderStatus(order.id);
+      setCalendarStatuses(statuses);
+      toast({ type: 'success', message: `Sincronización ejecutada. Actualizados: ${result.synced}, errores: ${result.errors}` });
+    } catch (error) {
+      toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo sincronizar el calendario externo') });
+    } finally {
+      setCalendarSyncing(false);
+    }
+  };
+
+  const saveClosure = closureForm.handleSubmit(async (values) => {
+    setClosureSaving(true);
+    try {
+      await OrdersApi.patch(order.id, {
+        tiempo_trabajado_horas: values.tiempo_trabajado_horas,
+        observaciones_cierre: values.observaciones_cierre,
+        firma_cliente: values.firma_cliente,
+        foto_trabajo_url: values.foto_trabajo_url,
+        checklist_cierre: {
+          trabajo_realizado: values.trabajo_realizado,
+          area_limpia: values.area_limpia,
+          equipo_probado: values.equipo_probado,
+          documentacion_entregada: values.documentacion_entregada
+        }
+      });
+      toast({ type: 'success', message: 'Cierre técnico actualizado' });
+      onRefresh();
+    } catch (error) {
+      toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo guardar el cierre técnico') });
+    } finally {
+      setClosureSaving(false);
+    }
+  });
+
+  const registerLocationEvent = async (eventType: 'arrival' | 'departure') => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      toast({ type: 'error', message: 'Geolocalización no disponible en este dispositivo' });
+      return;
+    }
+
+    setLocationSaving(eventType);
+    navigator.geolocation.getCurrentPosition(async (position) => {
+      try {
+        const created = await OrdersApi.recordLocationEvent(order.id, {
+          event_type: eventType,
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude
+        });
+        setLocationEvents((prev) => [created, ...prev]);
+        toast({ type: 'success', message: eventType === 'arrival' ? 'Llegada registrada' : 'Salida registrada' });
+      } catch (error) {
+        toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo registrar la ubicación') });
+      } finally {
+        setLocationSaving(null);
+      }
+    }, (error) => {
+      const message = error.code === error.PERMISSION_DENIED ? 'Permiso de ubicación denegado. Habilítalo para registrar llegada o salida.' : 'No se pudo obtener tu ubicación actual';
+      toast({ type: 'error', message });
+      setLocationSaving(null);
+    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
   };
 
   const openNewMaterialModal = () => {
@@ -204,11 +335,17 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="secondary" onClick={handleExportPdf}><Download size={16} /> PDF</Button>
+                {canGenerateInvoiceDraft ? <Button variant="secondary" onClick={handleGenerateInvoiceDraft} disabled={invoiceDraftLoading}>{invoiceDraftLoading ? 'Generando…' : invoiceDraft ? 'Ver borrador generado' : 'Generar borrador de factura'}</Button> : null}
                 <Link href={`/orders/${order.id}`} className="inline-flex items-center gap-1 text-sm text-cyan-300">
                   <ExternalLink size={14} /> Abrir página
                 </Link>
               </div>
             </div>
+            {!online && user?.role === 'tecnico' ? (
+              <div className="flex items-center gap-2 rounded-[10px] border border-amber-200 bg-amber-100 px-3 py-2 text-sm text-amber-800">
+                <WifiOff size={16} /> Estás offline. Podés revisar la orden ya sincronizada, pero algunas acciones en vivo quedarán limitadas.
+              </div>
+            ) : null}
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
                 <p className="text-[var(--text-secondary)]">Cliente</p>
@@ -251,6 +388,77 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
               </div>
             </div>
 
+            {invoiceDraft ? (
+              <div className="rounded-[10px] border border-amber-300 bg-amber-100 p-3 text-sm text-amber-950">
+                <p className="font-semibold">Borrador de factura</p>
+                <div className="mt-2 grid gap-2 md:grid-cols-4">
+                  <p><span className="font-medium">Horas:</span> {invoiceDraft.labor_hours}</p>
+                  <p><span className="font-medium">Mano de obra:</span> {invoiceDraft.currency} {invoiceDraft.labor_amount.toFixed(2)}</p>
+                  <p><span className="font-medium">Materiales:</span> {invoiceDraft.currency} {invoiceDraft.materials_amount.toFixed(2)}</p>
+                  <p><span className="font-medium">Total:</span> {invoiceDraft.currency} {invoiceDraft.total_amount.toFixed(2)}</p>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="rounded-[10px] border border-[var(--border)] p-3 text-sm">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <p className="font-semibold">Calendar sync</p>
+                  <p className="text-[var(--text-secondary)]">
+                    {calendarStatuses.length === 0
+                      ? 'Sin eventos sincronizados para esta orden'
+                      : `${calendarStatuses.length} vínculo(s) de calendario`}
+                  </p>
+                </div>
+                {canRetryCalendarSync ? (
+                  <Button variant="secondary" onClick={() => void retryCalendarSync()} disabled={calendarSyncing}>
+                    {calendarSyncing ? 'Sincronizando…' : 'Reintentar sincronización'}
+                  </Button>
+                ) : null}
+              </div>
+              {calendarStatuses.length > 0 ? (
+                <div className="mt-2 space-y-1">
+                  {calendarStatuses.map((status) => (
+                    <p key={status.id} className="text-xs">
+                      {status.provider.toUpperCase()} · usuario {status.user_id.slice(0, 8)} · {status.sync_status}
+                      {status.last_error ? ` · ${status.last_error}` : ''}
+                    </p>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="rounded-[10px] border border-[var(--border)] p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm text-[var(--text-secondary)]">Geolocalización de servicio</p>
+                  <p className="text-sm font-medium">Llegada: {latestArrival ? new Date(latestArrival.created_at).toLocaleString() : 'pendiente'} · Salida: {latestDeparture ? new Date(latestDeparture.created_at).toLocaleString() : 'pendiente'}</p>
+                </div>
+                {canRegisterLocation ? (
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="secondary" className="min-h-10" disabled={!online || locationSaving !== null} onClick={() => void registerLocationEvent('arrival')}>
+                      <MapPin size={16} /> {locationSaving === 'arrival' ? 'Registrando...' : 'Registrar llegada'}
+                    </Button>
+                    <Button variant="secondary" className="min-h-10" disabled={!online || locationSaving !== null} onClick={() => void registerLocationEvent('departure')}>
+                      <MapPin size={16} /> {locationSaving === 'departure' ? 'Registrando...' : 'Registrar salida'}
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
+              {locationEvents.length > 0 ? (
+                <div className="mt-3 space-y-2">
+                  {locationEvents.slice(0, 4).map((event) => (
+                    <div key={event.id} className="rounded-md bg-[var(--bg-surface-hover)] px-3 py-2 text-sm">
+                      <p className="font-medium">{event.event_type === 'arrival' ? 'Llegada registrada' : 'Salida registrada'}</p>
+                      <p className="text-[var(--text-secondary)]">{new Date(event.created_at).toLocaleString()} · {event.latitude.toFixed(5)}, {event.longitude.toFixed(5)}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-3 text-sm text-[var(--text-secondary)]">Todavía no hay eventos de llegada o salida registrados.</p>
+              )}
+            </div>
+
             <div>
               <p className="mb-2 text-sm text-[var(--text-secondary)]">Acciones de workflow</p>
               <div className="flex flex-wrap gap-2">
@@ -288,6 +496,54 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
               </div>
             </div>
 
+            <div className="rounded-[10px] border border-[var(--border)] p-3">
+              <div className="mb-3 flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-[var(--text-secondary)]">Cierre técnico estructurado</p>
+                  <p className="text-sm font-medium">Completá horas, checklist y evidencias sin depender de texto libre.</p>
+                </div>
+                {canEditClosure ? (
+                  <Button variant="secondary" className="min-h-10" disabled={closureSaving || !online} onClick={() => void saveClosure()}>
+                    <Save size={16} /> {closureSaving ? 'Guardando...' : 'Guardar cierre'}
+                  </Button>
+                ) : null}
+              </div>
+              <form className="grid gap-3 md:grid-cols-2" onSubmit={saveClosure}>
+                <div>
+                  <label className="mb-1 block text-xs text-[var(--text-secondary)]">Horas trabajadas</label>
+                  <Input type="number" min="0" step="0.5" {...closureForm.register('tiempo_trabajado_horas', { valueAsNumber: true })} />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-[var(--text-secondary)]">Firma cliente</label>
+                  <Input placeholder="Nombre o referencia de firma" {...closureForm.register('firma_cliente')} />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="mb-1 block text-xs text-[var(--text-secondary)]">Foto / evidencia URL</label>
+                  <Input placeholder="https://... o referencia interna" {...closureForm.register('foto_trabajo_url')} />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="mb-1 block text-xs text-[var(--text-secondary)]">Observaciones de cierre</label>
+                  <textarea className="min-h-24 w-full rounded-[10px] border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)]" {...closureForm.register('observaciones_cierre')} />
+                </div>
+                <div className="md:col-span-2">
+                  <p className="mb-2 text-xs text-[var(--text-secondary)]">Checklist</p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {[
+                      ['trabajo_realizado', 'Trabajo realizado'],
+                      ['area_limpia', 'Área limpia'],
+                      ['equipo_probado', 'Equipo probado'],
+                      ['documentacion_entregada', 'Documentación entregada']
+                    ].map(([field, label]) => (
+                      <label key={field} className="flex min-h-11 items-center gap-2 rounded-[10px] border border-[var(--border)] px-3 py-2 text-sm">
+                        <input type="checkbox" {...closureForm.register(field as keyof ClosureForm)} />
+                        <span>{label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </form>
+            </div>
+
             <div>
               <div className="mb-2 flex items-center justify-between">
                 <p className="text-sm text-[var(--text-secondary)]">Auditoría reciente</p>
@@ -312,7 +568,31 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
 
             <div>
               <p className="mb-2 text-sm text-[var(--text-secondary)]">Archivos adjuntos</p>
-              <FileUploader onAdd={async (name, category) => { const result = await addDocument(name, category); if (result.ok) toast({ type: 'success', message: 'Documento agregado' }); else if (result.reason === 'duplicate') toast({ type: 'info', message: 'Ese documento ya existe para esta orden' }); else toast({ type: 'error', message: 'Nombre de documento inválido' }); }} />
+              <FileUploader
+                allowCapture
+                defaultCategory="photo"
+                onAdd={async (name, category) => {
+                  try {
+                    const result = await addDocument(name, category);
+                    if (result.ok) toast({ type: 'success', message: 'Documento agregado' });
+                    else if (result.reason === 'duplicate') toast({ type: 'info', message: 'Ese documento ya existe para esta orden' });
+                    else toast({ type: 'error', message: 'Nombre de documento inválido' });
+                  } catch (error) {
+                    toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo registrar el documento') });
+                  }
+                }}
+                onAddFile={async (file, category) => {
+                  try {
+                    const result = await addDocument(file.name, category, { filePath: `capture://${file.name}` });
+                    if (result.ok) toast({ type: 'success', message: 'Foto asociada a la orden' });
+                    else if (result.reason === 'duplicate') toast({ type: 'info', message: 'Esa foto ya está registrada para esta orden' });
+                    else toast({ type: 'error', message: 'No se pudo registrar la foto' });
+                  } catch (error) {
+                    toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo registrar la foto') });
+                  }
+                }}
+              />
+              <p className="mt-2 text-xs text-[var(--text-secondary)]">Las fotos capturadas hoy se guardan como evidencia registrada dentro del sistema de documentos. El binario real seguirá dependiendo de la futura capa de upload físico.</p>
               <div className="mt-2"><FileList docs={docs} onRemove={async (id) => { const result = await removeDocument(id); if (result.ok) toast({ type: 'info', message: 'Documento eliminado' }); else toast({ type: 'error', message: 'No se pudo eliminar el documento' }); }} /></div>
             </div>
           </div>

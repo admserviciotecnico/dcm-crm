@@ -25,6 +25,8 @@ import { TableSkeleton } from '@/components/common/skeletons';
 import { getApiErrorMessage } from '@/lib/api/error-message';
 import { ORDER_STATUS_LABEL } from '@/constants/orderStatus';
 import { ErrorBoundary } from '@/components/common/error-boundary';
+import { useOnlineStatus } from '@/hooks/use-online-status';
+import { loadAssignedOrdersSnapshot, saveAssignedOrderDetail, saveAssignedOrdersSnapshot } from '@/lib/offline/assigned-orders';
 
 const schema = z.object({
   client_id: z.string().min(1),
@@ -52,8 +54,10 @@ export default function OrdersPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [total, setTotal] = useState(0);
+  const [offlineSnapshotAt, setOfflineSnapshotAt] = useState<string | null>(null);
   const user = authStore((s) => s.user);
   const toast = appStore((s) => s.pushToast);
+  const online = useOnlineStatus();
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
@@ -81,6 +85,8 @@ export default function OrdersPage() {
     return () => window.clearTimeout(id);
   }, [q, searchInput, setParams]);
 
+  const snapshotKey = useMemo(() => JSON.stringify({ page, pageSize: PAGE_SIZE, sortBy, sortDir, q, filters }), [filters, page, q, sortBy, sortDir]);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -92,10 +98,27 @@ export default function OrdersPage() {
       setTotal(ordersRes.total);
       setUsers(usersRes);
       setClients(clientsRes.map((c) => ({ id: c.id, nombre_empresa: c.nombre_empresa })));
+      setOfflineSnapshotAt(null);
+      if (user?.role === 'tecnico') {
+        await saveAssignedOrdersSnapshot(snapshotKey, ordersRes.items, ordersRes.total);
+        await Promise.all(ordersRes.items.map((order) => saveAssignedOrderDetail(order)));
+      }
+    } catch (error) {
+      if (user?.role === 'tecnico') {
+        const cached = await loadAssignedOrdersSnapshot(snapshotKey);
+        if (cached) {
+          setOrders(cached.items);
+          setTotal(cached.total);
+          setOfflineSnapshotAt(cached.savedAt);
+          toast({ type: 'info', message: 'Mostrando órdenes asignadas desde caché offline' });
+          return;
+        }
+      }
+      toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudieron cargar las órdenes') });
     } finally {
       setLoading(false);
     }
-  }, [filters, page, q, sortBy, sortDir]);
+  }, [filters, page, q, snapshotKey, sortBy, sortDir, toast, user?.role]);
 
   useEffect(() => { void load(); }, [load]);
   useRealtime(load);
@@ -161,6 +184,11 @@ export default function OrdersPage() {
         <PageHeader title="Órdenes de Servicio" description="Gestioná, filtrá y ejecutá órdenes de campo desde un único panel." action={user?.role === 'admin' ? <Button onClick={() => setShowCreate(true)}>
 <Plus size={16} /> Nueva Orden</Button> : null} />
         <Card>
+          {!online && user?.role === 'tecnico' ? (
+            <div className="mb-3 rounded-[10px] border border-amber-200 bg-amber-100 px-3 py-2 text-sm text-amber-800">
+              Estás sin conexión. Mostramos las órdenes asignadas ya sincronizadas en este dispositivo{offlineSnapshotAt ? ` · última actualización ${new Date(offlineSnapshotAt).toLocaleString()}` : ''}.
+            </div>
+          ) : null}
           <div className="flex flex-wrap items-center gap-2">
 <Input placeholder="Buscar por cliente, ID o dirección..." value={searchInput} className="max-w-sm" onChange={(e) => setSearchInput(e.target.value)} />
 <div className="relative">

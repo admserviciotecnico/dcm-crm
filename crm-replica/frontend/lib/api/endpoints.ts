@@ -1,5 +1,6 @@
 import { api } from './client';
-import { Client, ClientHealth, DashboardKpis, Equipment, EventEntityType, EventLog, NotificationItem, OrderHistory, OrderMaterial, SearchResultGroup, ServiceOrder, User } from '@/types/domain';
+import { portalApi } from './portal-client';
+import { AutomationRule, AutomationRunResult, Client, ClientHealth, DashboardKpis, Equipment, EventEntityType, EventLog, ExternalCalendarConnection, ExternalCalendarEventStatus, InvoiceDraft, MapOrderMarker, NotificationItem, OrderHistory, OrderLocationEvent, OrderMaterial, PortalDocument, PortalUser, SearchResultGroup, ServiceOrder, TechnicianMapLocation, User } from '@/types/domain';
 import { DocumentCategory, DocumentEntityType } from '@/modules/documents/types';
 
 type PaginatedResponse<T> = {
@@ -62,7 +63,10 @@ export const OrdersApi = {
   addMaterial: (id: string, payload: { name: string; quantity: number; unit_cost: number }) => api.post<OrderMaterial>(`/api/orders/${id}/materials`, payload).then((r) => r.data),
   updateMaterial: (id: string, materialId: string, payload: Partial<{ name: string; quantity: number; unit_cost: number }>) => api.patch<OrderMaterial>(`/api/orders/${id}/materials/${materialId}`, payload).then((r) => r.data),
   removeMaterial: (id: string, materialId: string) => api.delete(`/api/orders/${id}/materials/${materialId}`).then((r) => r.data),
-  exportPdf: (id: string) => api.get<Blob>(`/api/orders/${id}/pdf`, { responseType: 'blob' }).then((r) => r.data)
+  locationEvents: (id: string) => api.get<OrderLocationEvent[]>(`/api/orders/${id}/location-events`).then((r) => r.data),
+  recordLocationEvent: (id: string, payload: { event_type: 'arrival' | 'departure'; latitude: number; longitude: number }) => api.post<OrderLocationEvent>(`/api/orders/${id}/location-events`, payload).then((r) => r.data),
+  exportPdf: (id: string) => api.get<Blob>(`/api/orders/${id}/pdf`, { responseType: 'blob' }).then((r) => r.data),
+  createInvoiceDraft: (id: string, payload?: { labor_rate?: number }) => api.post<InvoiceDraft>(`/api/orders/${id}/invoice-draft`, payload ?? {}).then((r) => r.data)
 };
 
 export const ClientsApi = {
@@ -109,4 +113,49 @@ export const DocumentsApi = {
 
 export const EventsApi = {
   list: (params?: { entityType?: EventEntityType; entityId?: string; limit?: number; offset?: number; cursor?: string }) => api.get<PaginatedResponse<EventLog>>('/api/events', { params }).then((r) => r.data.items)
+};
+
+export const AutomationRulesApi = {
+  list: () => api.get<AutomationRule[]>('/api/automation-rules').then((r) => r.data),
+  create: (payload: Omit<AutomationRule, 'id' | 'created_at' | 'updated_at'>) => api.post<AutomationRule>('/api/automation-rules', payload).then((r) => r.data),
+  update: (id: string, payload: Partial<Omit<AutomationRule, 'id' | 'created_at' | 'updated_at'>>) => api.patch<AutomationRule>(`/api/automation-rules/${id}`, payload).then((r) => r.data),
+  remove: (id: string) => api.delete(`/api/automation-rules/${id}`).then((r) => r.data),
+  run: () => api.post<{ rules: AutomationRunResult[]; totalUpdated: number }>('/api/automation-rules/run').then((r) => r.data)
+};
+
+export const InvoiceDraftsApi = {
+  get: (id: string) => api.get<InvoiceDraft>(`/api/invoice-drafts/${id}`).then((r) => r.data)
+};
+
+export const PortalAuthApi = {
+  login: (payload: { email: string; password: string }) => portalApi.post<{ access_token: string; token_type: 'bearer'; user: PortalUser }>('/api/portal/auth/login', payload).then((r) => r.data),
+  me: () => portalApi.get<PortalUser>('/api/portal/me').then((r) => r.data)
+};
+
+export const PortalApi = {
+  listOrders: () => portalApi.get<ServiceOrder[]>('/api/portal/orders').then((r) => r.data),
+  getOrder: (id: string) => portalApi.get<ServiceOrder>(`/api/portal/orders/${id}`).then((r) => r.data),
+  getOrderHistory: (id: string) => portalApi.get<OrderHistory[]>(`/api/portal/orders/${id}/history`).then((r) => r.data),
+  getOrderDocuments: (id: string) => portalApi.get<PortalDocument[]>(`/api/portal/orders/${id}/documents`).then((r) => r.data),
+  listDocuments: () => portalApi.get<{ client: PortalDocument[]; orders: PortalDocument[] }>('/api/portal/documents').then((r) => r.data),
+  exportPdf: (id: string) => portalApi.get<Blob>(`/api/portal/orders/${id}/pdf`, { responseType: 'blob' }).then((r) => r.data)
+};
+
+export const CalendarIntegrationsApi = {
+  list: () => api.get<ExternalCalendarConnection[]>('/api/calendar-integrations').then((r) => r.data),
+  connect: (payload: { provider: 'google' | 'outlook' }) => api.post<{ state: string; authorization_url: string }>('/api/calendar-integrations/connect', payload).then((r) => r.data),
+  disconnect: (id: string) => api.delete(`/api/calendar-integrations/${id}`).then((r) => r.data),
+  orderStatus: (orderId: string) => api.get<ExternalCalendarEventStatus[]>(`/api/calendar-integrations/orders/${orderId}/status`).then((r) => r.data),
+  syncOrderNow: (orderId: string) => api.post<{ processed: number; synced: number; errors: number }>(`/api/calendar-integrations/orders/${orderId}/sync`).then((r) => r.data)
+};
+
+export const MapApi = {
+  orders: () => api.get<MapOrderMarker[]>('/api/map/orders').then((r) => r.data),
+  technicians: () => api.get<TechnicianMapLocation[]>('/api/map/technicians').then((r) => r.data)
+};
+
+export const TechnicianLocationApi = {
+  getSharing: () => api.get<{ enabled: boolean; updated_at: string | null }>('/api/technicians/location-sharing').then((r) => r.data),
+  setSharing: (enabled: boolean) => api.post<{ enabled: boolean; updated_at: string | null }>('/api/technicians/location-sharing', { enabled }).then((r) => r.data),
+  updateLocation: (payload: { lat: number; lng: number; accuracy?: number }) => api.post('/api/technicians/location', payload).then((r) => r.data)
 };

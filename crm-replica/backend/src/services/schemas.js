@@ -23,6 +23,18 @@ export const resetPasswordSchema = z.object({
   password: z.string().min(8)
 }).strict();
 
+export const portalLoginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8)
+}).strict();
+
+export const portalUserCreateSchema = z.object({
+  client_id: z.string().min(1),
+  email: z.string().email(),
+  password: z.string().min(8),
+  active: z.boolean().optional()
+}).strict();
+
 export const clientCreateSchema = z.object({
   nombre_empresa: z.string().min(1),
   direccion: z.string().optional(),
@@ -59,6 +71,37 @@ export const userProfileUpdateSchema = z.object({
 export const userAdminUpdateSchema = z.object({
   active: z.boolean().optional(),
   role: z.enum(['admin', 'tecnico']).optional()
+}).strict();
+
+export const automationRuleSchema = z.object({
+  name: z.string().min(1),
+  active: z.boolean().optional(),
+  trigger_type: z.literal('delayed_in_status').default('delayed_in_status'),
+  target_status: z.enum(['presupuesto_generado','oc_recibida','facturado','pago_recibido','documentacion_enviada','documentacion_aprobada','service_programado','en_ejecucion','completado','cancelado']),
+  threshold_hours: z.coerce.number().int().positive(),
+  action_type: z.literal('set_priority_alta_notify_admin').default('set_priority_alta_notify_admin'),
+  action_payload: z.object({ priority: z.literal('alta').default('alta') }).optional()
+}).strict();
+
+export const automationRuleUpdateSchema = automationRuleSchema.partial().strict();
+
+export const calendarConnectSchema = z.object({
+  provider: z.enum(['google', 'outlook'])
+}).strict();
+
+export const calendarCallbackQuerySchema = z.object({
+  code: z.string().min(1),
+  state: z.string().min(1)
+}).strict();
+
+export const technicianLocationSchema = z.object({
+  lat: z.coerce.number().min(-90).max(90),
+  lng: z.coerce.number().min(-180).max(180),
+  accuracy: z.coerce.number().positive().optional()
+}).strict();
+
+export const technicianLocationSharingSchema = z.object({
+  enabled: z.boolean()
 }).strict();
 
 const closureChecklistSchema = z.object({
@@ -116,6 +159,13 @@ export const techniciansUpdateSchema = z.object({
 export const searchQuerySchema = z.object({
   q: z.string().trim().min(2),
   limit: z.coerce.number().int().min(1).max(20).default(10)
+}).strict();
+
+
+export const locationEventCreateSchema = z.object({
+  event_type: z.enum(['arrival', 'departure']),
+  latitude: z.coerce.number().min(-90).max(90),
+  longitude: z.coerce.number().min(-180).max(180)
 }).strict();
 
 export const materialCreateSchema = materialSchema;

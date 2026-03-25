@@ -12,7 +12,7 @@ import { Dropdown } from '@/components/ui/dropdown';
 import { NotificationsApi } from '@/lib/api/endpoints';
 import { getApiErrorMessage } from '@/lib/api/error-message';
 
-const labels: Record<string, string> = { dashboard: 'Dashboard', orders: 'Órdenes', clients: 'Clientes', equipments: 'Equipos', calendar: 'Calendario', profile: 'Administración', users: 'Usuarios' };
+const labels: Record<string, string> = { dashboard: 'Dashboard', orders: 'Órdenes', clients: 'Clientes', equipments: 'Equipos', calendar: 'Calendario', profile: 'Administración', users: 'Usuarios', 'automation-rules': 'Automatizaciones' };
 
 export function Header() {
   const user = authStore((s) => s.user);

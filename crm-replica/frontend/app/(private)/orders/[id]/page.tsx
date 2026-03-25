@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Download } from 'lucide-react';
 import { OrdersApi, UsersApi } from '@/lib/api/endpoints';
-import { OrderHistory, OrderMaterial, ServiceOrder, User } from '@/types/domain';
+import { InvoiceDraft, OrderHistory, OrderMaterial, ServiceOrder, User } from '@/types/domain';
 import { Card } from '@/components/ui/card';
 import { Avatar } from '@/components/ui/avatar';
 import { RelativeTime } from '@/components/common/relative-time';
@@ -18,6 +18,9 @@ import { getOrderHistoryFieldLabel, renderOrderHistoryValue } from '@/lib/order-
 import { resolveActorName } from '@/lib/actor-name';
 import { Button } from '@/components/ui/button';
 import { appStore } from '@/stores/app-store';
+import { getApiErrorMessage } from '@/lib/api/error-message';
+import { loadAssignedOrderDetail, saveAssignedOrderDetail } from '@/lib/offline/assigned-orders';
+import { useOnlineStatus } from '@/hooks/use-online-status';
 
 type HistoryFilter = 'all' | 'estado' | 'prioridad' | 'fecha_programada' | 'technicians' | 'materials' | 'observaciones_cierre' | 'tiempo_trabajado_horas' | 'checklist_cierre' | 'firma_cliente' | 'foto_trabajo_url';
 
@@ -31,13 +34,32 @@ export default function OrderByIdPage() {
   const [history, setHistory] = useState<OrderHistory[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [filter, setFilter] = useState<HistoryFilter>('all');
+  const [offlineSnapshotAt, setOfflineSnapshotAt] = useState<string | null>(null);
+  const [invoiceDraft, setInvoiceDraft] = useState<InvoiceDraft | null>(null);
+  const [invoiceDraftLoading, setInvoiceDraftLoading] = useState(false);
   const toast = appStore((state) => state.pushToast);
+  const online = useOnlineStatus();
 
   const load = async () => {
-    const [orderData, historyData, usersData] = await Promise.all([OrdersApi.get(params.id), OrdersApi.history(params.id), UsersApi.list()]);
-    setOrder(orderData);
-    setHistory(historyData);
-    setUsers(usersData);
+    try {
+      const [orderData, historyData, usersData] = await Promise.all([OrdersApi.get(params.id), OrdersApi.history(params.id), UsersApi.list()]);
+      setOrder(orderData);
+      setInvoiceDraft(orderData.invoice_draft ?? null);
+      setHistory(historyData);
+      setUsers(usersData);
+      setOfflineSnapshotAt(null);
+      await saveAssignedOrderDetail(orderData);
+    } catch (error) {
+      const cached = await loadAssignedOrderDetail(params.id);
+      if (cached) {
+        setOrder(cached.order);
+        setHistory([]);
+        setOfflineSnapshotAt(cached.savedAt);
+        toast({ type: 'info', message: 'Mostrando la orden guardada en este dispositivo' });
+        return;
+      }
+      toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo cargar la orden') });
+    }
   };
 
   useEffect(() => {
@@ -65,8 +87,22 @@ export default function OrderByIdPage() {
       link.remove();
       window.URL.revokeObjectURL(url);
       toast({ type: 'success', message: 'PDF descargado correctamente' });
-    } catch {
-      toast({ type: 'error', message: 'No se pudo exportar el PDF' });
+    } catch (error) {
+      toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo exportar el PDF') });
+    }
+  };
+
+  const generateInvoiceDraft = async () => {
+    if (!order) return;
+    setInvoiceDraftLoading(true);
+    try {
+      const created = await OrdersApi.createInvoiceDraft(order.id, { labor_rate: 0 });
+      setInvoiceDraft(created);
+      toast({ type: 'success', message: 'Borrador de factura generado' });
+    } catch (error) {
+      toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo generar el borrador de factura') });
+    } finally {
+      setInvoiceDraftLoading(false);
     }
   };
 
@@ -84,8 +120,14 @@ export default function OrderByIdPage() {
           <PriorityBadge value={order.prioridad} />
           <SlaBadge status={order.sla_status} slaDeadline={order.sla_deadline} />
           <Button variant="secondary" onClick={() => void exportPdf()}><Download size={16} /> Exportar PDF</Button>
+          {order.estado === 'completado' ? <Button variant="secondary" onClick={() => void generateInvoiceDraft()} disabled={invoiceDraftLoading}>{invoiceDraftLoading ? 'Generando…' : invoiceDraft ? 'Borrador generado' : 'Generar borrador de factura'}</Button> : null}
         </div>
       </div>
+      {!online && offlineSnapshotAt ? (
+        <Card>
+          <p className="text-sm text-amber-800">Modo offline activo · usando una copia sincronizada el {new Date(offlineSnapshotAt).toLocaleString()}.</p>
+        </Card>
+      ) : null}
 
       <Card>
         <div className="grid grid-cols-2 gap-3 text-sm lg:grid-cols-4">
@@ -98,6 +140,45 @@ export default function OrderByIdPage() {
           <div><p className="text-[var(--text-secondary)]">Foto trabajo</p><p>{order.foto_trabajo_url ? <a href={order.foto_trabajo_url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">Abrir evidencia</a> : '-'}</p></div>
           <div><p className="text-[var(--text-secondary)]">Observaciones cierre</p><p>{order.observaciones_cierre || '-'}</p></div>
         </div>
+      </Card>
+
+      {invoiceDraft ? (
+        <Card>
+          <h2 className="mb-2 font-semibold">Borrador de factura</h2>
+          <div className="grid gap-3 text-sm md:grid-cols-4">
+            <div><p className="text-[var(--text-secondary)]">Horas</p><p>{invoiceDraft.labor_hours}</p></div>
+            <div><p className="text-[var(--text-secondary)]">Mano de obra</p><p>{invoiceDraft.currency} {invoiceDraft.labor_amount.toFixed(2)}</p></div>
+            <div><p className="text-[var(--text-secondary)]">Materiales</p><p>{invoiceDraft.currency} {invoiceDraft.materials_amount.toFixed(2)}</p></div>
+            <div><p className="text-[var(--text-secondary)]">Total</p><p className="font-semibold">{invoiceDraft.currency} {invoiceDraft.total_amount.toFixed(2)}</p></div>
+          </div>
+          <p className="mt-3 text-sm text-[var(--text-secondary)]">Este documento es un borrador y no representa una factura emitida.</p>
+        </Card>
+      ) : null}
+
+      <Card>
+        <h2 className="mb-2 font-semibold">Llegada / salida registradas</h2>
+        {!order.location_events?.length ? <p className="text-sm text-[var(--text-secondary)]">Todavía no hay eventos de ubicación registrados para esta orden.</p> : (
+          <Table>
+            <thead>
+              <tr>
+                <th className="p-2">Evento</th>
+                <th className="p-2">Usuario</th>
+                <th className="p-2">Fecha</th>
+                <th className="p-2">Coordenadas</th>
+              </tr>
+            </thead>
+            <tbody>
+              {order.location_events.map((event) => (
+                <tr key={event.id} className="border-t border-[var(--border)]">
+                  <td className="p-2">{event.event_type === 'arrival' ? 'Llegada' : 'Salida'}</td>
+                  <td className="p-2">{event.user ? `${event.user.first_name} ${event.user.last_name}`.trim() || event.user.email : 'Sistema'}</td>
+                  <td className="p-2">{new Date(event.created_at).toLocaleString()}</td>
+                  <td className="p-2">{event.latitude.toFixed(5)}, {event.longitude.toFixed(5)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        )}
       </Card>
 
       <div className="grid gap-4 xl:grid-cols-[1.2fr,0.8fr]">
