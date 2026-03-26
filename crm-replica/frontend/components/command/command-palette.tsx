@@ -26,58 +26,61 @@ export function CommandPalette() {
 
   useEffect(() => {
     if (!open) return;
-    if (query.trim().length < 2) {
+    const trimmedQuery = query.trim();
+    if (trimmedQuery.length < 2) {
       setItems([]);
       setLoading(false);
       return;
     }
 
     let cancelled = false;
-    setLoading(true);
-
-    SearchApi.global(query.trim(), 12)
-      .then((results) => {
-        if (cancelled) return;
-        setItems([
-          ...results.orders.map((order) => ({
-            id: order.id,
-            label: `#${order.id.slice(0, 8)} · ${order.client?.nombre_empresa ?? order.client_id}`,
-            meta: `${order.estado} · ${order.prioridad}`,
-            route: `/orders/${order.id}`,
-            type: 'order' as const
-          })),
-          ...results.clients.map((client) => ({
-            id: client.id,
-            label: client.nombre_empresa,
-            meta: client.persona_contacto ?? client.email ?? 'Cliente',
-            route: `/clients/${client.id}`,
-            type: 'client' as const
-          })),
-          ...results.equipments.map((equipment) => ({
-            id: equipment.id,
-            label: `${equipment.tipo_equipo} · ${equipment.numero_serie}`,
-            meta: equipment.modelo ?? equipment.estado_actual,
-            route: `/equipments/${equipment.id}`,
-            type: 'equipment' as const
-          })),
-          ...results.users.map((user) => ({
-            id: user.id,
-            label: `${user.first_name} ${user.last_name}`.trim(),
-            meta: user.email,
-            route: '/users',
-            type: 'user' as const
-          }))
-        ]);
-      })
-      .catch(() => {
-        if (!cancelled) setItems([]);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    const handle = setTimeout(() => {
+      setLoading(true);
+      SearchApi.global(trimmedQuery, 12)
+        .then((results) => {
+          if (cancelled) return;
+          setItems([
+            ...results.orders.map((order) => ({
+              id: order.id,
+              label: `#${order.id.slice(0, 8)} · ${order.client?.nombre_empresa ?? order.client_id}`,
+              meta: `${order.estado} · ${order.prioridad}`,
+              route: `/orders/${order.id}`,
+              type: 'order' as const
+            })),
+            ...results.clients.map((client) => ({
+              id: client.id,
+              label: client.nombre_empresa,
+              meta: client.persona_contacto ?? client.email ?? 'Cliente',
+              route: `/clients/${client.id}`,
+              type: 'client' as const
+            })),
+            ...results.equipments.map((equipment) => ({
+              id: equipment.id,
+              label: `${equipment.tipo_equipo} · ${equipment.numero_serie}`,
+              meta: equipment.modelo ?? equipment.estado_actual,
+              route: `/equipments/${equipment.id}`,
+              type: 'equipment' as const
+            })),
+            ...results.users.map((user) => ({
+              id: user.id,
+              label: `${user.first_name} ${user.last_name}`.trim(),
+              meta: user.email,
+              route: '/users',
+              type: 'user' as const
+            }))
+          ]);
+        })
+        .catch(() => {
+          if (!cancelled) setItems([]);
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    }, 250);
 
     return () => {
       cancelled = true;
+      clearTimeout(handle);
     };
   }, [open, query]);
 

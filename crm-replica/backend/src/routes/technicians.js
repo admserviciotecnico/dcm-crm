@@ -1,12 +1,13 @@
 import { Router } from 'express';
 import { prisma } from '../config/prisma.js';
-import { authRequired } from '../middleware/auth.js';
+import { authRequired, requireRole } from '../middleware/auth.js';
 import { validateBody } from '../middleware/validation.js';
 import { technicianLocationSchema, technicianLocationSharingSchema } from '../services/schemas.js';
 import { asyncHandler, sendError } from '../utils/http.js';
 
 const router = Router();
 router.use(authRequired);
+router.use(requireRole('tecnico'));
 
 router.get('/location-sharing', asyncHandler(async (req, res) => {
   const sharing = await prisma.technicianLocationSharing.findUnique({

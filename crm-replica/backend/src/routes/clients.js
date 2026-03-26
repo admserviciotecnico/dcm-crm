@@ -110,6 +110,9 @@ router.post('/', requireRole('admin'), validateBody(clientCreateSchema), asyncHa
 }));
 
 router.patch('/:id', requireRole('admin'), validateIdParam, validateBody(clientUpdateSchema), asyncHandler(async (req, res) => {
+  const existing = await prisma.client.findUnique({ where: { id: req.params.id } });
+  if (!existing || existing.deleted_at) return sendError(res, 404, 'Not found');
+
   const updated = await prisma.client.update({ where: { id: req.params.id }, data: req.body });
   await logEvent({ entity_type: 'client', entity_id: updated.id, event_type: 'updated', message: `Cliente actualizado: ${updated.nombre_empresa}`, actor_user_id: req.user.id });
   res.json(updated);
