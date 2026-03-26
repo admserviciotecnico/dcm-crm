@@ -97,6 +97,9 @@ export default function PlannerPage() {
         description="Tablero de planificación por técnico y día. Arrastrá órdenes para reasignar técnico y fecha programada."
         action={<div className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-secondary)]"><Move size={16} /> {me?.role === 'admin' ? 'Drag & drop habilitado' : 'Solo visualización para técnicos'}</div>}
       />
+      <p className="rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-secondary)]">
+        Nota: al arrastrar una orden a un técnico, la asignación reemplaza a los técnicos actuales por ese único técnico.
+      </p>
 
       {loading ? <TableSkeleton rows={8} cols={6} /> : null}
 

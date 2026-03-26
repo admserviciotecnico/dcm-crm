@@ -19,6 +19,13 @@ const PORTAL_ORDER_INCLUDE = {
 };
 
 function mapPortalOrder(order) {
+  const delayed = Boolean(
+    order.fecha_programada
+    && new Date(order.fecha_programada).getTime() < Date.now()
+    && order.estado !== 'completado'
+    && order.estado !== 'cancelado'
+  );
+
   return {
     id: order.id,
     client_id: order.client_id,
@@ -27,7 +34,7 @@ function mapPortalOrder(order) {
     prioridad: order.prioridad,
     estado: order.estado,
     fecha_programada: order.fecha_programada,
-    delayed: order.delayed,
+    delayed,
     sla_due_at: order.sla_due_at,
     observaciones: order.observaciones,
     observaciones_cierre: order.observaciones_cierre,
