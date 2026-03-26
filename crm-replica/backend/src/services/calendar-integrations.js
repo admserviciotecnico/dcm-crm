@@ -349,9 +349,8 @@ export async function syncOrderCalendarEvents({ db = prisma, orderId, technician
         entity_id: order.id,
         event_type: 'updated',
         message: `Error al sincronizar calendario externo para técnico ${technicianId}: ${message}`,
-        actor_user_id: actorUserId,
-        db
-      });
+        actor_user_id: actorUserId
+      }, db);
     }
   }
 
