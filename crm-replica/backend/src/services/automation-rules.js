@@ -69,9 +69,8 @@ async function processRule(db, rule) {
       entity_id: order.id,
       event_type: 'updated',
       message: `Automatización aplicada: prioridad escalada a alta para orden #${shortId(order.id)}`,
-      actor_user_id: null,
-      db
-    });
+      actor_user_id: null
+    }, db);
 
     updated += 1;
   }

@@ -3,7 +3,7 @@ export const STATUS_WORKFLOW = {
   oc_recibida: ['facturado', 'cancelado'],
   facturado: ['pago_recibido', 'cancelado'],
   pago_recibido: ['documentacion_enviada'],
-  documentacion_enviada: ['documentacion_aprobada', 'documentacion_enviada'],
+  documentacion_enviada: ['documentacion_aprobada'],
   documentacion_aprobada: ['service_programado'],
   service_programado: ['en_ejecucion', 'cancelado'],
   en_ejecucion: ['completado'],
