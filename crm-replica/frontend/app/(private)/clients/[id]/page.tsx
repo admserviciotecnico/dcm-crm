@@ -188,6 +188,9 @@ export default function Client360Page() {
   });
 
   const usersById = useMemo(() => new Map(users.map((listedUser) => [listedUser.id, listedUser])), [users]);
+  const documentationExpiryLabel = client?.fecha_vencimiento_documentacion
+    ? new Date(client.fecha_vencimiento_documentacion).toLocaleDateString()
+    : 'Sin fecha';
 
   const backendTimelineEvents = useMemo(() => backendActivityEvents.map((event) => ({
     id: event.id,
@@ -252,7 +255,7 @@ export default function Client360Page() {
             <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               <div className="rounded-[10px] border border-[var(--border)] p-3 text-sm"><p className="text-[var(--text-secondary)]">Última interacción</p><p className="mt-1 font-medium">{health?.last_interaction_at ? <RelativeTime value={health.last_interaction_at} /> : 'Sin actividad'}</p></div>
               <div className="rounded-[10px] border border-[var(--border)] p-3 text-sm"><p className="text-[var(--text-secondary)]">Resolución promedio</p><p className="mt-1 font-medium">{health?.avg_resolution_hours != null ? `${health.avg_resolution_hours} h` : '-'}</p></div>
-              <div className="rounded-[10px] border border-[var(--border)] p-3 text-sm"><p className="text-[var(--text-secondary)]">Documentación</p><div className="mt-2"><Badge className={health?.documentation_status === 'vigente' ? 'border-emerald-200 bg-emerald-100 text-emerald-700' : health?.documentation_status === 'proxima_a_vencer' ? 'border-amber-200 bg-amber-100 text-amber-700' : health?.documentation_status === 'vencida' ? 'border-red-200 bg-red-100 text-red-700' : 'border-[var(--border)] bg-[var(--bg-surface-muted)] text-[var(--text-secondary)]'}>{health?.documentation_status?.replace(/_/g, ' ') ?? '-'}</Badge></div></div>
+              <div className="rounded-[10px] border border-[var(--border)] p-3 text-sm"><p className="text-[var(--text-secondary)]">Documentación</p><div className="mt-2"><Badge className={health?.documentation_status === 'vigente' ? 'border-emerald-200 bg-emerald-100 text-emerald-700' : health?.documentation_status === 'proxima_a_vencer' ? 'border-amber-200 bg-amber-100 text-amber-700' : health?.documentation_status === 'vencida' ? 'border-red-200 bg-red-100 text-red-700' : 'border-[var(--border)] bg-[var(--bg-surface-muted)] text-[var(--text-secondary)]'}>{health?.documentation_status?.replace(/_/g, ' ') ?? '-'}</Badge></div><p className="mt-2 text-xs text-[var(--text-secondary)]">Vence: {documentationExpiryLabel}</p></div>
               <div className="rounded-[10px] border border-[var(--border)] p-3 text-sm"><p className="text-[var(--text-secondary)]">Costo estimado materiales</p><p className="mt-1 font-medium">${health?.materials_summary.estimated_cost?.toFixed(2) ?? '0.00'}</p></div>
             </div>
             <div className="mt-3 grid gap-3 md:grid-cols-3">

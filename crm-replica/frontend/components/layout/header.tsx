@@ -45,17 +45,29 @@ export function Header() {
 
   const openNotifications = useCallback(async () => {
     await loadNotifications();
-    if (unreadCount > 0) {
-      try {
-        await NotificationsApi.markAllRead();
-        markNotificationsRead();
-        setUnreadCount(0);
-        await loadNotifications();
-      } catch (error) {
-        pushToast({ type: 'error', message: getApiErrorMessage(error, 'No se pudieron actualizar las notificaciones') });
-      }
+  }, [loadNotifications]);
+
+  const markAllNotifications = useCallback(async () => {
+    try {
+      await NotificationsApi.markAllRead();
+      markNotificationsRead();
+      setUnreadCount(0);
+      await loadNotifications();
+    } catch (error) {
+      pushToast({ type: 'error', message: getApiErrorMessage(error, 'No se pudieron actualizar las notificaciones') });
     }
-  }, [loadNotifications, markNotificationsRead, pushToast, unreadCount]);
+  }, [loadNotifications, markNotificationsRead, pushToast]);
+
+  const handleNotificationClick = useCallback(async (notificationId: string, serviceOrderId?: string | null) => {
+    try {
+      await NotificationsApi.markRead(notificationId);
+      markNotificationsRead([notificationId]);
+      setUnreadCount((prev) => Math.max(0, prev - 1));
+      if (serviceOrderId) router.push(`/orders/${serviceOrderId}`);
+    } catch (error) {
+      pushToast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo marcar la notificación') });
+    }
+  }, [markNotificationsRead, pushToast, router]);
 
   const crumbs = pathname.split('/').filter(Boolean).map((p) => labels[p] ?? p);
 
@@ -77,8 +89,19 @@ export function Header() {
             <span className="relative inline-flex"><Bell size={16} />{unreadCount > 0 ? <span className="absolute -right-2 -top-2 rounded-full bg-blue-600 px-1 text-[10px] text-white">{unreadCount}</span> : null}</span>
           }
         >
+          <div className="flex items-center justify-between border-b border-[var(--border)] px-3 py-2">
+            <p className="text-xs text-[var(--text-secondary)]">Notificaciones</p>
+            <Button variant="ghost" className="h-7 px-2 text-xs" disabled={unreadCount === 0} onClick={() => void markAllNotifications()}>
+              Marcar todas como leídas
+            </Button>
+          </div>
           <div className="max-h-72 overflow-auto">
-            {notifications.length === 0 ? <p className="p-3 text-sm text-[var(--text-secondary)]">Sin notificaciones</p> : notifications.slice(0, 8).map((n) => <div key={n.id} className="border-b border-[var(--border)] p-3 text-sm"><p className="font-medium">{n.title}</p><p className="text-[var(--text-secondary)]">{n.description}</p></div>)}
+            {notifications.length === 0 ? <p className="p-3 text-sm text-[var(--text-secondary)]">Sin notificaciones</p> : notifications.slice(0, 8).map((n) => (
+              <button key={n.id} className={`w-full border-b border-[var(--border)] p-3 text-left text-sm ${n.read ? '' : 'bg-[var(--bg-surface-hover)]'}`} onClick={() => void handleNotificationClick(n.id, n.service_order_id)}>
+                <p className="font-medium">{n.title}</p>
+                <p className="text-[var(--text-secondary)]">{n.description}</p>
+              </button>
+            ))}
           </div>
         </Dropdown>
         <Button variant="ghost" onClick={() => setDarkMode(!dark)} className="text-[var(--text-secondary)]">{dark ? <Sun size={16} /> : <Moon size={16} />}</Button>

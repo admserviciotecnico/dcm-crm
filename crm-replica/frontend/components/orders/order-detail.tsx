@@ -155,11 +155,14 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
     return tech ? `${tech.first_name} ${tech.last_name}` : id;
   };
 
-  const canTechMove = user?.role === 'tecnico' && (order.estado === 'service_programado' || order.estado === 'en_ejecucion');
-  const canCancel = order.estado !== 'completado' && order.estado !== 'cancelado';
-  const canManageMaterials = user?.role === 'admin' || user?.role === 'tecnico';
+  const isOperationalReadOnly = order.estado === 'cancelado' || order.estado === 'completado';
+  const visibleAdminTransitions = adminAllowed.filter((next) => next !== 'cancelado');
+  const canTechMove = user?.role === 'tecnico' && !isOperationalReadOnly && (order.estado === 'service_programado' || order.estado === 'en_ejecucion');
+  const canCancel = user?.role === 'admin' && adminAllowed.includes('cancelado');
+  const canManageMaterials = !isOperationalReadOnly && (user?.role === 'admin' || user?.role === 'tecnico');
   const canRegisterLocation = user?.role === 'tecnico' && (order.estado === 'service_programado' || order.estado === 'en_ejecucion');
-  const canEditClosure = user?.role === 'admin' || user?.role === 'tecnico';
+  const canEditClosure = !isOperationalReadOnly && (user?.role === 'admin' || user?.role === 'tecnico');
+  const canReassignTechnicians = user?.role === 'admin' && !isOperationalReadOnly;
   const reassignmentDirty = [...selectedTechnicians].sort().join(',') !== [...initialTechnicians].sort().join(',');
   const recentHistory = history.slice(0, 5);
   const materialsCost = materialTotal(materials);
@@ -361,7 +364,7 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
               </div>
               <div>
                 <p className="text-[var(--text-secondary)]">Técnicos</p>
-                <div className="space-y-1">{(order.technicians ?? []).map((t) => <div key={t.technician_id} className="flex items-center gap-2"><Avatar name={techName(t.technician_id)} /><span>{techName(t.technician_id)}</span></div>)}</div>{user?.role === 'admin' ? <Button className="mt-2" variant="secondary" onClick={() => setReassignOpen(true)}>Reasignar técnicos</Button> : null}
+                <div className="space-y-1">{(order.technicians ?? []).map((t) => <div key={t.technician_id} className="flex items-center gap-2"><Avatar name={techName(t.technician_id)} /><span>{techName(t.technician_id)}</span></div>)}</div>{canReassignTechnicians ? <Button className="mt-2" variant="secondary" onClick={() => setReassignOpen(true)}>Reasignar técnicos</Button> : null}
               </div>
             </div>
 
@@ -462,7 +465,7 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
             <div>
               <p className="mb-2 text-sm text-[var(--text-secondary)]">Acciones de workflow</p>
               <div className="flex flex-wrap gap-2">
-                {user?.role === 'admin' ? adminAllowed.map((next) => <Button key={next} variant="secondary" onClick={async () => { try { await OrdersApi.patch(order.id, { estado: next }); toast({ type: 'success', message: `Estado actualizado a ${next}` }); onRefresh(); } catch { toast({ type: 'error', message: 'No se pudo actualizar el estado' }); } }}>{ORDER_STATUS_LABEL[next as keyof typeof ORDER_STATUS_LABEL] ?? next}</Button>) : null}
+                {user?.role === 'admin' ? visibleAdminTransitions.map((next) => <Button key={next} variant="secondary" onClick={async () => { try { await OrdersApi.patch(order.id, { estado: next }); toast({ type: 'success', message: `Estado actualizado a ${next}` }); onRefresh(); } catch { toast({ type: 'error', message: 'No se pudo actualizar el estado' }); } }}>{ORDER_STATUS_LABEL[next as keyof typeof ORDER_STATUS_LABEL] ?? next}</Button>) : null}
                 {canTechMove ? <Button variant="secondary" onClick={async () => { const next = order.estado === 'service_programado' ? 'en_ejecucion' : 'completado'; try { await OrdersApi.patch(order.id, { estado: next }); toast({ type: 'success', message: `Orden ${next}` }); onRefresh(); } catch { toast({ type: 'error', message: 'No se pudo actualizar la orden' }); } }}>{ORDER_STATUS_LABEL[order.estado === 'service_programado' ? 'en_ejecucion' : 'completado']}</Button> : null}
                 {canCancel ? <Button variant="danger" onClick={() => setConfirmCancel(true)}>{ORDER_STATUS_LABEL.cancelado}</Button> : null}
               </div>

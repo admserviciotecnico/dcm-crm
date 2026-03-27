@@ -12,11 +12,14 @@ import { Avatar } from '@/components/ui/avatar';
 import { Card } from '@/components/ui/card';
 import { OrderDetail } from '@/components/orders/order-detail';
 import { EmptyState } from '@/components/common/empty-state';
+import { appStore } from '@/stores/app-store';
+import { getApiErrorMessage } from '@/lib/api/error-message';
 
 export default function OrdersKanbanPage() {
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [selected, setSelected] = useState<ServiceOrder | null>(null);
+  const toast = appStore((s) => s.pushToast);
 
   const load = async () => {
     const [ordersRes, usersRes] = await Promise.all([OrdersApi.list({ page: 1, pageSize: 300 }), UsersApi.list()]);
@@ -34,8 +37,13 @@ export default function OrdersKanbanPage() {
   const onDrop = async (event: DragEvent<HTMLDivElement>, nextStatus: OrderStatus) => {
     const orderId = event.dataTransfer.getData('order-id');
     if (!orderId) return;
-    await OrdersApi.patch(orderId, { estado: nextStatus });
-    await load();
+    try {
+      await OrdersApi.patch(orderId, { estado: nextStatus });
+      await load();
+    } catch (error) {
+      toast({ type: 'error', message: getApiErrorMessage(error, 'Transición no permitida') });
+      await load();
+    }
   };
 
   return (

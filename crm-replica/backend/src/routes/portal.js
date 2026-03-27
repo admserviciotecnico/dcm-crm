@@ -19,8 +19,31 @@ const PORTAL_ORDER_INCLUDE = {
 };
 
 function mapPortalOrder(order) {
+  const delayed = Boolean(
+    order.fecha_programada
+    && new Date(order.fecha_programada).getTime() < Date.now()
+    && order.estado !== 'completado'
+    && order.estado !== 'cancelado'
+  );
+
   return {
-    ...order,
+    id: order.id,
+    client_id: order.client_id,
+    direccion_service: order.direccion_service,
+    descripcion: order.descripcion,
+    prioridad: order.prioridad,
+    estado: order.estado,
+    fecha_programada: order.fecha_programada,
+    delayed,
+    sla_due_at: order.sla_due_at,
+    observaciones: order.observaciones,
+    observaciones_cierre: order.observaciones_cierre,
+    tiempo_trabajado_horas: order.tiempo_trabajado_horas,
+    created_at: order.created_at,
+    updated_at: order.updated_at,
+    client: order.client ? { id: order.client.id, nombre_empresa: order.client.nombre_empresa } : null,
+    materials: order.materials,
+    invoice_draft: order.invoice_draft,
     short_id: shortId(order.id),
     status_label: ORDER_STATUS_LABEL[order.estado] ?? order.estado
   };

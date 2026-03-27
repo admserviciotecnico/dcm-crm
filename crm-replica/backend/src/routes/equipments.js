@@ -4,7 +4,7 @@ import { authRequired, requireRole } from '../middleware/auth.js';
 import { validateBody, validateIdParam } from '../middleware/validation.js';
 import { equipmentCreateSchema, equipmentUpdateSchema } from '../services/schemas.js';
 import { logEvent } from '../services/event-log.js';
-import { asyncHandler } from '../utils/http.js';
+import { asyncHandler, sendError } from '../utils/http.js';
 
 const MAX_PAGE_SIZE = 50;
 const SORT_FIELDS = {
@@ -63,6 +63,8 @@ router.post('/', requireRole('admin'), validateBody(equipmentCreateSchema), asyn
 
 router.patch('/:id', requireRole('admin'), validateIdParam, validateBody(equipmentUpdateSchema), asyncHandler(async (req, res) => {
   const before = await prisma.equipment.findUnique({ where: { id: req.params.id } });
+  if (!before || before.deleted_at) return sendError(res, 404, 'Not found');
+
   const updated = await prisma.equipment.update({ where: { id: req.params.id }, data: req.body });
   const eventType = req.body.estado_actual && before?.estado_actual !== req.body.estado_actual ? 'status_changed' : 'updated';
   await logEvent({ entity_type: 'equipment', entity_id: updated.id, event_type: eventType, message: eventType === 'status_changed' ? `Estado de equipo cambiado a ${updated.estado_actual}` : `Equipo actualizado: ${updated.tipo_equipo} ${updated.numero_serie}`, actor_user_id: req.user.id });

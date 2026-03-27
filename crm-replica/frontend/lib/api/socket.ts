@@ -9,11 +9,16 @@ export function getSocket() {
   if (!socketInstance) {
     socketInstance = io(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000', {
       transports: ['websocket'],
-      autoConnect: false
+      autoConnect: false,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000
     });
   }
 
   if (!token) {
+    socketInstance.auth = {};
     if (socketInstance.connected) socketInstance.disconnect();
     return socketInstance;
   }

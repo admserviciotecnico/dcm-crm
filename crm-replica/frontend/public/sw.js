@@ -2,7 +2,7 @@ const VERSION = 'dcm-crm-v1';
 const SHELL_CACHE = `${VERSION}-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 const OFFLINE_URL = '/offline';
-const PRECACHE_URLS = ['/', '/login', '/offline', '/manifest.webmanifest'];
+const PRECACHE_URLS = ['/', '/login', '/offline', '/orders', '/planner', '/manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(SHELL_CACHE).then((cache) => cache.addAll(PRECACHE_URLS)).then(() => self.skipWaiting()));
@@ -28,6 +28,8 @@ async function networkFirst(request) {
     if (request.mode === 'navigate') {
       const offline = await caches.match(OFFLINE_URL);
       if (offline) return offline;
+      const shell = await caches.match('/');
+      if (shell) return shell;
     }
     throw error;
   }

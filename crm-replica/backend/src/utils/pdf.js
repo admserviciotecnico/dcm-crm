@@ -7,11 +7,39 @@ function escapePdfText(value) {
 
 export function createSimplePdf(lines) {
   const safeLines = lines.filter(Boolean).map((line) => String(line));
-  const contentLines = ['BT', '/F1 11 Tf', '50 790 Td'];
-  safeLines.forEach((line, index) => {
-    if (index > 0) contentLines.push('0 -16 Td');
+  const title = safeLines[0] ?? 'DCM CRM';
+  const body = safeLines.slice(1);
+  const contentLines = [
+    '0.95 0.97 1 rg',
+    '40 792 515 28 re',
+    'f',
+    'BT',
+    '/F1 16 Tf',
+    '1 0 0 1 50 805 Tm',
+    `(${escapePdfText(title)}) Tj`,
+    '/F1 10 Tf'
+  ];
+
+  let y = 776;
+  body.forEach((line) => {
+    if (y < 70) return;
+    const separator = line.indexOf(':');
+    if (separator > 0) {
+      const label = line.slice(0, separator + 1);
+      const value = line.slice(separator + 1).trim();
+      contentLines.push(`1 0 0 1 50 ${y} Tm`);
+      contentLines.push(`(${escapePdfText(label)}) Tj`);
+      contentLines.push(`1 0 0 1 170 ${y} Tm`);
+      contentLines.push(`(${escapePdfText(value)}) Tj`);
+      y -= 16;
+      return;
+    }
+
+    contentLines.push(`1 0 0 1 50 ${y} Tm`);
     contentLines.push(`(${escapePdfText(line)}) Tj`);
+    y -= 16;
   });
+
   contentLines.push('ET');
 
   const stream = contentLines.join('\n');
