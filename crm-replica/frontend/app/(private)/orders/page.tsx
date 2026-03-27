@@ -1,13 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { CalendarDays, ChevronDown, ChevronUp, Download, Filter, Plus } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ClientsApi, OrdersApi, UsersApi } from '@/lib/api/endpoints';
-import { ServiceOrder, User, OrderStatus } from '@/types/domain';
+import { ServiceOrder, User, OrderStatus, Client } from '@/types/domain';
 import { OrdersTable } from '@/components/orders/orders-table';
 import { OrderDetail } from '@/components/orders/order-detail';
 import { useRealtime } from '@/hooks/use-realtime';
@@ -44,7 +44,7 @@ const PAGE_SIZE = 20;
 export default function OrdersPage() {
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [clients, setClients] = useState<{ id: string; nombre_empresa: string }[]>([]);
+  const [clients, setClients] = useState<Pick<Client, 'id' | 'nombre_empresa' | 'direccion'>[]>([]);
   const [selected, setSelected] = useState<ServiceOrder | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkStatus, setBulkStatus] = useState<OrderStatus>('service_programado');
@@ -66,7 +66,9 @@ export default function OrdersPage() {
   const sortBy = searchParams.get('sortBy') || 'updated_at';
   const sortDir = searchParams.get('sortDir') === 'asc' ? 'asc' : 'desc';
   const filters = useMemo(() => ({ status: searchParams.get('status') || '', priority: searchParams.get('priority') || '', client: searchParams.get('client') || '', technician: searchParams.get('technician') || '', from: searchParams.get('from') || '', to: searchParams.get('to') || '', delayed: searchParams.get('delayed') || '' }), [searchParams]);
-  const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm<OrderForm>({ resolver: zodResolver(schema), defaultValues: { estado: 'presupuesto_generado', prioridad: 'media' } });
+  const { register, handleSubmit, reset, watch, setValue, formState: { isSubmitting } } = useForm<OrderForm>({ resolver: zodResolver(schema), defaultValues: { estado: 'presupuesto_generado', prioridad: 'media' } });
+  const selectedClientId = watch('client_id');
+  const lastAutofillClientRef = useRef<string | null>(null);
 
   const setParams = useCallback((updates: Record<string, string | null>) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -97,7 +99,7 @@ export default function OrdersPage() {
       setOrders(ordersRes.items);
       setTotal(ordersRes.total);
       setUsers(usersRes);
-      setClients(clientsRes.map((c) => ({ id: c.id, nombre_empresa: c.nombre_empresa })));
+      setClients(clientsRes.map((c) => ({ id: c.id, nombre_empresa: c.nombre_empresa, direccion: c.direccion })));
       setOfflineSnapshotAt(null);
       if (user?.role === 'tecnico') {
         await saveAssignedOrdersSnapshot(snapshotKey, ordersRes.items, ordersRes.total);
@@ -123,6 +125,19 @@ export default function OrdersPage() {
   useEffect(() => { void load(); }, [load]);
   useRealtime(load);
 
+  useEffect(() => {
+    if (!showCreate) return;
+    if (!selectedClientId) {
+      lastAutofillClientRef.current = null;
+      return;
+    }
+    if (lastAutofillClientRef.current === selectedClientId) return;
+
+    const selectedClient = clients.find((client) => client.id === selectedClientId);
+    setValue('direccion_service', selectedClient?.direccion ?? '', { shouldValidate: true, shouldDirty: true });
+    lastAutofillClientRef.current = selectedClientId;
+  }, [clients, selectedClientId, setValue, showCreate]);
+
   const activeFilters = useMemo(() => Object.values(filters).filter(Boolean).length, [filters]);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -132,6 +147,7 @@ export default function OrdersPage() {
       toast({ type: 'success', message: 'Orden creada con éxito' });
       setShowCreate(false);
       reset();
+      lastAutofillClientRef.current = null;
       void load();
     } catch (error) {
       toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo crear la orden') });
