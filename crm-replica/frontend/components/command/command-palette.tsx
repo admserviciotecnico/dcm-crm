@@ -132,7 +132,10 @@ export function CommandPalette() {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[260] grid place-items-start bg-black/50 p-8" onClick={() => setOpen(false)}>
+    <div className="fixed inset-0 z-[260] grid place-items-start bg-black/50 p-8" onClick={() => {
+      if (window.getSelection()?.toString()) return;
+      setOpen(false);
+    }}>
       <div className="mx-auto w-full max-w-2xl animate-[fadeSlide_150ms_ease-out] rounded-[12px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-lg" onClick={(e) => e.stopPropagation()}>
         <Input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar órdenes, clientes, equipos o usuarios..." />
         <div className="mt-2 text-xs text-[var(--text-secondary)]">Escribí al menos 2 caracteres para usar la búsqueda global.</div>

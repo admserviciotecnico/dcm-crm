@@ -122,6 +122,12 @@ export default function EquipmentsPage() {
   const getRelatedOrders = (eq: Equipment) => orders.filter((o) => (o.observaciones ?? '').includes(eq.id) || (o.observaciones ?? '').toLowerCase().includes(eq.numero_serie.toLowerCase()));
 
   const onSubmit = async (data: FormData) => {
+    const duplicatedSerial = items.find((equipment) => equipment.numero_serie.toLowerCase() === data.numero_serie.toLowerCase() && equipment.id !== edit?.id);
+    if (duplicatedSerial) {
+      toast({ type: 'info', message: 'Ya existe un equipo con ese número de serie' });
+      return;
+    }
+
     try {
       const payload = { client_id: data.client_id, tipo_equipo: data.tipo_equipo, modelo: data.modelo, numero_serie: data.numero_serie, ubicacion_planta: data.ubicacion?.trim() || undefined, observaciones: data.observaciones?.trim() || undefined, fecha_instalacion: data.fecha_instalacion ? new Date(data.fecha_instalacion).toISOString() : undefined, estado_actual: data.estado_actual };
       if (edit) await EquipmentsApi.update(edit.id, payload); else await EquipmentsApi.create(payload);
