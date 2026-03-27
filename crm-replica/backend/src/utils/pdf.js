@@ -1,5 +1,5 @@
 function escapePdfText(value) {
-  const latin1 = Buffer.from(String(value ?? ''), 'latin1');
+  const latin1 = Buffer.from(String(value ?? '').normalize('NFC'), 'latin1');
   let result = '';
   for (const byte of latin1) {
     if (byte === 0x5c) {
@@ -95,12 +95,15 @@ function wrapText(text, size, maxWidth) {
   return lines.length ? lines : ['-'];
 }
 
-function addText(stream, { x, y, text, size = 10, gray = 0 }) {
+function addText(stream, { x, y, text, size = 10, gray = 0, font = 'F1', align = 'left', width = 0 }) {
+  const value = String(text ?? '');
+  const estimatedWidth = value.length * size * 0.52;
+  const textX = align === 'right' && width > 0 ? x + Math.max(0, width - estimatedWidth) : x;
   stream.push('BT');
-  stream.push(`/F1 ${size} Tf`);
+  stream.push(`/${font} ${size} Tf`);
   stream.push(`${gray} ${gray} ${gray} rg`);
-  stream.push(`1 0 0 1 ${x} ${y} Tm`);
-  stream.push(`${escapePdfText(text)} Tj`);
+  stream.push(`1 0 0 1 ${textX} ${y} Tm`);
+  stream.push(`${escapePdfText(value)} Tj`);
   stream.push('ET');
 }
 
@@ -164,17 +167,22 @@ export function createSimplePdf(lines) {
 
   stream.push('0 0 0 RG');
   stream.push('1 w');
+  stream.push('1 1 1 rg');
+  stream.push(`0 0 ${pageWidth} ${pageHeight} re`);
+  stream.push('f');
+  stream.push('0 0 0 RG');
+  stream.push('1 w');
   stream.push(`${margin - 8} ${margin - 8} ${contentWidth + 16} ${pageHeight - ((margin - 8) * 2)} re`);
   stream.push('S');
 
   let y = pageHeight - margin;
 
   stream.push('0 0 0 rg');
-  stream.push(`${contentX} ${y - 30} ${contentWidth} 30 re`);
+  stream.push(`${contentX} ${y - 38} ${contentWidth} 38 re`);
   stream.push('f');
-  addText(stream, { x: contentX + 10, y: y - 20, text: 'DCM Service CRM', size: 12, gray: 1 });
-  addText(stream, { x: contentX + 182, y: y - 20, text: 'COMPROBANTE DE SERVICIO', size: 14, gray: 1 });
-  y -= 36;
+  addText(stream, { x: contentX + 10, y: y - 24, text: 'DCM SERVICE CRM', size: 12, gray: 1, font: 'F2' });
+  addText(stream, { x: contentX + 155, y: y - 24, text: 'COMPROBANTE DE SERVICIO', size: 16, gray: 1, font: 'F2' });
+  y -= 44;
 
   const headerBlockHeight = 56;
   const leftBlockWidth = 320;
@@ -183,37 +191,37 @@ export function createSimplePdf(lines) {
   stream.push(`${contentX} ${y - headerBlockHeight} ${leftBlockWidth} ${headerBlockHeight} re S`);
   stream.push(`${contentX + leftBlockWidth} ${y - headerBlockHeight} ${rightBlockWidth} ${headerBlockHeight} re S`);
 
-  addText(stream, { x: contentX + 10, y: y - 18, text: 'Empresa: DCM Solution', size: 10 });
-  addText(stream, { x: contentX + 10, y: y - 34, text: 'Dirección: Juan de Garay 3942, Buenos Aires', size: 9 });
-  addText(stream, { x: contentX + 10, y: y - 48, text: 'Tel: (54 11) 4711-0458 / (54 11) 4005-5881', size: 9 });
+  addText(stream, { x: contentX + 10, y: y - 18, text: 'EMPRESA: DCM SOLUTION', size: 10, font: 'F2' });
+  addText(stream, { x: contentX + 10, y: y - 34, text: 'DIRECCIÓN: Juan de Garay 3942, Buenos Aires', size: 9 });
+  addText(stream, { x: contentX + 10, y: y - 48, text: 'TEL: (54 11) 4711-0458 / (54 11) 4005-5881', size: 9 });
 
-  addText(stream, { x: contentX + leftBlockWidth + 10, y: y - 18, text: `N° ORDEN: ${data.orderNumber}`, size: 11 });
-  addText(stream, { x: contentX + leftBlockWidth + 10, y: y - 36, text: `FECHA: ${new Date().toLocaleDateString('es-AR')}`, size: 11 });
+  addText(stream, { x: contentX + leftBlockWidth + 10, y: y - 18, text: `N° ORDEN: ${data.orderNumber}`, size: 11, font: 'F2' });
+  addText(stream, { x: contentX + leftBlockWidth + 10, y: y - 36, text: `FECHA: ${new Date().toLocaleDateString('es-AR')}`, size: 11, font: 'F2' });
 
-  y -= (headerBlockHeight + 10);
+  y -= (headerBlockHeight + 14);
 
   y = addSectionTitle(stream, { x: contentX, yTop: y, width: contentWidth, title: 'Datos del cliente' }) - 4;
   const clientHeight = 66;
   stream.push(`${contentX} ${y - clientHeight} ${contentWidth} ${clientHeight} re S`);
   stream.push(`${contentX + (contentWidth / 2)} ${y - clientHeight} m ${contentX + (contentWidth / 2)} ${y} l S`);
-  addText(stream, { x: contentX + 10, y: y - 18, text: `Cliente: ${data.client}`, size: 10 });
-  addText(stream, { x: contentX + 10, y: y - 34, text: 'Dirección: Referencia en orden de servicio', size: 9 });
-  addText(stream, { x: contentX + 10, y: y - 50, text: 'Contacto: Registro administrativo', size: 9 });
-  addText(stream, { x: contentX + (contentWidth / 2) + 10, y: y - 18, text: `Estado: ${data.status}`, size: 10 });
-  addText(stream, { x: contentX + (contentWidth / 2) + 10, y: y - 34, text: `Prioridad: ${data.priority}`, size: 10 });
-  addText(stream, { x: contentX + (contentWidth / 2) + 10, y: y - 50, text: `Fecha programada: ${data.scheduledAt}`, size: 9 });
-  y -= (clientHeight + 12);
+  addText(stream, { x: contentX + 10, y: y - 18, text: `CLIENTE: ${data.client}`, size: 10, font: 'F2' });
+  addText(stream, { x: contentX + 10, y: y - 34, text: 'DIRECCIÓN: Referencia en orden de servicio', size: 9 });
+  addText(stream, { x: contentX + 10, y: y - 50, text: 'CONTACTO: Registro administrativo', size: 9 });
+  addText(stream, { x: contentX + (contentWidth / 2) + 10, y: y - 18, text: `ESTADO: ${data.status}`, size: 10, font: 'F2' });
+  addText(stream, { x: contentX + (contentWidth / 2) + 10, y: y - 34, text: `PRIORIDAD: ${data.priority}`, size: 10, font: 'F2' });
+  addText(stream, { x: contentX + (contentWidth / 2) + 10, y: y - 50, text: `FECHA PROGRAMADA: ${data.scheduledAt}`, size: 9 });
+  y -= (clientHeight + 16);
 
   y = addSectionTitle(stream, { x: contentX, yTop: y, width: contentWidth, title: 'Seguimiento / servicio' }) - 4;
   const serviceHeight = 72;
   stream.push(`${contentX} ${y - serviceHeight} ${contentWidth} ${serviceHeight} re S`);
-  addText(stream, { x: contentX + 10, y: y - 18, text: `Técnicos asignados: ${data.technicians}`, size: 10 });
-  addText(stream, { x: contentX + 10, y: y - 34, text: `Horas trabajadas: ${data.workedHours}`, size: 10 });
-  addText(stream, { x: contentX + 10, y: y - 50, text: `Checklist cierre: ${data.checklist}`, size: 9 });
-  addText(stream, { x: contentX + 320, y: y - 18, text: `Estado de cierre: ${data.status}`, size: 10 });
-  addText(stream, { x: contentX + 320, y: y - 34, text: `Firma cliente: ${data.clientSignature === '-' ? 'Pendiente' : 'Registrada'}`, size: 9 });
-  addText(stream, { x: contentX + 320, y: y - 50, text: `Foto de trabajo: ${data.workPhoto === '-' ? 'Sin adjunto' : 'Referencia registrada'}`, size: 9 });
-  y -= (serviceHeight + 12);
+  addText(stream, { x: contentX + 10, y: y - 18, text: `TÉCNICOS ASIGNADOS: ${data.technicians}`, size: 10, font: 'F2' });
+  addText(stream, { x: contentX + 10, y: y - 34, text: `HORAS TRABAJADAS: ${data.workedHours}`, size: 10, font: 'F2' });
+  addText(stream, { x: contentX + 10, y: y - 50, text: `CHECKLIST CIERRE: ${data.checklist}`, size: 9 });
+  addText(stream, { x: contentX + 320, y: y - 18, text: `ESTADO DE CIERRE: ${data.status}`, size: 10, font: 'F2' });
+  addText(stream, { x: contentX + 320, y: y - 34, text: `FIRMA CLIENTE: ${data.clientSignature === '-' ? 'Pendiente' : 'Registrada'}`, size: 9 });
+  addText(stream, { x: contentX + 320, y: y - 50, text: `FOTO DE TRABAJO: ${data.workPhoto === '-' ? 'Sin adjunto' : 'Referencia registrada'}`, size: 9 });
+  y -= (serviceHeight + 16);
 
   y = addSectionTitle(stream, { x: contentX, yTop: y, width: contentWidth, title: 'Trabajos realizados' }) - 4;
   const workHeight = 130;
@@ -222,13 +230,13 @@ export function createSimplePdf(lines) {
   addWrapped(stream, {
     x: contentX + 10,
     y: y - 18,
-    text: `${data.closure !== '-' ? data.closure : data.observations}`,
+    text: `${data.closure !== '-' ? data.closure : data.observations !== '-' ? data.observations : 'Sin trabajos registrados'}`,
     size: 10,
     width: contentWidth - 20,
     lineHeight: 13,
     maxLines: 7
   });
-  y -= (workHeight + 12);
+  y -= (workHeight + 16);
 
   y = addSectionTitle(stream, { x: contentX, yTop: y, width: contentWidth, title: 'Materiales utilizados' }) - 4;
   const materials = parseMaterials(data.materialsRaw);
@@ -242,10 +250,10 @@ export function createSimplePdf(lines) {
   const col3 = contentX + 378;
   const col4 = contentX + 460;
 
-  addText(stream, { x: col1, y: y - 15, text: 'MATERIAL', size: 9 });
-  addText(stream, { x: col2, y: y - 15, text: 'CANT.', size: 9 });
-  addText(stream, { x: col3, y: y - 15, text: 'UNIT.', size: 9 });
-  addText(stream, { x: col4, y: y - 15, text: 'SUBTOTAL', size: 9 });
+  addText(stream, { x: col1, y: y - 15, text: 'MATERIAL', size: 9, font: 'F2' });
+  addText(stream, { x: col2, y: y - 15, text: 'CANT.', size: 9, font: 'F2', align: 'right', width: 44 });
+  addText(stream, { x: col3, y: y - 15, text: 'UNIT.', size: 9, font: 'F2', align: 'right', width: 68 });
+  addText(stream, { x: col4, y: y - 15, text: 'SUBTOTAL', size: 9, font: 'F2', align: 'right', width: 80 });
   stream.push(`${contentX} ${y - 22} m ${contentX + contentWidth} ${y - 22} l S`);
 
   if (!materials.length) {
@@ -254,15 +262,15 @@ export function createSimplePdf(lines) {
     materials.slice(0, 5).forEach((material, index) => {
       const rowY = y - 38 - (index * rowHeight);
       addText(stream, { x: col1, y: rowY, text: material.material, size: 9 });
-      addText(stream, { x: col2, y: rowY, text: material.quantity, size: 9 });
-      addText(stream, { x: col3, y: rowY, text: material.unitCost, size: 9 });
-      addText(stream, { x: col4, y: rowY, text: material.subtotal, size: 9 });
+      addText(stream, { x: col2, y: rowY, text: material.quantity, size: 9, align: 'right', width: 44 });
+      addText(stream, { x: col3, y: rowY, text: material.unitCost, size: 9, align: 'right', width: 68 });
+      addText(stream, { x: col4, y: rowY, text: material.subtotal, size: 9, align: 'right', width: 80 });
     });
   }
 
-  addText(stream, { x: col3, y: y - materialsHeight + 6, text: 'Total materiales:', size: 10 });
-  addText(stream, { x: col4, y: y - materialsHeight + 6, text: data.materialsTotal, size: 10 });
-  y -= (materialsHeight + 12);
+  addText(stream, { x: col3, y: y - materialsHeight + 6, text: 'TOTAL MATERIALES:', size: 10, font: 'F2', align: 'right', width: 130 });
+  addText(stream, { x: col4, y: y - materialsHeight + 6, text: data.materialsTotal, size: 10, font: 'F2', align: 'right', width: 80 });
+  y -= (materialsHeight + 16);
 
   y = addSectionTitle(stream, { x: contentX, yTop: y, width: contentWidth, title: 'Observaciones' }) - 4;
   const observationsHeight = 62;
@@ -276,7 +284,7 @@ export function createSimplePdf(lines) {
     lineHeight: 12,
     maxLines: 4
   });
-  y -= (observationsHeight + 12);
+  y -= (observationsHeight + 16);
 
   y = addSectionTitle(stream, { x: contentX, yTop: y, width: contentWidth, title: 'Firmas' }) - 4;
   const signHeight = 74;
@@ -285,17 +293,18 @@ export function createSimplePdf(lines) {
   stream.push(`${contentX + half + 12} ${y - signHeight} ${half} ${signHeight} re S`);
   stream.push(`${contentX} ${y - 26} m ${contentX + half} ${y - 26} l S`);
   stream.push(`${contentX + half + 12} ${y - 26} m ${contentX + half + 12 + half} ${y - 26} l S`);
-  addText(stream, { x: contentX + 12, y: y - 18, text: 'Conformidad del cliente', size: 10 });
+  addText(stream, { x: contentX + 12, y: y - 18, text: 'CONFORMIDAD DEL CLIENTE', size: 10, font: 'F2' });
   addText(stream, { x: contentX + 12, y: y - 44, text: data.clientSignature === '-' ? 'Firma pendiente' : data.clientSignature, size: 9 });
-  addText(stream, { x: contentX + half + 24, y: y - 18, text: 'Técnico DCM Solution', size: 10 });
+  addText(stream, { x: contentX + half + 24, y: y - 18, text: 'TÉCNICO DCM SOLUTION', size: 10, font: 'F2' });
   addText(stream, { x: contentX + half + 24, y: y - 44, text: data.technicians || 'Técnico asignado', size: 9 });
 
   const content = stream.join('\n');
   const objects = [
     '<< /Type /Catalog /Pages 2 0 R >>',
     '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
-    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
-    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>',
     `<< /Length ${Buffer.byteLength(content, 'utf8')} >>\nstream\n${content}\nendstream`
   ];
 
