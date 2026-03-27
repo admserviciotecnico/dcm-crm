@@ -32,6 +32,7 @@ export function createSimplePdf(lines) {
     '40 792 515 28 re',
     'f',
     'BT',
+    '0 0 0 rg',
     '/F1 16 Tf',
     '1 0 0 1 50 805 Tm',
     `${escapePdfText(title)} Tj`,
