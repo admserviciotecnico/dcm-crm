@@ -43,6 +43,16 @@ function parsePdfData(lines) {
     entries[parsed.label] = parsed.value;
   }
 
+  const formatShortDate = (value) => {
+    if (!value || value === '-') return 'Sin fecha';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+    const dd = String(parsed.getDate()).padStart(2, '0');
+    const mm = String(parsed.getMonth() + 1).padStart(2, '0');
+    const yyyy = String(parsed.getFullYear());
+    return `${dd}/${mm}/${yyyy}`;
+  };
+
   return {
     headerTitle: title,
     orderNumber: entries.orden ?? '-',
@@ -50,11 +60,15 @@ function parsePdfData(lines) {
     status: entries.estado ?? '-',
     priority: entries.prioridad ?? '-',
     technicians: entries['técnicos'] ?? entries.tecnicos ?? 'Sin técnicos asignados',
-    scheduledAt: entries['fecha programada'] ?? 'Sin fecha',
+    scheduledAt: formatShortDate(entries['fecha programada'] ?? 'Sin fecha'),
     observations: entries.observaciones ?? '-',
     closure: entries.cierre ?? '-',
     workedHours: entries['horas trabajadas'] ?? '-',
-    checklist: entries.checklist ?? '-',
+    checklist: (() => {
+      const checklist = entries.checklist ?? '-';
+      if (checklist === '-' || /sin checklist/i.test(checklist)) return 'Sin checklist registrado';
+      return checklist;
+    })(),
     clientSignature: entries['firma cliente'] ?? '-',
     workPhoto: entries['foto trabajo'] ?? '-',
     materialsRaw: entries.materiales ?? 'Sin materiales registrados',
@@ -158,6 +172,8 @@ function parseMaterials(materialsRaw) {
 export function createSimplePdf(lines) {
   const data = parsePdfData(lines);
   const stream = [];
+  const today = new Date();
+  const todayShort = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
 
   const pageWidth = 595;
   const pageHeight = 842;
@@ -196,7 +212,7 @@ export function createSimplePdf(lines) {
   addText(stream, { x: contentX + 10, y: y - 48, text: 'TEL: (54 11) 4711-0458 / (54 11) 4005-5881', size: 9 });
 
   addText(stream, { x: contentX + leftBlockWidth + 10, y: y - 18, text: `N° ORDEN: ${data.orderNumber}`, size: 11, font: 'F2' });
-  addText(stream, { x: contentX + leftBlockWidth + 10, y: y - 36, text: `FECHA: ${new Date().toLocaleDateString('es-AR')}`, size: 11, font: 'F2' });
+  addText(stream, { x: contentX + leftBlockWidth + 10, y: y - 36, text: `FECHA: ${todayShort}`, size: 11, font: 'F2' });
 
   y -= (headerBlockHeight + 14);
 
@@ -209,7 +225,7 @@ export function createSimplePdf(lines) {
   addText(stream, { x: contentX + 10, y: y - 50, text: 'CONTACTO: Registro administrativo', size: 9 });
   addText(stream, { x: contentX + (contentWidth / 2) + 10, y: y - 18, text: `ESTADO: ${data.status}`, size: 10, font: 'F2' });
   addText(stream, { x: contentX + (contentWidth / 2) + 10, y: y - 34, text: `PRIORIDAD: ${data.priority}`, size: 10, font: 'F2' });
-  addText(stream, { x: contentX + (contentWidth / 2) + 10, y: y - 50, text: `FECHA PROGRAMADA: ${data.scheduledAt}`, size: 9 });
+  addText(stream, { x: contentX + (contentWidth / 2) + 10, y: y - 50, text: `FECHA PROGRAMADA: ${data.scheduledAt}`, size: 9, font: 'F2' });
   y -= (clientHeight + 16);
 
   y = addSectionTitle(stream, { x: contentX, yTop: y, width: contentWidth, title: 'Seguimiento / servicio' }) - 4;
@@ -219,8 +235,8 @@ export function createSimplePdf(lines) {
   addText(stream, { x: contentX + 10, y: y - 34, text: `HORAS TRABAJADAS: ${data.workedHours}`, size: 10, font: 'F2' });
   addText(stream, { x: contentX + 10, y: y - 50, text: `CHECKLIST CIERRE: ${data.checklist}`, size: 9 });
   addText(stream, { x: contentX + 320, y: y - 18, text: `ESTADO DE CIERRE: ${data.status}`, size: 10, font: 'F2' });
-  addText(stream, { x: contentX + 320, y: y - 34, text: `FIRMA CLIENTE: ${data.clientSignature === '-' ? 'Pendiente' : 'Registrada'}`, size: 9 });
-  addText(stream, { x: contentX + 320, y: y - 50, text: `FOTO DE TRABAJO: ${data.workPhoto === '-' ? 'Sin adjunto' : 'Referencia registrada'}`, size: 9 });
+  addText(stream, { x: contentX + 320, y: y - 34, text: `FIRMA CLIENTE: ${data.clientSignature === '-' ? 'Pendiente' : 'Registrada'}`, size: 9, font: 'F2' });
+  addText(stream, { x: contentX + 320, y: y - 50, text: `FOTO DE TRABAJO: ${data.workPhoto === '-' ? 'Sin adjunto' : 'Referencia registrada'}`, size: 9, font: 'F2' });
   y -= (serviceHeight + 16);
 
   y = addSectionTitle(stream, { x: contentX, yTop: y, width: contentWidth, title: 'Trabajos realizados' }) - 4;
@@ -268,7 +284,7 @@ export function createSimplePdf(lines) {
     });
   }
 
-  addText(stream, { x: col3, y: y - materialsHeight + 6, text: 'TOTAL MATERIALES:', size: 10, font: 'F2', align: 'right', width: 130 });
+  addText(stream, { x: col3, y: y - materialsHeight + 6, text: 'TOTAL MATERIALES:', size: 10, font: 'F2' });
   addText(stream, { x: col4, y: y - materialsHeight + 6, text: data.materialsTotal, size: 10, font: 'F2', align: 'right', width: 80 });
   y -= (materialsHeight + 16);
 
