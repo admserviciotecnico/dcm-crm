@@ -1,8 +1,26 @@
 function escapePdfText(value) {
-  return String(value ?? '')
-    .replace(/\\/g, '\\\\')
-    .replace(/\(/g, '\\(')
-    .replace(/\)/g, '\\)');
+  const latin1 = Buffer.from(String(value ?? ''), 'latin1');
+  let result = '';
+  for (const byte of latin1) {
+    if (byte === 0x5c) {
+      result += '\\\\';
+      continue;
+    }
+    if (byte === 0x28) {
+      result += '\\(';
+      continue;
+    }
+    if (byte === 0x29) {
+      result += '\\)';
+      continue;
+    }
+    if (byte < 32 || byte > 126) {
+      result += `\\${byte.toString(8).padStart(3, '0')}`;
+      continue;
+    }
+    result += String.fromCharCode(byte);
+  }
+  return `(${result})`;
 }
 
 export function createSimplePdf(lines) {
@@ -16,7 +34,7 @@ export function createSimplePdf(lines) {
     'BT',
     '/F1 16 Tf',
     '1 0 0 1 50 805 Tm',
-    `(${escapePdfText(title)}) Tj`,
+    `${escapePdfText(title)} Tj`,
     '/F1 10 Tf'
   ];
 
@@ -28,15 +46,15 @@ export function createSimplePdf(lines) {
       const label = line.slice(0, separator + 1);
       const value = line.slice(separator + 1).trim();
       contentLines.push(`1 0 0 1 50 ${y} Tm`);
-      contentLines.push(`(${escapePdfText(label)}) Tj`);
+      contentLines.push(`${escapePdfText(label)} Tj`);
       contentLines.push(`1 0 0 1 170 ${y} Tm`);
-      contentLines.push(`(${escapePdfText(value)}) Tj`);
+      contentLines.push(`${escapePdfText(value)} Tj`);
       y -= 16;
       return;
     }
 
     contentLines.push(`1 0 0 1 50 ${y} Tm`);
-    contentLines.push(`(${escapePdfText(line)}) Tj`);
+    contentLines.push(`${escapePdfText(line)} Tj`);
     y -= 16;
   });
 
