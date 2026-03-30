@@ -129,34 +129,28 @@ export default function OrdersPage() {
   useEffect(() => { void load(); }, [load]);
   useRealtime(load);
 
-  useEffect(() => {
-    if (!showCreate) return;
-    if (!selectedClientId) {
-      lastAutofillClientRef.current = null;
-      return;
-    }
-    if (lastAutofillClientRef.current === selectedClientId) return;
-
-    const selectedClient = clients.find((client) => client.id === selectedClientId);
-    setValue('direccion_service', selectedClient?.direccion ?? '', { shouldValidate: true, shouldDirty: true });
-    lastAutofillClientRef.current = selectedClientId;
-  }, [clients, selectedClientId, setValue, showCreate]);
-
   const activeFilters = useMemo(() => Object.values(filters).filter(Boolean).length, [filters]);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  const onCreate = async (data: OrderForm) => {
-    try {
-      await OrdersApi.create({ client_id: data.client_id, estado: data.estado, prioridad: data.prioridad, fecha_programada: data.fecha_programada, direccion_service: data.direccion_service, observaciones: data.observaciones, technicians: data.technician_ids });
-      toast({ type: 'success', message: 'Orden creada con éxito' });
-      setShowCreate(false);
-      reset();
-      lastAutofillClientRef.current = null;
-      void load();
-    } catch (error) {
-      toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo crear la orden') });
-    }
-  };
+ const onCreate = async (data: OrderForm) => {
+  try {
+    await OrdersApi.create({
+      client_id: data.client_id,
+      estado: data.estado,
+      prioridad: data.prioridad,
+      fecha_programada: data.fecha_programada,
+      direccion_service: data.direccion_service,
+      observaciones: data.observaciones,
+      technicians: data.technician_ids
+    });
+    toast({ type: 'success', message: 'Orden creada con éxito' });
+    setShowCreate(false);
+    reset();
+    void load();
+  } catch (error) {
+    toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo crear la orden') });
+  }
+};
 
   const toggleSelect = (id: string) => setSelectedIds((prev) => (prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]));
   const toggleSelectAll = () => setSelectedIds((prev) => (prev.length === orders.length ? [] : orders.map((o) => o.id)));
