@@ -39,6 +39,7 @@ export interface User {
 export interface Client {
   id: string;
   nombre_empresa: string;
+  direccion?: string;
   email: string;
   telefono?: string;
   persona_contacto?: string;
