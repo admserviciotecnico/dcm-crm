@@ -6,7 +6,7 @@ import { validateBody, validateIdParam } from '../middleware/validation.js';
 import { locationEventCreateSchema, materialCreateSchema, materialUpdateSchema, orderCreateSchema, orderPatchSchema, techniciansUpdateSchema } from '../services/schemas.js';
 import { logEvent } from '../services/event-log.js';
 import { asyncHandler, sendError } from '../utils/http.js';
-import { notifyAssignedTechnicians, ORDER_STATUS_LABEL, shortId } from '../services/notifications.js';
+import { createNotifications, notifyAssignedTechnicians, ORDER_STATUS_LABEL, shortId } from '../services/notifications.js';
 import { computeSlaDeadline, getSlaStatus } from '../utils/sla.js';
 import { createSimplePdf } from '../utils/pdf.js';
 import { buildInvoiceDraftFromOrder } from '../services/invoice-draft.js';
@@ -222,6 +222,13 @@ export default function ordersRouter(io) {
 
     const tx = await prisma.$transaction(async (db) => {
       const order = await db.serviceOrder.create({ data });
+      await createNotifications(db, [{
+        user_id: req.user.id,
+        service_order_id: order.id,
+        kind: 'order_created',
+        title: 'Orden creada',
+        description: `Se creó la orden #${shortId(order.id)}`
+      }]);
       if (technicians.length) {
         await db.serviceOrderTechnician.createMany({
           data: technicians.map((technicianId) => ({ service_order_id: order.id, technician_id: technicianId, asignado_por: req.user.email }))
