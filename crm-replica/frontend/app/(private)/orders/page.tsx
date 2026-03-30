@@ -66,9 +66,13 @@ export default function OrdersPage() {
   const sortBy = searchParams.get('sortBy') || 'updated_at';
   const sortDir = searchParams.get('sortDir') === 'asc' ? 'asc' : 'desc';
   const filters = useMemo(() => ({ status: searchParams.get('status') || '', priority: searchParams.get('priority') || '', client: searchParams.get('client') || '', technician: searchParams.get('technician') || '', from: searchParams.get('from') || '', to: searchParams.get('to') || '', delayed: searchParams.get('delayed') || '' }), [searchParams]);
-  const { register, handleSubmit, reset, watch, setValue, formState: { isSubmitting } } = useForm<OrderForm>({ resolver: zodResolver(schema), defaultValues: { estado: 'presupuesto_generado', prioridad: 'media' } });
-  const selectedClientId = watch('client_id');
-  const lastAutofillClientRef = useRef<string | null>(null);
+  const { register, handleSubmit, reset, setValue, formState: { isSubmitting } } = useForm<OrderForm>({ resolver: zodResolver(schema), defaultValues: { estado: 'presupuesto_generado', prioridad: 'media' } });
+  const clientIdRegister = register('client_id', {
+    onChange: (event) => {
+      const selectedClient = clients.find((client) => client.id === event.target.value);
+      setValue('direccion_service', selectedClient?.direccion ?? '', { shouldValidate: true, shouldDirty: true });
+    }
+  });
 
   const setParams = useCallback((updates: Record<string, string | null>) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -269,7 +273,7 @@ export default function OrdersPage() {
           <form className="grid gap-2" onSubmit={handleSubmit(onCreate)}>
             <div className="space-y-1">
 <label className="text-xs text-[var(--text-secondary)]">Cliente</label>
-<Select {...register('client_id')}>
+<Select {...clientIdRegister}>
 <option value="">Cliente</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.nombre_empresa}</option>)}</Select>
 </div>
             <div className="space-y-1">
