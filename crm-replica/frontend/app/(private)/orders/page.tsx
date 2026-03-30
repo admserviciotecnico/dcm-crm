@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -129,6 +129,19 @@ export default function OrdersPage() {
   useEffect(() => { void load(); }, [load]);
   useRealtime(load);
 
+  useEffect(() => {
+    if (!showCreate) return;
+    if (!selectedClientId) {
+      lastAutofillClientRef.current = null;
+      return;
+    }
+    if (lastAutofillClientRef.current === selectedClientId) return;
+
+    const selectedClient = clients.find((client) => client.id === selectedClientId);
+    setValue('direccion_service', selectedClient?.direccion ?? '', { shouldValidate: true, shouldDirty: true });
+    lastAutofillClientRef.current = selectedClientId;
+  }, [clients, selectedClientId, setValue, showCreate]);
+
   const activeFilters = useMemo(() => Object.values(filters).filter(Boolean).length, [filters]);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -138,6 +151,7 @@ export default function OrdersPage() {
       toast({ type: 'success', message: 'Orden creada con éxito' });
       setShowCreate(false);
       reset();
+      lastAutofillClientRef.current = null;
       void load();
     } catch (error) {
       toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo crear la orden') });
