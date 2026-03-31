@@ -17,7 +17,8 @@ export function getApiErrorMessage(error: unknown, fallback = 'No se pudo comple
       const first = Object.entries(fieldErrors).find(([, messages]) => Array.isArray(messages) && messages.length > 0);
       if (first) {
         const [field, messages] = first;
-        const firstMessage = typeof messages[0] === 'string' && messages[0].trim() ? messages[0] : 'inválido';
+        const messageList = Array.isArray(messages) ? messages : [];
+        const firstMessage = typeof messageList[0] === 'string' && messageList[0].trim() ? messageList[0] : 'inválido';
         return `${field}: ${firstMessage}`;
       }
     }
