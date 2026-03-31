@@ -46,6 +46,11 @@ function OrdersTableComponent({ rows, users, selectedIds, onToggleSelect, onTogg
     }
   };
 
+  const handleCancelModalClose = () => {
+    if (cancelLoading) return;
+    setConfirmOrder(null);
+  };
+
   return (
     <>
       <Table>
@@ -99,7 +104,7 @@ function OrdersTableComponent({ rows, users, selectedIds, onToggleSelect, onTogg
         open={!!confirmOrder}
         title="Cancelar orden"
         message={confirmOrder ? `¿Cancelar la orden #${confirmOrder.id.slice(0, 8)}?` : ''}
-        onCancel={() => { if (!cancelLoading) setConfirmOrder(null); }}
+        onCancel={handleCancelModalClose}
         onConfirm={() => { void confirmCancel(); }}
         confirmDisabled={cancelLoading}
         cancelDisabled={cancelLoading}

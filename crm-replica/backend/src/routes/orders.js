@@ -207,7 +207,7 @@ export default function ordersRouter(io) {
       `Checklist: ${formatChecklist(order.checklist_cierre)}`,
       `Firma cliente: ${order.firma_cliente ?? '-'}`,
       `Foto trabajo: ${order.foto_trabajo_url ?? '-'}`,
-      `Materiales: ${materialList.length ? materialList.map((material) => `${material.name} x${material.quantity} ($${material.unit_cost})`).join(' | ') : 'Sin materiales'}`,
+      `Materiales: ${materialList.length ? materialList.map((material) => `${String(material.name ?? '').replace(/\|/g, '-')} x${material.quantity} ($${material.unit_cost})`).join(' | ') : 'Sin materiales'}`,
       `Total materiales: $${materialsTotal.toFixed(2)}`
     ];
 

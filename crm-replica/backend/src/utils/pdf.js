@@ -1,4 +1,6 @@
 function escapePdfText(value) {
+  // NOTE: This PDF text path targets WinAnsi/Latin-1 compatible output (safe for Spanish accents/ñ).
+  // Full Unicode glyph coverage is not guaranteed by this lightweight generator.
   const latin1 = Buffer.from(String(value ?? '').normalize('NFC'), 'latin1');
   let result = '';
   for (const byte of latin1) {
@@ -340,5 +342,7 @@ export function createSimplePdf(lines) {
   });
   pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
 
+  // NOTE: PDF is assembled from a JS string and encoded as utf8 bytes; with the WinAnsi escaping above
+  // this remains stable for Latin-1 text, but is not a full-Unicode PDF pipeline.
   return Buffer.from(pdf, 'utf8');
 }
