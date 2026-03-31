@@ -246,6 +246,7 @@ export default function Client360Page() {
               <div><p className="text-[var(--text-secondary)]">Persona contacto principal</p><p>{`${primaryContact?.nombre ?? '-'} ${primaryContact?.apellido ?? ''}`.trim()}</p></div>
               <div><p className="text-[var(--text-secondary)]">Email principal</p><p>{primaryContact?.email ?? '-'}</p></div>
               <div><p className="text-[var(--text-secondary)]">Teléfono principal</p><p>{primaryContact?.telefono ?? '-'}</p></div>
+              <div><p className="text-[var(--text-secondary)]">Dirección</p><p>{client.direccion ?? '-'}</p></div>
               <div><p className="text-[var(--text-secondary)]">Vencimiento documentación</p><p>{client.fecha_vencimiento_documentacion ?? '-'}</p></div>
             </div>
           </Card>

@@ -330,6 +330,7 @@ model Notification {
 
   @@index([user_id, kind, service_order_id, created_at])
   @@index([user_id, kind, client_id, created_at])
+  @@unique([user_id, kind, service_order_id])
 }
 
 model AutomationRule {
