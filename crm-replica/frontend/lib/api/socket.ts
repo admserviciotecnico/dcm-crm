@@ -23,8 +23,21 @@ export function getSocket() {
     return socketInstance;
   }
 
-  socketInstance.auth = { token };
-  if (!socketInstance.connected) socketInstance.connect();
+  const previousToken = typeof socketInstance.auth === 'object' && socketInstance.auth !== null
+    ? (socketInstance.auth as { token?: string }).token
+    : undefined;
+
+  if (previousToken !== token) {
+    socketInstance.auth = { token };
+    if (socketInstance.connected) {
+      socketInstance.disconnect();
+      socketInstance.connect();
+    } else {
+      socketInstance.connect();
+    }
+  } else if (!socketInstance.connected) {
+    socketInstance.connect();
+  }
 
   return socketInstance;
 }

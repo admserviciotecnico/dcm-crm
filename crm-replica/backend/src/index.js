@@ -21,6 +21,7 @@ import invoiceDraftRoutes from './routes/invoice-drafts.js';
 import calendarIntegrationsRoutes from './routes/calendar-integrations.js';
 import mapRoutes from './routes/map.js';
 import techniciansRoutes from './routes/technicians.js';
+import orderStatusesRoutes from './routes/order-statuses.js';
 import { sanitizeBody } from './middleware/sanitize.js';
 import { errorHandler, notFoundHandler } from './middleware/error-handler.js';
 import { rateLimit } from './middleware/rate-limit.js';
@@ -76,6 +77,7 @@ app.use('/api/invoice-drafts', invoiceDraftRoutes);
 app.use('/api/calendar-integrations', calendarIntegrationsRoutes);
 app.use('/api/map', mapRoutes);
 app.use('/api/technicians', techniciansRoutes);
+app.use('/api/order-statuses', orderStatusesRoutes());
 app.use(notFoundHandler);
 app.use(errorHandler);
 
