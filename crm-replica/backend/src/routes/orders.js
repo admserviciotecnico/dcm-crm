@@ -6,7 +6,7 @@ import { validateBody, validateIdParam } from '../middleware/validation.js';
 import { locationEventCreateSchema, materialCreateSchema, materialUpdateSchema, orderCreateSchema, orderPatchSchema, techniciansUpdateSchema } from '../services/schemas.js';
 import { logEvent } from '../services/event-log.js';
 import { asyncHandler, sendError } from '../utils/http.js';
-import { notifyAssignedTechnicians, ORDER_STATUS_LABEL, shortId } from '../services/notifications.js';
+import { createNotifications, notifyAssignedTechnicians, ORDER_STATUS_LABEL, shortId } from '../services/notifications.js';
 import { computeSlaDeadline, getSlaStatus } from '../utils/sla.js';
 import { createSimplePdf } from '../utils/pdf.js';
 import { buildInvoiceDraftFromOrder } from '../services/invoice-draft.js';
@@ -190,8 +190,9 @@ export default function ordersRouter(io) {
     const { order, access } = await getAccessibleOrder(req.params.id, req.user);
     if (!access.ok) return sendError(res, access.status, access.message);
 
+    const materialList = order.materials ?? [];
     const technicianNames = order.technicians.map((item) => `${item.technician.first_name} ${item.technician.last_name}`.trim()).join(', ') || 'Sin técnicos asignados';
-    const materialsTotal = order.materials.reduce((sum, material) => sum + (material.quantity * material.unit_cost), 0);
+    const materialsTotal = materialList.reduce((sum, material) => sum + (material.quantity * material.unit_cost), 0);
     const lines = [
       'DCM CRM - Orden de Servicio',
       `Orden: #${shortId(order.id)}`,
@@ -206,7 +207,7 @@ export default function ordersRouter(io) {
       `Checklist: ${formatChecklist(order.checklist_cierre)}`,
       `Firma cliente: ${order.firma_cliente ?? '-'}`,
       `Foto trabajo: ${order.foto_trabajo_url ?? '-'}`,
-      `Materiales: ${order.materials.length ? order.materials.map((material) => `${material.name} x${material.quantity} ($${material.unit_cost})`).join(' | ') : 'Sin materiales'}`,
+      `Materiales: ${materialList.length ? materialList.map((material) => `${material.name} x${material.quantity} ($${material.unit_cost})`).join(' | ') : 'Sin materiales'}`,
       `Total materiales: $${materialsTotal.toFixed(2)}`
     ];
 
@@ -222,6 +223,13 @@ export default function ordersRouter(io) {
 
     const tx = await prisma.$transaction(async (db) => {
       const order = await db.serviceOrder.create({ data });
+      await createNotifications(db, [{
+        user_id: req.user.id,
+        service_order_id: order.id,
+        kind: 'order_created',
+        title: 'Orden creada',
+        description: `Se creó la orden #${shortId(order.id)}`
+      }]);
       if (technicians.length) {
         await db.serviceOrderTechnician.createMany({
           data: technicians.map((technicianId) => ({ service_order_id: order.id, technician_id: technicianId, asignado_por: req.user.email }))
@@ -260,7 +268,7 @@ export default function ordersRouter(io) {
 
   router.patch('/:id', validateIdParam, validateBody(orderPatchSchema), asyncHandler(async (req, res) => {
     const order = await prisma.serviceOrder.findUnique({ where: { id: req.params.id }, include: { technicians: true } });
-    if (!order || order.deleted_at) return sendError(res, 404, 'Not found');
+    if (!order || order.deleted_at || !order.is_active) return sendError(res, 404, 'Not found');
 
     const role = req.user.role.name;
     const assigned = order.technicians.some((technician) => technician.technician_id === req.user.id);
@@ -311,6 +319,9 @@ export default function ordersRouter(io) {
   }));
 
   router.delete('/:id', requireRole('admin'), validateIdParam, asyncHandler(async (req, res) => {
+    const order = await prisma.serviceOrder.findUnique({ where: { id: req.params.id } });
+    if (!order || order.deleted_at || !order.is_active) return sendError(res, 404, 'Not found');
+
     await prisma.serviceOrder.update({ where: { id: req.params.id }, data: { is_active: false, deleted_at: new Date() } });
     io.emit('orders:changed', { type: 'deleted', orderId: req.params.id });
     io.emit('dashboard:refresh', { reason: 'order_deleted' });

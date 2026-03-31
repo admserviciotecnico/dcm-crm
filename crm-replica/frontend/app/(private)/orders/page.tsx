@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { CalendarDays, ChevronDown, ChevronUp, Download, Filter, Plus } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ClientsApi, OrdersApi, UsersApi } from '@/lib/api/endpoints';
-import { ServiceOrder, User, OrderStatus } from '@/types/domain';
+import { ServiceOrder, User, OrderStatus, Client } from '@/types/domain';
 import { OrdersTable } from '@/components/orders/orders-table';
 import { OrderDetail } from '@/components/orders/order-detail';
 import { useRealtime } from '@/hooks/use-realtime';
@@ -44,7 +44,7 @@ const PAGE_SIZE = 20;
 export default function OrdersPage() {
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [clients, setClients] = useState<{ id: string; nombre_empresa: string }[]>([]);
+  const [clients, setClients] = useState<Pick<Client, 'id' | 'nombre_empresa' | 'direccion'>[]>([]);
   const [selected, setSelected] = useState<ServiceOrder | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkStatus, setBulkStatus] = useState<OrderStatus>('service_programado');
@@ -66,7 +66,13 @@ export default function OrdersPage() {
   const sortBy = searchParams.get('sortBy') || 'updated_at';
   const sortDir = searchParams.get('sortDir') === 'asc' ? 'asc' : 'desc';
   const filters = useMemo(() => ({ status: searchParams.get('status') || '', priority: searchParams.get('priority') || '', client: searchParams.get('client') || '', technician: searchParams.get('technician') || '', from: searchParams.get('from') || '', to: searchParams.get('to') || '', delayed: searchParams.get('delayed') || '' }), [searchParams]);
-  const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm<OrderForm>({ resolver: zodResolver(schema), defaultValues: { estado: 'presupuesto_generado', prioridad: 'media' } });
+  const { register, handleSubmit, reset, setValue, formState: { isSubmitting } } = useForm<OrderForm>({ resolver: zodResolver(schema), defaultValues: { estado: 'presupuesto_generado', prioridad: 'media' } });
+  const clientIdRegister = register('client_id', {
+    onChange: (event) => {
+      const selectedClient = clients.find((client) => client.id === event.target.value);
+      setValue('direccion_service', selectedClient?.direccion ?? '', { shouldValidate: true, shouldDirty: true });
+    }
+  });
 
   const setParams = useCallback((updates: Record<string, string | null>) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -97,7 +103,7 @@ export default function OrdersPage() {
       setOrders(ordersRes.items);
       setTotal(ordersRes.total);
       setUsers(usersRes);
-      setClients(clientsRes.map((c) => ({ id: c.id, nombre_empresa: c.nombre_empresa })));
+      setClients(clientsRes.map((c) => ({ id: c.id, nombre_empresa: c.nombre_empresa, direccion: c.direccion })));
       setOfflineSnapshotAt(null);
       if (user?.role === 'tecnico') {
         await saveAssignedOrdersSnapshot(snapshotKey, ordersRes.items, ordersRes.total);
@@ -253,7 +259,7 @@ export default function OrdersPage() {
           <form className="grid gap-2" onSubmit={handleSubmit(onCreate)}>
             <div className="space-y-1">
 <label className="text-xs text-[var(--text-secondary)]">Cliente</label>
-<Select {...register('client_id')}>
+<Select {...clientIdRegister}>
 <option value="">Cliente</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.nombre_empresa}</option>)}</Select>
 </div>
             <div className="space-y-1">
