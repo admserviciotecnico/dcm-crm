@@ -1,6 +1,6 @@
 export type Role = 'admin' | 'tecnico';
 export type Priority = 'baja' | 'media' | 'alta';
-export type OrderStatus =
+export type BuiltInOrderStatus =
   | 'presupuesto_generado'
   | 'oc_recibida'
   | 'facturado'
@@ -11,6 +11,8 @@ export type OrderStatus =
   | 'en_ejecucion'
   | 'completado'
   | 'cancelado';
+
+export type OrderStatus = BuiltInOrderStatus | (string & {});
 
 export type SlaStatus = 'ok' | 'warning' | 'critical' | 'breached' | 'met';
 
@@ -138,6 +140,18 @@ export interface ServiceOrder {
   technicians?: { technician_id: string; technician?: Pick<User, 'id' | 'first_name' | 'last_name' | 'email'> }[];
 }
 
+export interface OrderStatusConfig {
+  id: string;
+  key: string;
+  label: string;
+  color: string;
+  sort_order: number;
+  is_active: boolean;
+  is_system: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface OrderHistory {
   id: string;
   campo_modificado?: string;
@@ -208,7 +222,7 @@ export interface AutomationRule {
   name: string;
   active: boolean;
   trigger_type: 'delayed_in_status';
-  target_status: OrderStatus;
+  target_status: BuiltInOrderStatus;
   threshold_hours: number;
   action_type: 'set_priority_alta_notify_admin';
   action_payload?: { priority?: 'alta' } | null;
@@ -242,7 +256,7 @@ export interface InvoiceDraft {
   currency: string;
   payload?: {
     materials?: InvoiceDraftMaterial[];
-    generated_from_status?: OrderStatus;
+    generated_from_status?: BuiltInOrderStatus;
     generated_by_user_id?: string;
   } | null;
   created_at: string;

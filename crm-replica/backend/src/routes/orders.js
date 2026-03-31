@@ -11,6 +11,7 @@ import { computeSlaDeadline, getSlaStatus } from '../utils/sla.js';
 import { createSimplePdf } from '../utils/pdf.js';
 import { buildInvoiceDraftFromOrder } from '../services/invoice-draft.js';
 import { syncOrderCalendarEvents } from '../services/calendar-integrations.js';
+import { statusKeyExists } from '../services/order-status-config.js';
 
 const MAX_PAGE_SIZE = 100;
 const SORT_FIELDS = {
@@ -219,6 +220,7 @@ export default function ordersRouter(io) {
 
   router.post('/', requireRole('admin'), validateBody(orderCreateSchema), asyncHandler(async (req, res) => {
     const { technicians = [], ...data } = req.body;
+    if (!(await statusKeyExists(data.estado))) return sendError(res, 400, 'Estado inválido');
     data.prioridad_peso = computePriorityWeight(data.prioridad);
 
     const tx = await prisma.$transaction(async (db) => {
@@ -281,6 +283,7 @@ export default function ordersRouter(io) {
 
     const transition = validateStateTransition({ role, currentState: order.estado, nextState: req.body.estado });
     if (!transition.ok) return sendError(res, 400, transition.reason);
+    if (req.body.estado && !(await statusKeyExists(req.body.estado))) return sendError(res, 400, 'Estado inválido');
 
     const patch = { ...req.body };
     if (patch.prioridad) patch.prioridad_peso = computePriorityWeight(patch.prioridad);

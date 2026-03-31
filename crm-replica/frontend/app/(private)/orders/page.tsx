@@ -23,10 +23,10 @@ import { EmptyState } from '@/components/common/empty-state';
 import { PageHeader } from '@/components/layout/page-header';
 import { TableSkeleton } from '@/components/common/skeletons';
 import { getApiErrorMessage } from '@/lib/api/error-message';
-import { ORDER_STATUS_LABEL } from '@/constants/orderStatus';
 import { ErrorBoundary } from '@/components/common/error-boundary';
 import { useOnlineStatus } from '@/hooks/use-online-status';
 import { loadAssignedOrdersSnapshot, saveAssignedOrderDetail, saveAssignedOrdersSnapshot } from '@/lib/offline/assigned-orders';
+import { orderStatusStore } from '@/stores/order-status-store';
 
 const schema = z.object({
   client_id: z.string().min(1),
@@ -58,6 +58,7 @@ export default function OrdersPage() {
   const user = authStore((s) => s.user);
   const toast = appStore((s) => s.pushToast);
   const online = useOnlineStatus();
+  const activeStatuses = orderStatusStore((s) => s.activeOptions());
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
@@ -213,7 +214,7 @@ export default function OrdersPage() {
 </div>
           {showFilters ? <div className="mt-3 grid gap-2 rounded-[10px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 md:grid-cols-6">
 <Select value={filters.status} onChange={(e) => setParams({ status: e.target.value || null, page: '1' })}>
-<option value="">Estado</option>{(Object.entries(ORDER_STATUS_LABEL) as [OrderStatus, string][]).map(([status, label]) => <option key={status} value={status}>{label}</option>)}</Select>
+<option value="">Estado</option>{activeStatuses.map((status) => <option key={status.key} value={status.key}>{status.label}</option>)}</Select>
 <Select value={filters.priority} onChange={(e) => setParams({ priority: e.target.value || null, page: '1' })}>
 <option value="">Prioridad</option>
 <option value="alta">Alta</option>
@@ -242,7 +243,7 @@ export default function OrdersPage() {
         {selectedIds.length > 0 ? <Card className="sticky top-20 z-20">
 <div className="flex flex-wrap items-center gap-2">
 <Badge>{selectedIds.length} seleccionadas</Badge>
-<Select value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value as OrderStatus)} className="max-w-52">{(['service_programado', 'en_ejecucion', 'completado', 'cancelado'] as OrderStatus[]).map((status) => <option key={status} value={status}>{ORDER_STATUS_LABEL[status]}</option>)}</Select>
+<Select value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value as OrderStatus)} className="max-w-52">{activeStatuses.map((status) => <option key={status.key} value={status.key}>{status.label}</option>)}</Select>
 <Button onClick={bulkChangeStatus}>Cambiar estado</Button>
 <Select value={bulkTechnician} onChange={(e) => setBulkTechnician(e.target.value)} className="max-w-52">
 <option value="">Asignar técnico</option>{users.filter((u) => u.role === 'tecnico').map((u) => <option key={u.id} value={u.id}>{u.first_name} {u.last_name}</option>)}</Select>
@@ -272,7 +273,7 @@ export default function OrdersPage() {
 </div>
             <div className="space-y-1">
 <label className="text-xs text-[var(--text-secondary)]">Estado</label>
-<Select {...register('estado')}>{(['presupuesto_generado', 'service_programado'] as OrderStatus[]).map((status) => <option key={status} value={status}>{ORDER_STATUS_LABEL[status]}</option>)}</Select>
+<Select {...register('estado')}>{activeStatuses.map((status) => <option key={status.key} value={status.key}>{status.label}</option>)}</Select>
 </div>
             <div className="space-y-1">
 <label className="text-xs text-[var(--text-secondary)]">Prioridad</label>
