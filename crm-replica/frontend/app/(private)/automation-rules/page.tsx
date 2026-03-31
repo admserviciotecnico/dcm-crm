@@ -145,7 +145,16 @@ export default function AutomationRulesPage() {
                           action_type: rule.action_type
                         });
                       }}>Editar</Button>
-                      <Button variant="secondary" onClick={() => void AutomationRulesApi.update(rule.id, { active: !rule.active }).then(load)}> {rule.active ? 'Desactivar' : 'Activar'} </Button>
+                      <Button
+                        variant="secondary"
+                        onClick={() => {
+                          AutomationRulesApi.update(rule.id, { active: !rule.active })
+                            .then(load)
+                            .catch(() => toast({ type: 'error', message: 'No se pudo actualizar la regla' }));
+                        }}
+                      >
+                        {rule.active ? 'Desactivar' : 'Activar'}
+                      </Button>
                     </div>
                   </td>
                 </tr>

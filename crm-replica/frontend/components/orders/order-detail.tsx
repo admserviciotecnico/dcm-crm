@@ -111,16 +111,18 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
     setInitialTechnicians(ids);
     reset({ comment: '' });
     materialForm.reset(DEFAULT_MATERIAL);
-    closureForm.reset({
-      tiempo_trabajado_horas: order.tiempo_trabajado_horas ?? 0,
-      observaciones_cierre: order.observaciones_cierre ?? '',
-      firma_cliente: order.firma_cliente ?? '',
-      foto_trabajo_url: order.foto_trabajo_url ?? '',
-      trabajo_realizado: Boolean(order.checklist_cierre?.trabajo_realizado),
-      area_limpia: Boolean(order.checklist_cierre?.area_limpia),
-      equipo_probado: Boolean(order.checklist_cierre?.equipo_probado),
-      documentacion_entregada: Boolean(order.checklist_cierre?.documentacion_entregada)
-    });
+    if (!closureForm.formState.isDirty) {
+      closureForm.reset({
+        tiempo_trabajado_horas: order.tiempo_trabajado_horas ?? 0,
+        observaciones_cierre: order.observaciones_cierre ?? '',
+        firma_cliente: order.firma_cliente ?? '',
+        foto_trabajo_url: order.foto_trabajo_url ?? '',
+        trabajo_realizado: Boolean(order.checklist_cierre?.trabajo_realizado),
+        area_limpia: Boolean(order.checklist_cierre?.area_limpia),
+        equipo_probado: Boolean(order.checklist_cierre?.equipo_probado),
+        documentacion_entregada: Boolean(order.checklist_cierre?.documentacion_entregada)
+      });
+    }
     setEditingMaterial(null);
     setMaterialModalOpen(false);
   }, [closureForm, materialForm, order, reset]);

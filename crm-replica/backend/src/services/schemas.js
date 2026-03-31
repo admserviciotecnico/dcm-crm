@@ -86,7 +86,7 @@ export const automationRuleSchema = z.object({
 export const automationRuleUpdateSchema = automationRuleSchema.partial().strict();
 
 export const calendarConnectSchema = z.object({
-  provider: z.enum(['google', 'outlook'])
+  provider: z.literal('google')
 }).strict();
 
 export const calendarCallbackQuerySchema = z.object({
@@ -138,7 +138,7 @@ export const orderCreateSchema = z.object({
 export const orderPatchSchema = z.object({
   estado: z.enum(['presupuesto_generado','oc_recibida','facturado','pago_recibido','documentacion_enviada','documentacion_aprobada','service_programado','en_ejecucion','completado','cancelado']).optional(),
   prioridad: z.enum(['baja', 'media', 'alta']).optional(),
-  fecha_programada: z.coerce.date().optional(),
+  fecha_programada: z.coerce.date().transform((d) => d.toISOString()).optional(),
   direccion_service: z.string().optional(),
   contacto_planta: z.string().optional(),
   telefono_contacto_planta: z.string().optional(),
