@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -132,17 +132,25 @@ export default function OrdersPage() {
   const activeFilters = useMemo(() => Object.values(filters).filter(Boolean).length, [filters]);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  const onCreate = async (data: OrderForm) => {
-    try {
-      await OrdersApi.create({ client_id: data.client_id, estado: data.estado, prioridad: data.prioridad, fecha_programada: data.fecha_programada, direccion_service: data.direccion_service, observaciones: data.observaciones, technicians: data.technician_ids });
-      toast({ type: 'success', message: 'Orden creada con éxito' });
-      setShowCreate(false);
-      reset();
-      void load();
-    } catch (error) {
-      toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo crear la orden') });
-    }
-  };
+ const onCreate = async (data: OrderForm) => {
+  try {
+    await OrdersApi.create({
+      client_id: data.client_id,
+      estado: data.estado,
+      prioridad: data.prioridad,
+      fecha_programada: data.fecha_programada,
+      direccion_service: data.direccion_service,
+      observaciones: data.observaciones,
+      technicians: data.technician_ids
+    });
+    toast({ type: 'success', message: 'Orden creada con éxito' });
+    setShowCreate(false);
+    reset();
+    void load();
+  } catch (error) {
+    toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo crear la orden') });
+  }
+};
 
   const toggleSelect = (id: string) => setSelectedIds((prev) => (prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]));
   const toggleSelectAll = () => setSelectedIds((prev) => (prev.length === orders.length ? [] : orders.map((o) => o.id)));
