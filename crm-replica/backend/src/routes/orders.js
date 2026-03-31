@@ -284,6 +284,7 @@ export default function ordersRouter(io) {
 
     const patch = { ...req.body };
     if (patch.prioridad) patch.prioridad_peso = computePriorityWeight(patch.prioridad);
+    if (patch.fecha_programada) patch.fecha_programada = new Date(patch.fecha_programada);
 
     const updated = await prisma.$transaction(async (db) => {
       const newOrder = await db.serviceOrder.update({ where: { id: order.id }, data: patch });
