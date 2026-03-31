@@ -1,11 +1,15 @@
-const VERSION = 'dcm-crm-v1';
+const VERSION = 'dcm-crm-v2';
 const SHELL_CACHE = `${VERSION}-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 const OFFLINE_URL = '/offline';
 const PRECACHE_URLS = ['/', '/login', '/offline', '/orders', '/planner', '/manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(SHELL_CACHE).then((cache) => cache.addAll(PRECACHE_URLS)).then(() => self.skipWaiting()));
+  event.waitUntil((async () => {
+    const cache = await caches.open(SHELL_CACHE);
+    await Promise.allSettled(PRECACHE_URLS.map((url) => cache.add(url)));
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', (event) => {
@@ -35,6 +39,26 @@ async function networkFirst(request) {
   }
 }
 
+async function navigationFallback(request) {
+  const cache = await caches.open(RUNTIME_CACHE);
+  const cachedRoute = await caches.match(request);
+  if (cachedRoute) return cachedRoute;
+
+  try {
+    const response = await fetch(request);
+    if (response && response.ok) {
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch (_error) {
+    const offline = await caches.match(OFFLINE_URL);
+    if (offline) return offline;
+    const shell = await caches.match('/');
+    if (shell) return shell;
+    return new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/plain' } });
+  }
+}
+
 async function staleWhileRevalidate(request) {
   const cache = await caches.open(RUNTIME_CACHE);
   const cached = await cache.match(request);
@@ -51,7 +75,7 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
 
   if (request.mode === 'navigate') {
-    event.respondWith(networkFirst(request));
+    event.respondWith(navigationFallback(request));
     return;
   }
 
