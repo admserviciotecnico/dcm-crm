@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { AutomationRulesApi } from '@/lib/api/endpoints';
-import { AutomationRule, OrderStatus } from '@/types/domain';
+import { AutomationRule, BuiltInOrderStatus } from '@/types/domain';
 import { PageHeader } from '@/components/layout/page-header';
 import { Card } from '@/components/ui/card';
 import { Table } from '@/components/ui/table';
@@ -18,7 +18,7 @@ const DEFAULT_FORM = {
   name: '',
   active: true,
   trigger_type: 'delayed_in_status' as const,
-  target_status: 'service_programado' as OrderStatus,
+  target_status: 'service_programado' as BuiltInOrderStatus,
   threshold_hours: 24,
   action_type: 'set_priority_alta_notify_admin' as const
 };
@@ -99,8 +99,8 @@ export default function AutomationRulesPage() {
           <h2 className="text-lg font-semibold">{editingId ? 'Editar regla' : 'Nueva regla'}</h2>
           <div className="mt-4 space-y-3">
             <Input placeholder="Nombre de la regla" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} />
-            <Select value={form.target_status} onChange={(event) => setForm((current) => ({ ...current, target_status: event.target.value as OrderStatus }))}>
-              {(Object.entries(ORDER_STATUS_LABEL) as [OrderStatus, string][]).map(([status, label]) => <option key={status} value={status}>{label}</option>)}
+            <Select value={form.target_status} onChange={(event) => setForm((current) => ({ ...current, target_status: event.target.value as BuiltInOrderStatus }))}>
+              {(Object.entries(ORDER_STATUS_LABEL) as [BuiltInOrderStatus, string][]).map(([status, label]) => <option key={status} value={status}>{label}</option>)}
             </Select>
             <Input type="number" min={1} value={form.threshold_hours} onChange={(event) => setForm((current) => ({ ...current, threshold_hours: Number(event.target.value || 0) }))} placeholder="Horas de permanencia" />
             <label className="flex items-center gap-2 text-sm">
@@ -145,7 +145,16 @@ export default function AutomationRulesPage() {
                           action_type: rule.action_type
                         });
                       }}>Editar</Button>
-                      <Button variant="secondary" onClick={() => void AutomationRulesApi.update(rule.id, { active: !rule.active }).then(load)}> {rule.active ? 'Desactivar' : 'Activar'} </Button>
+                      <Button
+                        variant="secondary"
+                        onClick={() => {
+                          AutomationRulesApi.update(rule.id, { active: !rule.active })
+                            .then(load)
+                            .catch(() => toast({ type: 'error', message: 'No se pudo actualizar la regla' }));
+                        }}
+                      >
+                        {rule.active ? 'Desactivar' : 'Activar'}
+                      </Button>
                     </div>
                   </td>
                 </tr>
