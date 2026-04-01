@@ -7,14 +7,18 @@ import { PwaRegistration } from '@/components/common/pwa-registration';
 const themeBootstrapScript = `
 (function () {
   try {
-    var darkMode = localStorage.getItem('darkMode');
-    if (darkMode === 'false') {
+    var storedTheme = localStorage.getItem('themePreference');
+    var darkMode = storedTheme === 'light' ? false : true;
+    if (!darkMode) {
       document.documentElement.classList.remove('dark');
+      document.documentElement.setAttribute('data-theme', 'light');
     } else {
       document.documentElement.classList.add('dark');
+      document.documentElement.setAttribute('data-theme', 'dark');
     }
   } catch (_error) {
     document.documentElement.classList.add('dark');
+    document.documentElement.setAttribute('data-theme', 'dark');
   }
 })();
 `;
