@@ -6,6 +6,8 @@ import { asyncHandler, sendError } from '../utils/http.js';
 import { ensureClientDocumentationNotifications } from '../services/notifications.js';
 
 const MAX_PAGE_SIZE = 50;
+const THROTTLE_MS = 5 * 60 * 1000;
+let lastEnsureRunAt = 0;
 
 const router = Router();
 router.use(authRequired);
@@ -15,7 +17,15 @@ router.get('/', asyncHandler(async (req, res) => {
   const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, Number(req.query.pageSize || 20)));
   const skip = (page - 1) * pageSize;
 
-  await ensureClientDocumentationNotifications();
+  const now = Date.now();
+  if (now - lastEnsureRunAt >= THROTTLE_MS) {
+    try {
+      await ensureClientDocumentationNotifications();
+      lastEnsureRunAt = now;
+    } catch (error) {
+      console.error('[notifications] ensureClientDocumentationNotifications failed', error);
+    }
+  }
 
   const where = { user_id: req.user.id };
   const [items, total, unread] = await Promise.all([
