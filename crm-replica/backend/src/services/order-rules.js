@@ -9,7 +9,8 @@ export function validateStateTransition({ role, currentState, nextState }) {
   if (!nextState || nextState === currentState) return { ok: true };
 
   if (role === 'admin') {
-    const allowed = STATUS_WORKFLOW[currentState] || [];
+    const allowed = STATUS_WORKFLOW[currentState];
+    if (!Array.isArray(allowed)) return { ok: true };
     return allowed.includes(nextState)
       ? { ok: true }
       : { ok: false, reason: 'Invalid transition for admin' };

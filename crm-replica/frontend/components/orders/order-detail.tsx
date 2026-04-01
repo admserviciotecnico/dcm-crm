@@ -23,12 +23,13 @@ import { FileUploader } from '@/modules/documents/components/file-uploader';
 import { FileList } from '@/modules/documents/components/file-list';
 import { useDocumentsState } from '@/modules/documents/hooks/use-documents-state';
 import { resolveActorName, resolveActorNameById } from '@/lib/actor-name';
-import { ORDER_STATUS_LABEL, ORDER_STATUS_WORKFLOW } from '@/constants/orderStatus';
+import { ORDER_STATUS_COLUMNS, ORDER_STATUS_WORKFLOW } from '@/constants/orderStatus';
 import { ErrorBoundary } from '@/components/common/error-boundary';
 import { getOrderHistoryFieldLabel } from '@/lib/order-history';
 import { Input } from '@/components/ui/input';
 import { useOnlineStatus } from '@/hooks/use-online-status';
 import { getApiErrorMessage } from '@/lib/api/error-message';
+import { orderStatusStore } from '@/stores/order-status-store';
 
 type LocalComment = { id: string; user: string; message: string; time: string };
 type CommentForm = { comment: string };
@@ -88,6 +89,7 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
   const [closureSaving, setClosureSaving] = useState(false);
   const user = authStore((s) => s.user);
   const toast = appStore((s) => s.pushToast);
+  const labelFor = orderStatusStore((s) => s.labelFor);
   const online = useOnlineStatus();
   const { register, handleSubmit, reset, formState: { isDirty } } = useForm<CommentForm>({ defaultValues: { comment: '' } });
   const materialForm = useForm<MaterialForm>({ defaultValues: DEFAULT_MATERIAL });
@@ -111,16 +113,18 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
     setInitialTechnicians(ids);
     reset({ comment: '' });
     materialForm.reset(DEFAULT_MATERIAL);
-    closureForm.reset({
-      tiempo_trabajado_horas: order.tiempo_trabajado_horas ?? 0,
-      observaciones_cierre: order.observaciones_cierre ?? '',
-      firma_cliente: order.firma_cliente ?? '',
-      foto_trabajo_url: order.foto_trabajo_url ?? '',
-      trabajo_realizado: Boolean(order.checklist_cierre?.trabajo_realizado),
-      area_limpia: Boolean(order.checklist_cierre?.area_limpia),
-      equipo_probado: Boolean(order.checklist_cierre?.equipo_probado),
-      documentacion_entregada: Boolean(order.checklist_cierre?.documentacion_entregada)
-    });
+    if (!closureForm.formState.isDirty) {
+      closureForm.reset({
+        tiempo_trabajado_horas: order.tiempo_trabajado_horas ?? 0,
+        observaciones_cierre: order.observaciones_cierre ?? '',
+        firma_cliente: order.firma_cliente ?? '',
+        foto_trabajo_url: order.foto_trabajo_url ?? '',
+        trabajo_realizado: Boolean(order.checklist_cierre?.trabajo_realizado),
+        area_limpia: Boolean(order.checklist_cierre?.area_limpia),
+        equipo_probado: Boolean(order.checklist_cierre?.equipo_probado),
+        documentacion_entregada: Boolean(order.checklist_cierre?.documentacion_entregada)
+      });
+    }
     setEditingMaterial(null);
     setMaterialModalOpen(false);
   }, [closureForm, materialForm, order, reset]);
@@ -135,7 +139,13 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
     return () => { socket.off('orders:comment', onRemoteComment); };
   }, [order]);
 
-  const adminAllowed = useMemo(() => (order ? ORDER_STATUS_WORKFLOW[order.estado] ?? [] : []), [order]);
+  const adminAllowed = useMemo(() => {
+    if (!order) return [];
+    if (ORDER_STATUS_COLUMNS.includes(order.estado as typeof ORDER_STATUS_COLUMNS[number])) {
+      return ORDER_STATUS_WORKFLOW[order.estado as keyof typeof ORDER_STATUS_WORKFLOW] ?? [];
+    }
+    return [];
+  }, [order]);
   const techUsers = users.filter((u) => u.role === 'tecnico');
   const usersById = useMemo(() => new Map(users.map((listedUser) => [listedUser.id, listedUser])), [users]);
   const timelineEvents = history.map((h) => ({ id: h.id, actor: resolveActorName(h.usuario), action: `cambió ${getOrderHistoryFieldLabel(h.campo_modificado)}`, entity: `${h.valor_nuevo ?? '-'}`, at: h.created_at }));
@@ -465,9 +475,9 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
             <div>
               <p className="mb-2 text-sm text-[var(--text-secondary)]">Acciones de workflow</p>
               <div className="flex flex-wrap gap-2">
-                {user?.role === 'admin' ? visibleAdminTransitions.map((next) => <Button key={next} variant="secondary" onClick={async () => { try { await OrdersApi.patch(order.id, { estado: next }); toast({ type: 'success', message: `Estado actualizado a ${next}` }); onRefresh(); } catch { toast({ type: 'error', message: 'No se pudo actualizar el estado' }); } }}>{ORDER_STATUS_LABEL[next as keyof typeof ORDER_STATUS_LABEL] ?? next}</Button>) : null}
-                {canTechMove ? <Button variant="secondary" onClick={async () => { const next = order.estado === 'service_programado' ? 'en_ejecucion' : 'completado'; try { await OrdersApi.patch(order.id, { estado: next }); toast({ type: 'success', message: `Orden ${next}` }); onRefresh(); } catch { toast({ type: 'error', message: 'No se pudo actualizar la orden' }); } }}>{ORDER_STATUS_LABEL[order.estado === 'service_programado' ? 'en_ejecucion' : 'completado']}</Button> : null}
-                {canCancel ? <Button variant="danger" onClick={() => setConfirmCancel(true)}>{ORDER_STATUS_LABEL.cancelado}</Button> : null}
+                {user?.role === 'admin' ? visibleAdminTransitions.map((next) => <Button key={next} variant="secondary" onClick={async () => { try { await OrdersApi.patch(order.id, { estado: next }); toast({ type: 'success', message: `Estado actualizado a ${next}` }); onRefresh(); } catch { toast({ type: 'error', message: 'No se pudo actualizar el estado' }); } }}>{labelFor(next)}</Button>) : null}
+                {canTechMove ? <Button variant="secondary" onClick={async () => { const next = order.estado === 'service_programado' ? 'en_ejecucion' : 'completado'; try { await OrdersApi.patch(order.id, { estado: next }); toast({ type: 'success', message: `Orden ${next}` }); onRefresh(); } catch { toast({ type: 'error', message: 'No se pudo actualizar la orden' }); } }}>{labelFor(order.estado === 'service_programado' ? 'en_ejecucion' : 'completado')}</Button> : null}
+                {canCancel ? <Button variant="danger" onClick={() => setConfirmCancel(true)}>{labelFor('cancelado')}</Button> : null}
               </div>
             </div>
 
