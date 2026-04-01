@@ -6,11 +6,12 @@ import { validateBody, validateIdParam } from '../middleware/validation.js';
 import { locationEventCreateSchema, materialCreateSchema, materialUpdateSchema, orderCreateSchema, orderPatchSchema, techniciansUpdateSchema } from '../services/schemas.js';
 import { logEvent } from '../services/event-log.js';
 import { asyncHandler, sendError } from '../utils/http.js';
-import { notifyAssignedTechnicians, ORDER_STATUS_LABEL, shortId } from '../services/notifications.js';
+import { createNotifications, notifyAssignedTechnicians, ORDER_STATUS_LABEL, shortId } from '../services/notifications.js';
 import { computeSlaDeadline, getSlaStatus } from '../utils/sla.js';
 import { createSimplePdf } from '../utils/pdf.js';
 import { buildInvoiceDraftFromOrder } from '../services/invoice-draft.js';
 import { syncOrderCalendarEvents } from '../services/calendar-integrations.js';
+import { statusKeyExists } from '../services/order-status-config.js';
 
 const MAX_PAGE_SIZE = 100;
 const SORT_FIELDS = {
@@ -190,8 +191,9 @@ export default function ordersRouter(io) {
     const { order, access } = await getAccessibleOrder(req.params.id, req.user);
     if (!access.ok) return sendError(res, access.status, access.message);
 
+    const materialList = order.materials ?? [];
     const technicianNames = order.technicians.map((item) => `${item.technician.first_name} ${item.technician.last_name}`.trim()).join(', ') || 'Sin técnicos asignados';
-    const materialsTotal = order.materials.reduce((sum, material) => sum + (material.quantity * material.unit_cost), 0);
+    const materialsTotal = materialList.reduce((sum, material) => sum + (material.quantity * material.unit_cost), 0);
     const lines = [
       'DCM CRM - Orden de Servicio',
       `Orden: #${shortId(order.id)}`,
@@ -206,7 +208,7 @@ export default function ordersRouter(io) {
       `Checklist: ${formatChecklist(order.checklist_cierre)}`,
       `Firma cliente: ${order.firma_cliente ?? '-'}`,
       `Foto trabajo: ${order.foto_trabajo_url ?? '-'}`,
-      `Materiales: ${order.materials.length ? order.materials.map((material) => `${material.name} x${material.quantity} ($${material.unit_cost})`).join(' | ') : 'Sin materiales'}`,
+      `Materiales: ${materialList.length ? materialList.map((material) => `${String(material.name ?? '').replace(/\|/g, '-')} x${material.quantity} ($${material.unit_cost})`).join(' | ') : 'Sin materiales'}`,
       `Total materiales: $${materialsTotal.toFixed(2)}`
     ];
 
@@ -218,10 +220,18 @@ export default function ordersRouter(io) {
 
   router.post('/', requireRole('admin'), validateBody(orderCreateSchema), asyncHandler(async (req, res) => {
     const { technicians = [], ...data } = req.body;
+    if (!(await statusKeyExists(data.estado))) return sendError(res, 400, 'Estado inválido');
     data.prioridad_peso = computePriorityWeight(data.prioridad);
 
     const tx = await prisma.$transaction(async (db) => {
       const order = await db.serviceOrder.create({ data });
+      await createNotifications(db, [{
+        user_id: req.user.id,
+        service_order_id: order.id,
+        kind: 'order_created',
+        title: 'Orden creada',
+        description: `Se creó la orden #${shortId(order.id)}`
+      }]);
       if (technicians.length) {
         await db.serviceOrderTechnician.createMany({
           data: technicians.map((technicianId) => ({ service_order_id: order.id, technician_id: technicianId, asignado_por: req.user.email }))
@@ -260,7 +270,7 @@ export default function ordersRouter(io) {
 
   router.patch('/:id', validateIdParam, validateBody(orderPatchSchema), asyncHandler(async (req, res) => {
     const order = await prisma.serviceOrder.findUnique({ where: { id: req.params.id }, include: { technicians: true } });
-    if (!order || order.deleted_at) return sendError(res, 404, 'Not found');
+    if (!order || order.deleted_at || !order.is_active) return sendError(res, 404, 'Not found');
 
     const role = req.user.role.name;
     const assigned = order.technicians.some((technician) => technician.technician_id === req.user.id);
@@ -273,9 +283,11 @@ export default function ordersRouter(io) {
 
     const transition = validateStateTransition({ role, currentState: order.estado, nextState: req.body.estado });
     if (!transition.ok) return sendError(res, 400, transition.reason);
+    if (req.body.estado && !(await statusKeyExists(req.body.estado))) return sendError(res, 400, 'Estado inválido');
 
     const patch = { ...req.body };
     if (patch.prioridad) patch.prioridad_peso = computePriorityWeight(patch.prioridad);
+    if (patch.fecha_programada) patch.fecha_programada = new Date(patch.fecha_programada);
 
     const updated = await prisma.$transaction(async (db) => {
       const newOrder = await db.serviceOrder.update({ where: { id: order.id }, data: patch });
@@ -311,6 +323,9 @@ export default function ordersRouter(io) {
   }));
 
   router.delete('/:id', requireRole('admin'), validateIdParam, asyncHandler(async (req, res) => {
+    const order = await prisma.serviceOrder.findUnique({ where: { id: req.params.id } });
+    if (!order || order.deleted_at || !order.is_active) return sendError(res, 404, 'Not found');
+
     await prisma.serviceOrder.update({ where: { id: req.params.id }, data: { is_active: false, deleted_at: new Date() } });
     io.emit('orders:changed', { type: 'deleted', orderId: req.params.id });
     io.emit('dashboard:refresh', { reason: 'order_deleted' });

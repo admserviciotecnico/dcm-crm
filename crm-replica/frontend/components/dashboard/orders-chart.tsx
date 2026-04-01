@@ -1,20 +1,10 @@
 import { OrderStatus } from '@/types/domain';
-import { ORDER_STATUS_LABEL } from '@/constants/orderStatus';
-
-const statusColors: Record<OrderStatus, string> = {
-  presupuesto_generado: 'var(--text-secondary)',
-  oc_recibida: '#38bdf8',
-  facturado: '#3b82f6',
-  pago_recibido: '#06b6d4',
-  documentacion_enviada: '#8b5cf6',
-  documentacion_aprobada: '#6d28d9',
-  service_programado: '#f59e0b',
-  en_ejecucion: '#3b82f6',
-  completado: '#10b981',
-  cancelado: '#ef4444'
-};
+import { ORDER_STATUS_DEFAULT_COLOR } from '@/constants/orderStatus';
+import { orderStatusStore } from '@/stores/order-status-store';
 
 export function OrdersChart({ counts }: { counts?: Partial<Record<OrderStatus, number>> }) {
+  const labelFor = orderStatusStore((s) => s.labelFor);
+  const colorFor = orderStatusStore((s) => s.colorFor);
   const grouped = Object.entries(counts ?? {}).filter(([, count]) => typeof count === 'number');
 
   if (grouped.length === 0) {
@@ -28,11 +18,11 @@ export function OrdersChart({ counts }: { counts?: Partial<Record<OrderStatus, n
       {grouped.map(([status, count]) => (
         <div key={status}>
           <div className="mb-1 flex justify-between text-xs text-[var(--text-secondary)]">
-            <span>{ORDER_STATUS_LABEL[status as OrderStatus] ?? status.replace(/_/g, ' ')}</span>
+            <span>{labelFor(status)}</span>
             <span>{count}</span>
           </div>
           <div className="h-3 rounded bg-[var(--bg-surface-muted)]">
-            <div className="h-3 rounded" style={{ width: `${((count as number) / max) * 100}%`, backgroundColor: statusColors[status as OrderStatus] }} />
+            <div className="h-3 rounded" style={{ width: `${((count as number) / max) * 100}%`, backgroundColor: colorFor(status) || ORDER_STATUS_DEFAULT_COLOR.presupuesto_generado }} />
           </div>
         </div>
       ))}
