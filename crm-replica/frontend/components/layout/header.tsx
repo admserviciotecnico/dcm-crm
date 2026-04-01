@@ -18,6 +18,7 @@ export function Header() {
   const user = authStore((s) => s.user);
   const logout = authStore((s) => s.logout);
   const dark = uiStore((s) => s.darkMode);
+  const hydrateTheme = uiStore((s) => s.hydrateTheme);
   const setDarkMode = uiStore((s) => s.setDarkMode);
   const setCommandOpen = uiStore((s) => s.setCommandOpen);
   const setMobileSidebarOpen = uiStore((s) => s.setMobileSidebarOpen);
@@ -38,6 +39,10 @@ export function Header() {
       pushToast({ type: 'error', message: getApiErrorMessage(error, 'No se pudieron cargar las notificaciones') });
     }
   }, [pushToast, setNotifications]);
+
+  useEffect(() => {
+    hydrateTheme();
+  }, [hydrateTheme]);
 
   useEffect(() => {
     void loadNotifications();

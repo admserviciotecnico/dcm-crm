@@ -2,8 +2,10 @@ import { create } from 'zustand';
 
 type UiState = {
   darkMode: boolean;
+  themeReady: boolean;
   commandOpen: boolean;
   mobileSidebarOpen: boolean;
+  hydrateTheme: () => void;
   setDarkMode: (v: boolean) => void;
   setCommandOpen: (v: boolean) => void;
   setMobileSidebarOpen: (v: boolean) => void;
@@ -37,12 +39,17 @@ function applyDarkMode(dark: boolean) {
 
 export const uiStore = create<UiState>((set) => {
   const initial = getInitialDarkMode();
-  applyDarkMode(initial);
 
   return {
     darkMode: initial,
+    themeReady: false,
     commandOpen: false,
     mobileSidebarOpen: false,
+    hydrateTheme: () => {
+      const next = getInitialDarkMode();
+      applyDarkMode(next);
+      set({ darkMode: next, themeReady: true });
+    },
     setDarkMode: (darkMode) => {
       applyDarkMode(darkMode);
       if (typeof window !== 'undefined') {
@@ -65,7 +72,7 @@ if (typeof window !== 'undefined') {
       if (event.key !== THEME_STORAGE_KEY || !event.newValue) return;
       const dark = event.newValue === 'dark';
       applyDarkMode(dark);
-      uiStore.setState({ darkMode: dark });
+      uiStore.setState({ darkMode: dark, themeReady: true });
     } catch {
       // never let theme sync crash the UI.
     }
