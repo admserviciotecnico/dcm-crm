@@ -14,7 +14,7 @@ import { getApiErrorMessage } from '@/lib/api/error-message';
 import { orderStatusStore } from '@/stores/order-status-store';
 
 const HEX_COLOR = /^#([0-9a-fA-F]{6})$/;
-const PRESET_COLORS = ['#ef4444', '#f97316', '#eab308', '#10b981', '#3b82f6', '#8b5cf6', '#64748b'];
+const PRESET_COLORS = ['#64748b', '#3b82f6', '#06b6d4', '#10b981', '#84cc16', '#eab308', '#f59e0b', '#f97316', '#ef4444', '#ec4899', '#8b5cf6', '#6b7280'];
 
 type FormState = {
   key: string;
@@ -177,13 +177,14 @@ export default function OrderStatusesSettingsPage() {
               <Input value={form.color} onChange={(event) => setForm((current) => ({ ...current, color: event.target.value }))} required />
               <span className="inline-flex h-8 items-center rounded-full border px-3 text-xs font-medium" style={{ backgroundColor: `${pickerColor}22`, borderColor: `${pickerColor}66`, color: pickerColor }}>Vista previa</span>
             </div>
-            <div className="mt-2 flex flex-wrap gap-2">
+            <p className="mt-2 text-xs text-[var(--text-secondary)]">Colores sugeridos</p>
+            <div className="mt-1 flex flex-wrap gap-2">
               {PRESET_COLORS.map((preset) => (
                 <button
                   key={preset}
                   type="button"
                   onClick={() => setForm((current) => ({ ...current, color: preset }))}
-                  className={`h-6 w-6 rounded-full border ${pickerColor.toLowerCase() === preset ? 'ring-2 ring-offset-1 ring-blue-500' : ''}`}
+                  className={`h-6 w-6 rounded-full border border-white/20 ${pickerColor.toLowerCase() === preset ? 'ring-2 ring-offset-1 ring-offset-[var(--bg-surface)] ring-blue-500' : ''}`}
                   style={{ backgroundColor: preset }}
                   aria-label={`Usar color ${preset}`}
                 />
