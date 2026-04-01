@@ -14,7 +14,37 @@ import { getApiErrorMessage } from '@/lib/api/error-message';
 import { orderStatusStore } from '@/stores/order-status-store';
 
 const HEX_COLOR = /^#([0-9a-fA-F]{6})$/;
-const PRESET_COLORS = ['#64748b', '#3b82f6', '#06b6d4', '#10b981', '#84cc16', '#eab308', '#f59e0b', '#f97316', '#ef4444', '#ec4899', '#8b5cf6', '#6b7280'];
+const PRESET_GROUPS = [
+  { name: 'Neutros', colors: ['#64748b', '#6b7280', '#475569'] },
+  { name: 'Fríos', colors: ['#3b82f6', '#06b6d4', '#10b981', '#8b5cf6'] },
+  { name: 'Cálidos', colors: ['#84cc16', '#eab308', '#f59e0b', '#f97316', '#ef4444', '#ec4899'] }
+] as const;
+
+const COLOR_NAME_BY_HEX: Record<string, string> = {
+  '#64748b': 'Pizarra',
+  '#6b7280': 'Gris',
+  '#475569': 'Pizarra',
+  '#3b82f6': 'Azul',
+  '#06b6d4': 'Cian',
+  '#10b981': 'Verde',
+  '#8b5cf6': 'Violeta',
+  '#84cc16': 'Lima',
+  '#eab308': 'Amarillo',
+  '#f59e0b': 'Ámbar',
+  '#f97316': 'Naranja',
+  '#ef4444': 'Rojo',
+  '#ec4899': 'Rosa'
+};
+
+function isColorTooLight(hex: string) {
+  if (!HEX_COLOR.test(hex)) return false;
+  const raw = hex.replace('#', '');
+  const r = Number.parseInt(raw.slice(0, 2), 16);
+  const g = Number.parseInt(raw.slice(2, 4), 16);
+  const b = Number.parseInt(raw.slice(4, 6), 16);
+  const brightness = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+  return brightness > 180;
+}
 
 type FormState = {
   key: string;
@@ -116,6 +146,8 @@ export default function OrderStatusesSettingsPage() {
   };
 
   const pickerColor = HEX_COLOR.test(form.color) ? form.color : '#64748b';
+  const tooLight = isColorTooLight(pickerColor);
+  const selectedColorName = COLOR_NAME_BY_HEX[pickerColor.toLowerCase()] ?? 'Personalizado';
 
   return (
     <div className="space-y-6">
@@ -175,19 +207,28 @@ export default function OrderStatusesSettingsPage() {
                 aria-label="Seleccionar color"
               />
               <Input value={form.color} onChange={(event) => setForm((current) => ({ ...current, color: event.target.value }))} required />
-              <span className="inline-flex h-8 items-center rounded-full border px-3 text-xs font-medium" style={{ backgroundColor: `${pickerColor}22`, borderColor: `${pickerColor}66`, color: pickerColor }}>Vista previa</span>
+              <span className={`inline-flex h-8 items-center rounded-full border px-3 text-xs font-medium ${tooLight ? 'border-red-400/60 bg-red-500/10 text-red-300' : ''}`} style={tooLight ? undefined : { backgroundColor: `${pickerColor}22`, borderColor: `${pickerColor}66`, color: pickerColor }}>Vista previa</span>
             </div>
-            <p className="mt-2 text-xs text-[var(--text-secondary)]">Colores sugeridos</p>
-            <div className="mt-1 flex flex-wrap gap-2">
-              {PRESET_COLORS.map((preset) => (
-                <button
-                  key={preset}
-                  type="button"
-                  onClick={() => setForm((current) => ({ ...current, color: preset }))}
-                  className={`h-6 w-6 rounded-full border border-white/20 ${pickerColor.toLowerCase() === preset ? 'ring-2 ring-offset-1 ring-offset-[var(--bg-surface)] ring-blue-500' : ''}`}
-                  style={{ backgroundColor: preset }}
-                  aria-label={`Usar color ${preset}`}
-                />
+            <p className="mt-2 text-xs text-[var(--text-secondary)]">Color seleccionado: <span className="font-medium text-[var(--text-primary)]">{selectedColorName}</span></p>
+            {tooLight ? <p className="mt-1 text-xs text-red-300">Elegí un color más oscuro para asegurar legibilidad</p> : null}
+            <div className="mt-2 space-y-2">
+              <p className="text-xs text-[var(--text-secondary)]">Colores sugeridos</p>
+              {PRESET_GROUPS.map((group) => (
+                <div key={group.name}>
+                  <p className="mb-1 text-[11px] uppercase tracking-wide text-[var(--text-secondary)]">{group.name}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {group.colors.map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setForm((current) => ({ ...current, color: preset }))}
+                        className={`h-6 w-6 rounded-full border border-white/20 ${pickerColor.toLowerCase() === preset ? 'ring-2 ring-offset-1 ring-offset-[var(--bg-surface)] ring-blue-500' : ''}`}
+                        style={{ backgroundColor: preset }}
+                        aria-label={`Usar color ${preset}`}
+                      />
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           </div>
@@ -201,7 +242,7 @@ export default function OrderStatusesSettingsPage() {
           </label>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={saving}>Cancelar</Button>
-            <Button type="submit" disabled={saving}>{saving ? 'Guardando…' : 'Guardar'}</Button>
+            <Button type="submit" disabled={saving || tooLight}>{saving ? 'Guardando…' : 'Guardar'}</Button>
           </div>
         </form>
       </Modal>
