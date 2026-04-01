@@ -13,10 +13,14 @@ const THEME_STORAGE_KEY = 'themePreference';
 
 function getInitialDarkMode(): boolean {
   if (typeof window === 'undefined') return true;
-  const stored = localStorage.getItem(THEME_STORAGE_KEY);
-  if (stored === 'dark') return true;
-  if (stored === 'light') return false;
-  if (document.documentElement.classList.contains('dark')) return true;
+  try {
+    const stored = localStorage.getItem(THEME_STORAGE_KEY);
+    if (stored === 'dark') return true;
+    if (stored === 'light') return false;
+  } catch {
+    // ignore storage read failures (private mode/security policy) and fallback to DOM state.
+  }
+  if (typeof document !== 'undefined' && document.documentElement.classList.contains('dark')) return true;
   return true;
 }
 
@@ -42,7 +46,11 @@ export const uiStore = create<UiState>((set) => {
     setDarkMode: (darkMode) => {
       applyDarkMode(darkMode);
       if (typeof window !== 'undefined') {
-        localStorage.setItem(THEME_STORAGE_KEY, darkMode ? 'dark' : 'light');
+        try {
+          localStorage.setItem(THEME_STORAGE_KEY, darkMode ? 'dark' : 'light');
+        } catch {
+          // keep runtime stable when storage is unavailable.
+        }
       }
       set({ darkMode });
     },
@@ -53,9 +61,13 @@ export const uiStore = create<UiState>((set) => {
 
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', (event) => {
-    if (event.key !== THEME_STORAGE_KEY || !event.newValue) return;
-    const dark = event.newValue === 'dark';
-    applyDarkMode(dark);
-    uiStore.setState({ darkMode: dark });
+    try {
+      if (event.key !== THEME_STORAGE_KEY || !event.newValue) return;
+      const dark = event.newValue === 'dark';
+      applyDarkMode(dark);
+      uiStore.setState({ darkMode: dark });
+    } catch {
+      // never let theme sync crash the UI.
+    }
   });
 }
