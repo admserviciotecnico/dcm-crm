@@ -31,22 +31,26 @@ function fromBackend(doc: BackendDocument): DocumentItem {
 export function useDocumentsState(entityType: DocumentEntityType, entityId: string) {
   const [docs, setDocs] = useState<DocumentItem[]>([]);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (cancelledRef?: { current: boolean }) => {
     if (!entityId) {
-      setDocs([]);
+      if (!cancelledRef?.current) setDocs([]);
       return;
     }
 
     try {
       const remote = await DocumentsApi.list(entityType, entityId);
-      setDocs(remote.map(fromBackend));
+      if (!cancelledRef?.current) setDocs(remote.map(fromBackend));
     } catch {
-      setDocs([]);
+      if (!cancelledRef?.current) setDocs([]);
     }
   }, [entityId, entityType]);
 
   useEffect(() => {
-    void load();
+    const cancelledRef = { current: false };
+    void load(cancelledRef);
+    return () => {
+      cancelledRef.current = true;
+    };
   }, [load]);
 
   const add = useCallback(async (name: string, category: DocumentCategory, options?: { filePath?: string }): Promise<MutationResult> => {

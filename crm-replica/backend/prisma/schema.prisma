@@ -154,7 +154,7 @@ model ServiceOrder {
   id                       String                      @id @default(cuid())
   client_id                String
   client                   Client                      @relation(fields: [client_id], references: [id])
-  estado                   OrderStatus                 @default(presupuesto_generado)
+  estado                   String                      @default("presupuesto_generado")
   prioridad                Priority                    @default(media)
   prioridad_peso           Int                         @default(2)
   fecha_programada         DateTime?
@@ -184,6 +184,21 @@ model ServiceOrder {
   @@index([estado])
   @@index([client_id])
   @@index([is_active, deleted_at, estado, prioridad, fecha_programada])
+}
+
+
+model OrderStatusConfig {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  label       String
+  color       String
+  sort_order  Int      @default(0)
+  is_active   Boolean  @default(true)
+  is_system   Boolean  @default(false)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  @@index([is_active, sort_order])
 }
 
 model ExternalCalendarConnection {
@@ -330,6 +345,7 @@ model Notification {
 
   @@index([user_id, kind, service_order_id, created_at])
   @@index([user_id, kind, client_id, created_at])
+  @@unique([user_id, kind, service_order_id])
 }
 
 model AutomationRule {
