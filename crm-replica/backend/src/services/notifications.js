@@ -44,17 +44,29 @@ export async function createNotifications(db, notifications) {
   const valid = notifications.filter((item) => item.user_id && item.title && item.description);
   if (!valid.length) return;
 
+  const orderScoped = valid.filter((item) => item.user_id && item.kind && item.service_order_id);
+  const generic = valid.filter((item) => !item.service_order_id || !item.kind);
+
+  if (orderScoped.length) {
+    await db.notification.createMany({
+      data: orderScoped,
+      skipDuplicates: true
+    });
+  }
+
+  if (!generic.length) return;
+
   const windowStart = new Date(Date.now() - DEDUPE_WINDOW_MS);
   const existing = await db.notification.findMany({
     where: {
       created_at: { gte: windowStart },
-      OR: valid.map(recentNotificationWhere)
+      OR: generic.map(recentNotificationWhere)
     },
     select: { user_id: true, kind: true, client_id: true, service_order_id: true, title: true }
   });
 
   const existingKeys = new Set(existing.map(notificationKey));
-  const pending = valid.filter((item) => !existingKeys.has(notificationKey(item)));
+  const pending = generic.filter((item) => !existingKeys.has(notificationKey(item)));
   if (!pending.length) return;
 
   const uniquePending = [];
@@ -73,7 +85,27 @@ export async function createNotifications(db, notifications) {
 export async function notifyAssignedTechnicians(db, { orderId, technicianIds, title, description, kind = 'order' }) {
   const uniqueTechnicians = [...new Set(technicianIds.filter(Boolean))];
   if (!uniqueTechnicians.length) return;
-  await createNotifications(db, uniqueTechnicians.map((user_id) => ({ user_id, service_order_id: orderId, kind, title, description })));
+
+  const validTechnicians = await db.user.findMany({
+    where: {
+      id: { in: uniqueTechnicians },
+      active: true,
+      role: { name: 'tecnico' }
+    },
+    select: { id: true }
+  });
+  if (!validTechnicians.length) return;
+
+  await createNotifications(
+    db,
+    validTechnicians.map((technician) => ({
+      user_id: technician.id,
+      service_order_id: orderId,
+      kind,
+      title,
+      description
+    }))
+  );
 }
 
 export async function ensureClientDocumentationNotifications(db = prisma) {
