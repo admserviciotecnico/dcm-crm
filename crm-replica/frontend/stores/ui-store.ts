@@ -30,6 +30,9 @@ function applyDarkMode(dark: boolean) {
 }
 
 export const uiStore = create<UiState>((set) => {
+  const initial = readDomDarkMode();
+  applyDarkMode(initial);
+
   return {
     darkMode: true,
     themeReady: false,
@@ -64,7 +67,7 @@ if (typeof window !== 'undefined') {
       if (event.key !== THEME_STORAGE_KEY || !event.newValue) return;
       const dark = event.newValue === 'dark';
       applyDarkMode(dark);
-      uiStore.setState({ darkMode: dark, themeReady: true });
+      uiStore.setState({ darkMode: dark });
     } catch {
       // never let theme sync crash the UI.
     }
