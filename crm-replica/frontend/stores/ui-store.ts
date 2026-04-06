@@ -13,17 +13,21 @@ type UiState = {
 
 const THEME_STORAGE_KEY = 'themePreference';
 
-function getInitialDarkMode(): boolean {
-  if (typeof window === 'undefined') return true;
+function readStoredDarkMode(): boolean | null {
+  if (typeof window === 'undefined') return null;
   try {
     const stored = localStorage.getItem(THEME_STORAGE_KEY);
     if (stored === 'dark') return true;
     if (stored === 'light') return false;
   } catch {
-    // ignore storage read failures (private mode/security policy) and fallback to DOM state.
+    // ignore storage read failures (private mode/security policy).
   }
-  if (typeof document !== 'undefined' && document.documentElement.classList.contains('dark')) return true;
-  return true;
+  return null;
+}
+
+function readDomDarkMode(): boolean {
+  if (typeof document === 'undefined') return true;
+  return document.documentElement.classList.contains('dark');
 }
 
 function applyDarkMode(dark: boolean) {
@@ -38,15 +42,14 @@ function applyDarkMode(dark: boolean) {
 }
 
 export const uiStore = create<UiState>((set) => {
-  const initial = getInitialDarkMode();
-
   return {
-    darkMode: initial,
+    darkMode: true,
     themeReady: false,
     commandOpen: false,
     mobileSidebarOpen: false,
     hydrateTheme: () => {
-      const next = getInitialDarkMode();
+      const stored = readStoredDarkMode();
+      const next = stored ?? readDomDarkMode();
       applyDarkMode(next);
       set({ darkMode: next, themeReady: true });
     },

@@ -18,6 +18,7 @@ export function Header() {
   const user = authStore((s) => s.user);
   const logout = authStore((s) => s.logout);
   const dark = uiStore((s) => s.darkMode);
+  const themeReady = uiStore((s) => s.themeReady);
   const hydrateTheme = uiStore((s) => s.hydrateTheme);
   const setDarkMode = uiStore((s) => s.setDarkMode);
   const setCommandOpen = uiStore((s) => s.setCommandOpen);
@@ -109,7 +110,7 @@ export function Header() {
             ))}
           </div>
         </Dropdown>
-        <Button variant="ghost" onClick={() => setDarkMode(!dark)} className="text-[var(--text-secondary)]">{dark ? <Sun size={16} /> : <Moon size={16} />}</Button>
+        <Button variant="ghost" onClick={() => setDarkMode(!dark)} className="text-[var(--text-secondary)]">{themeReady ? (dark ? <Sun size={16} /> : <Moon size={16} />) : <Moon size={16} />}</Button>
         <Button variant="ghost" onClick={() => { logout(); router.replace('/login'); }} className="text-[var(--text-secondary)]"><LogOut size={16} /></Button>
       </div>
     </header>
