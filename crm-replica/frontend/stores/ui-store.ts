@@ -13,18 +13,6 @@ type UiState = {
 
 const THEME_STORAGE_KEY = 'themePreference';
 
-function readStoredDarkMode(): boolean | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const stored = localStorage.getItem(THEME_STORAGE_KEY);
-    if (stored === 'dark') return true;
-    if (stored === 'light') return false;
-  } catch {
-    // ignore storage read failures (private mode/security policy).
-  }
-  return null;
-}
-
 function readDomDarkMode(): boolean {
   if (typeof document === 'undefined') return true;
   return document.documentElement.classList.contains('dark');
@@ -48,8 +36,9 @@ export const uiStore = create<UiState>((set) => {
     commandOpen: false,
     mobileSidebarOpen: false,
     hydrateTheme: () => {
-      const stored = readStoredDarkMode();
-      const next = stored ?? readDomDarkMode();
+      // Bootstrap script in app/layout.tsx already applies the initial DOM theme before hydration.
+      // Mirror that single source of truth here to avoid post-mount theme re-decision.
+      const next = readDomDarkMode();
       applyDarkMode(next);
       set({ darkMode: next, themeReady: true });
     },
