@@ -2,8 +2,10 @@ import { create } from 'zustand';
 
 type UiState = {
   darkMode: boolean;
+  themeReady: boolean;
   commandOpen: boolean;
   mobileSidebarOpen: boolean;
+  hydrateTheme: () => void;
   setDarkMode: (v: boolean) => void;
   setCommandOpen: (v: boolean) => void;
   setMobileSidebarOpen: (v: boolean) => void;
@@ -32,9 +34,17 @@ export const uiStore = create<UiState>((set) => {
   applyDarkMode(initial);
 
   return {
-    darkMode: initial,
+    darkMode: true,
+    themeReady: false,
     commandOpen: false,
     mobileSidebarOpen: false,
+    hydrateTheme: () => {
+      // Bootstrap script in app/layout.tsx already applies the initial DOM theme before hydration.
+      // Mirror that single source of truth here to avoid post-mount theme re-decision.
+      const next = readDomDarkMode();
+      applyDarkMode(next);
+      set({ darkMode: next, themeReady: true });
+    },
     setDarkMode: (darkMode) => {
       applyDarkMode(darkMode);
       if (typeof window !== 'undefined') {
