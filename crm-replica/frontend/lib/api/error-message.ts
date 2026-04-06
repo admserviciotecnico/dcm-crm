@@ -10,6 +10,19 @@ export function getApiErrorMessage(error: unknown, fallback = 'No se pudo comple
   if (axios.isAxiosError(error)) {
     const data = error.response?.data as Record<string, unknown> | string | undefined;
     if (typeof data === 'string') return data;
+
+    const details = data?.details as { fieldErrors?: Record<string, unknown>; formErrors?: unknown[] } | undefined;
+    const fieldErrors = details?.fieldErrors;
+    if (fieldErrors && typeof fieldErrors === 'object') {
+      const first = Object.entries(fieldErrors).find(([, messages]) => Array.isArray(messages) && messages.length > 0);
+      if (first) {
+        const [field, messages] = first;
+        const messageList = Array.isArray(messages) ? messages : [];
+        const firstMessage = typeof messageList[0] === 'string' && messageList[0].trim() ? messageList[0] : 'inválido';
+        return `${field}: ${firstMessage}`;
+      }
+    }
+
     const message = asString(data?.message) ?? asString(data?.error) ?? asString(data?.detail);
     if (message) return message;
 

@@ -10,11 +10,17 @@ import { uiStore } from '@/stores/ui-store';
 import { appStore } from '@/stores/app-store';
 import { getSocket } from '@/lib/api/socket';
 import { ErrorBoundary } from '@/components/common/error-boundary';
+import { orderStatusStore } from '@/stores/order-status-store';
 
 export default function PrivateLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const setCommandOpen = uiStore((s) => s.setCommandOpen);
   const pushNotification = appStore((s) => s.pushNotification);
+  const loadOrderStatuses = orderStatusStore((s) => s.load);
+
+  useEffect(() => {
+    void loadOrderStatuses();
+  }, [loadOrderStatuses]);
 
   useEffect(() => {
     const socket = getSocket();
