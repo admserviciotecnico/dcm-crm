@@ -2,41 +2,54 @@ import { create } from 'zustand';
 
 type UiState = {
   darkMode: boolean;
+  themeReady: boolean;
   commandOpen: boolean;
   mobileSidebarOpen: boolean;
+  hydrateTheme: () => void;
   setDarkMode: (v: boolean) => void;
   setCommandOpen: (v: boolean) => void;
   setMobileSidebarOpen: (v: boolean) => void;
 };
 
-function getInitialDarkMode(): boolean {
-  if (typeof window === 'undefined') return true;
-  const stored = localStorage.getItem('darkMode');
-  if (stored !== null) return stored === 'true';
-  return true;
+const THEME_STORAGE_KEY = 'themePreference';
+
+function readDomDarkMode(): boolean {
+  if (typeof document === 'undefined') return true;
+  return document.documentElement.classList.contains('dark');
 }
 
 function applyDarkMode(dark: boolean) {
   if (typeof document === 'undefined') return;
   if (dark) {
     document.documentElement.classList.add('dark');
+    document.documentElement.setAttribute('data-theme', 'dark');
   } else {
     document.documentElement.classList.remove('dark');
+    document.documentElement.setAttribute('data-theme', 'light');
   }
 }
 
 export const uiStore = create<UiState>((set) => {
-  const initial = getInitialDarkMode();
-  applyDarkMode(initial);
-
   return {
-    darkMode: initial,
+    darkMode: true,
+    themeReady: false,
     commandOpen: false,
     mobileSidebarOpen: false,
+    hydrateTheme: () => {
+      // Bootstrap script in app/layout.tsx already applies the initial DOM theme before hydration.
+      // Mirror that single source of truth here to avoid post-mount theme re-decision.
+      const next = readDomDarkMode();
+      applyDarkMode(next);
+      set({ darkMode: next, themeReady: true });
+    },
     setDarkMode: (darkMode) => {
       applyDarkMode(darkMode);
       if (typeof window !== 'undefined') {
-        localStorage.setItem('darkMode', String(darkMode));
+        try {
+          localStorage.setItem(THEME_STORAGE_KEY, darkMode ? 'dark' : 'light');
+        } catch {
+          // keep runtime stable when storage is unavailable.
+        }
       }
       set({ darkMode });
     },
@@ -44,3 +57,16 @@ export const uiStore = create<UiState>((set) => {
     setMobileSidebarOpen: (mobileSidebarOpen) => set({ mobileSidebarOpen })
   };
 });
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (event) => {
+    try {
+      if (event.key !== THEME_STORAGE_KEY || !event.newValue) return;
+      const dark = event.newValue === 'dark';
+      applyDarkMode(dark);
+      uiStore.setState({ darkMode: dark, themeReady: true });
+    } catch {
+      // never let theme sync crash the UI.
+    }
+  });
+}
