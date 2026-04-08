@@ -3,7 +3,7 @@ import { prisma } from '../config/prisma.js';
 import { authRequired, requireRole } from '../middleware/auth.js';
 import { computePriorityWeight, validateStateTransition, validateTechnicianRestrictedFields } from '../services/order-rules.js';
 import { validateBody, validateIdParam } from '../middleware/validation.js';
-import { locationEventCreateSchema, materialCreateSchema, materialUpdateSchema, orderCreateSchema, orderPatchSchema, techniciansUpdateSchema } from '../services/schemas.js';
+import { invoiceDraftCreateSchema, locationEventCreateSchema, materialCreateSchema, materialUpdateSchema, orderCreateSchema, orderPatchSchema, techniciansUpdateSchema } from '../services/schemas.js';
 import { logEvent } from '../services/event-log.js';
 import { asyncHandler, sendError } from '../utils/http.js';
 import { createNotifications, notifyAssignedTechnicians, ORDER_STATUS_LABEL, shortId } from '../services/notifications.js';
@@ -539,7 +539,7 @@ export default function ordersRouter(io) {
     res.json({ ok: true });
   }));
 
-  router.post('/:id/invoice-draft', validateIdParam, asyncHandler(async (req, res) => {
+  router.post('/:id/invoice-draft', validateIdParam, validateBody(invoiceDraftCreateSchema), asyncHandler(async (req, res) => {
     const order = await prisma.serviceOrder.findUnique({
       where: { id: req.params.id },
       include: {
@@ -568,7 +568,7 @@ export default function ordersRouter(io) {
     }
 
     const baseDraft = buildInvoiceDraftFromOrder(order);
-    const laborRate = Number(req.body?.labor_rate ?? 0);
+    const laborRate = req.body.labor_rate;
     const laborAmount = Number((baseDraft.labor_hours * laborRate).toFixed(2));
     const materialsAmount = Number(baseDraft.materials_total.toFixed(2));
     const totalAmount = Number((laborAmount + materialsAmount).toFixed(2));

@@ -175,6 +175,10 @@ export const techniciansUpdateSchema = z.object({
   technicians: z.array(z.string()).default([])
 }).strict();
 
+export const invoiceDraftCreateSchema = z.object({
+  labor_rate: z.coerce.number().finite().min(0).default(0)
+}).strict();
+
 export const searchQuerySchema = z.object({
   q: z.string().trim().min(2),
   limit: z.coerce.number().int().min(1).max(20).default(10)

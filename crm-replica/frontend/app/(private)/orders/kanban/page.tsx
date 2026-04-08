@@ -19,14 +19,26 @@ export default function OrdersKanbanPage() {
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [selected, setSelected] = useState<ServiceOrder | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const toast = appStore((s) => s.pushToast);
   const kanbanColumns = orderStatusStore((s) => s.kanbanColumns());
   const labelFor = orderStatusStore((s) => s.labelFor);
 
   const load = async () => {
-    const [ordersRes, usersRes] = await Promise.all([OrdersApi.list({ page: 1, pageSize: 300 }), UsersApi.list()]);
-    setOrders(ordersRes.items);
-    setUsers(usersRes);
+    setLoading(true);
+    try {
+      const [ordersRes, usersRes] = await Promise.all([OrdersApi.list({ page: 1, pageSize: 300 }), UsersApi.list()]);
+      setOrders(ordersRes.items);
+      setUsers(usersRes);
+      setLoadError(null);
+    } catch (error) {
+      const message = getApiErrorMessage(error, 'No se pudo cargar el tablero Kanban');
+      setLoadError(message);
+      toast({ type: 'error', message });
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { void load(); }, []);
@@ -52,7 +64,10 @@ export default function OrdersKanbanPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold tracking-tight">Órdenes · Kanban</h1>
-      {orders.length === 0 ? <EmptyState variant="orders" title="Sin órdenes para Kanban" subtitle="Creá órdenes para visualizar el tablero operativo." /> : <div className="grid gap-3 lg:grid-cols-5">
+      {loading ? <p className="text-sm text-[var(--text-secondary)]">Cargando tablero…</p> : null}
+      {!loading && loadError ? <p className="text-sm text-red-300">{loadError}</p> : null}
+      {!loading && orders.length === 0 ? <EmptyState variant="orders" title="Sin órdenes para Kanban" subtitle="Creá órdenes para visualizar el tablero operativo." /> : null}
+      {!loading && orders.length > 0 ? <div className="grid gap-3 lg:grid-cols-5">
         {kanbanColumns.map((col) => (
           <Card key={col} className="min-h-[420px]">
             <div onDragOver={(e: DragEvent<HTMLDivElement>) => e.preventDefault()} onDrop={(e: DragEvent<HTMLDivElement>) => void onDrop(e, col)}>
@@ -87,7 +102,7 @@ export default function OrdersKanbanPage() {
             </div>
           </Card>
         ) : null}
-      </div>}
+      </div> : null}
       <OrderDetail order={selected} users={users} onClose={() => setSelected(null)} onRefresh={load} />
     </div>
   );
