@@ -12,6 +12,7 @@ import { appStore } from '@/stores/app-store';
 import { authStore } from '@/stores/auth-store';
 import { getApiErrorMessage } from '@/lib/api/error-message';
 import { orderStatusStore } from '@/stores/order-status-store';
+import { isWorkflowEnabledStatus } from '@/constants/orderStatus';
 
 const HEX_COLOR = /^#([0-9a-fA-F]{6})$/;
 const PRESET_GROUPS = [
@@ -152,6 +153,7 @@ export default function OrderStatusesSettingsPage() {
   return (
     <div className="space-y-6">
       <PageHeader title="Estados de órdenes" description="Configurá etiquetas y colores de estados sin romper el flujo operativo existente." action={<Button onClick={openCreate}>Nuevo estado</Button>} />
+      <p className="text-xs text-[var(--text-secondary)]">Política actual: los estados custom son de catálogo/visualización. El workflow operativo (Kanban y transiciones) sigue limitado a estados built-in.</p>
       <Card className="p-0">
         <table className="w-full text-sm">
           <thead>
@@ -159,6 +161,7 @@ export default function OrderStatusesSettingsPage() {
               <th className="p-3">Etiqueta</th>
               <th className="p-3">Clave</th>
               <th className="p-3">Color</th>
+              <th className="p-3">Workflow</th>
               <th className="p-3">Orden</th>
               <th className="p-3">Estado</th>
               <th className="p-3">Tipo</th>
@@ -166,7 +169,7 @@ export default function OrderStatusesSettingsPage() {
             </tr>
           </thead>
           <tbody>
-            {loading ? <tr><td className="p-3" colSpan={7}>Cargando…</td></tr> : items.map((item) => (
+            {loading ? <tr><td className="p-3" colSpan={8}>Cargando…</td></tr> : items.map((item) => (
               <tr key={item.id} className="border-b border-[var(--border)]">
                 <td className="p-3">{item.label}</td>
                 <td className="p-3 font-mono text-xs">{item.key}</td>
@@ -176,6 +179,7 @@ export default function OrderStatusesSettingsPage() {
                     <span>{item.color}</span>
                   </div>
                 </td>
+                <td className="p-3">{isWorkflowEnabledStatus(item.key) ? 'Sí' : 'No'}</td>
                 <td className="p-3">{item.sort_order}</td>
                 <td className="p-3">{item.is_active ? 'Activo' : 'Inactivo'}</td>
                 <td className="p-3">{item.is_system ? 'Sistema' : 'Custom'}</td>

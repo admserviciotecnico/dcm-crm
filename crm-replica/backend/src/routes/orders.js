@@ -11,7 +11,7 @@ import { computeSlaDeadline, getSlaStatus } from '../utils/sla.js';
 import { createSimplePdf } from '../utils/pdf.js';
 import { buildInvoiceDraftFromOrder } from '../services/invoice-draft.js';
 import { syncOrderCalendarEvents } from '../services/calendar-integrations.js';
-import { statusKeyExists } from '../services/order-status-config.js';
+import { isWorkflowStatusKey, statusKeyExists } from '../services/order-status-config.js';
 
 const MAX_PAGE_SIZE = 100;
 const SORT_FIELDS = {
@@ -221,6 +221,7 @@ export default function ordersRouter(io) {
   router.post('/', requireRole('admin'), validateBody(orderCreateSchema), asyncHandler(async (req, res) => {
     const { technicians = [], ...data } = req.body;
     if (!(await statusKeyExists(data.estado))) return sendError(res, 400, 'Estado inválido');
+    if (!isWorkflowStatusKey(data.estado)) return sendError(res, 400, 'Estado fuera de flujo operativo');
     data.prioridad_peso = computePriorityWeight(data.prioridad);
 
     const tx = await prisma.$transaction(async (db) => {
@@ -284,6 +285,7 @@ export default function ordersRouter(io) {
     const transition = validateStateTransition({ role, currentState: order.estado, nextState: req.body.estado });
     if (!transition.ok) return sendError(res, 400, transition.reason);
     if (req.body.estado && !(await statusKeyExists(req.body.estado))) return sendError(res, 400, 'Estado inválido');
+    if (req.body.estado && !isWorkflowStatusKey(req.body.estado)) return sendError(res, 400, 'Estado fuera de flujo operativo');
 
     const patch = { ...req.body };
     if (patch.prioridad) patch.prioridad_peso = computePriorityWeight(patch.prioridad);
@@ -447,6 +449,8 @@ export default function ordersRouter(io) {
     const order = await prisma.serviceOrder.findUnique({ where: { id: req.params.id }, include: { technicians: true } });
     const access = ensureOrderAccess(order, req.user);
     if (!access.ok) return sendError(res, access.status, access.message);
+    const materialExists = await prisma.orderMaterial.findFirst({ where: { id: req.params.materialId, order_id: req.params.id } });
+    if (!materialExists) return sendError(res, 404, 'Not found');
 
     const material = await prisma.orderMaterial.update({ where: { id: req.params.materialId }, data: req.body });
     await prisma.serviceOrderStatusHistory.create({
@@ -468,6 +472,8 @@ export default function ordersRouter(io) {
     const order = await prisma.serviceOrder.findUnique({ where: { id: req.params.id }, include: { technicians: true } });
     const access = ensureOrderAccess(order, req.user);
     if (!access.ok) return sendError(res, access.status, access.message);
+    const materialExists = await prisma.orderMaterial.findFirst({ where: { id: req.params.materialId, order_id: req.params.id } });
+    if (!materialExists) return sendError(res, 404, 'Not found');
 
     await prisma.orderMaterial.delete({ where: { id: req.params.materialId } });
     await prisma.serviceOrderStatusHistory.create({

@@ -35,6 +35,7 @@ export default function OrdersKanbanPage() {
     acc[col] = orders.filter((o) => o.estado === col);
     return acc;
   }, {}), [kanbanColumns, orders]);
+  const outOfBoard = useMemo(() => orders.filter((order) => !kanbanColumns.includes(order.estado as typeof kanbanColumns[number])), [kanbanColumns, orders]);
 
   const onDrop = async (event: DragEvent<HTMLDivElement>, nextStatus: OrderStatus) => {
     const orderId = event.dataTransfer.getData('order-id');
@@ -69,6 +70,23 @@ export default function OrdersKanbanPage() {
             </div>
           </Card>
         ))}
+        {outOfBoard.length ? (
+          <Card className="min-h-[420px]">
+            <div>
+              <p className="mb-1 text-sm font-semibold">Fuera de workflow Kanban ({outOfBoard.length})</p>
+              <p className="mb-3 text-xs text-[var(--text-secondary)]">Incluye estados de catálogo no soportados por drag & drop operativo.</p>
+              <div className="space-y-2">
+                {outOfBoard.map((order) => (
+                  <button key={order.id} onClick={() => setSelected(order)} className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] p-3 text-left transition hover:border-blue-500">
+                    <p className="mono text-xs">#{order.id.slice(0, 8)}</p>
+                    <p className="text-sm">{order.client?.nombre_empresa ?? order.client_id}</p>
+                    <p className="mt-1 text-xs text-[var(--text-secondary)]">{labelFor(order.estado)}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </Card>
+        ) : null}
       </div>}
       <OrderDetail order={selected} users={users} onClose={() => setSelected(null)} onRefresh={load} />
     </div>

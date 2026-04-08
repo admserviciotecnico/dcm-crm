@@ -315,8 +315,8 @@ model OrderLocationEvent {
 model ServiceOrderStatusHistory {
   id               String       @id @default(cuid())
   service_order_id String
-  estado_anterior  OrderStatus?
-  estado_nuevo     OrderStatus
+  estado_anterior  String?
+  estado_nuevo     String
   campo_modificado String?
   valor_anterior   String?
   valor_nuevo      String?

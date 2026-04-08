@@ -59,6 +59,7 @@ export default function OrdersPage() {
   const toast = appStore((s) => s.pushToast);
   const online = useOnlineStatus();
   const activeStatuses = orderStatusStore((s) => s.activeOptions());
+  const workflowStatuses = orderStatusStore((s) => s.workflowOptions());
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
@@ -243,7 +244,7 @@ export default function OrdersPage() {
         {selectedIds.length > 0 ? <Card className="sticky top-20 z-20">
 <div className="flex flex-wrap items-center gap-2">
 <Badge>{selectedIds.length} seleccionadas</Badge>
-<Select value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value as OrderStatus)} className="max-w-52">{activeStatuses.map((status) => <option key={status.key} value={status.key}>{status.label}</option>)}</Select>
+<Select value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value as OrderStatus)} className="max-w-52">{workflowStatuses.map((status) => <option key={status.key} value={status.key}>{status.label}</option>)}</Select>
 <Button onClick={bulkChangeStatus}>Cambiar estado</Button>
 <Select value={bulkTechnician} onChange={(e) => setBulkTechnician(e.target.value)} className="max-w-52">
 <option value="">Asignar técnico</option>{users.filter((u) => u.role === 'tecnico').map((u) => <option key={u.id} value={u.id}>{u.first_name} {u.last_name}</option>)}</Select>
@@ -273,7 +274,7 @@ export default function OrdersPage() {
 </div>
             <div className="space-y-1">
 <label className="text-xs text-[var(--text-secondary)]">Estado</label>
-<Select {...register('estado')}>{activeStatuses.map((status) => <option key={status.key} value={status.key}>{status.label}</option>)}</Select>
+<Select {...register('estado')}>{workflowStatuses.map((status) => <option key={status.key} value={status.key}>{status.label}</option>)}</Select>
 </div>
             <div className="space-y-1">
 <label className="text-xs text-[var(--text-secondary)]">Prioridad</label>

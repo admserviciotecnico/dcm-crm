@@ -34,6 +34,12 @@ export const ORDER_STATUS_WORKFLOW: Record<BuiltInOrderStatus, BuiltInOrderStatu
   cancelado: []
 };
 
+export const WORKFLOW_ENABLED_ORDER_STATUSES: BuiltInOrderStatus[] = Object.keys(ORDER_STATUS_WORKFLOW) as BuiltInOrderStatus[];
+
+export function isWorkflowEnabledStatus(status: string) {
+  return WORKFLOW_ENABLED_ORDER_STATUSES.includes(status as BuiltInOrderStatus);
+}
+
 export const ORDER_STATUS_DEFAULT_COLOR: Record<BuiltInOrderStatus, string> = {
   presupuesto_generado: '#64748b',
   oc_recibida: '#0ea5e9',

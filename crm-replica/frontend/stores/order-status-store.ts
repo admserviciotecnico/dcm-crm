@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { ORDER_STATUS_COLUMNS, ORDER_STATUS_DEFAULT_COLOR, ORDER_STATUS_LABEL } from '@/constants/orderStatus';
+import { isWorkflowEnabledStatus, ORDER_STATUS_COLUMNS, ORDER_STATUS_DEFAULT_COLOR, ORDER_STATUS_LABEL } from '@/constants/orderStatus';
 import { OrderStatusesApi } from '@/lib/api/endpoints';
 import { BuiltInOrderStatus, OrderStatusConfig } from '@/types/domain';
 
@@ -32,6 +32,8 @@ type State = {
   labelFor: (key: string) => string;
   colorFor: (key: string) => string;
   activeOptions: () => OrderStatusConfig[];
+  workflowOptions: () => OrderStatusConfig[];
+  isWorkflowStatus: (key: string) => boolean;
   kanbanColumns: () => BuiltInOrderStatus[];
 };
 
@@ -66,5 +68,7 @@ export const orderStatusStore = create<State>((set, get) => ({
     return defaultColor ?? '#64748b';
   },
   activeOptions: () => get().items.filter((item) => item.is_active).sort((a, b) => a.sort_order - b.sort_order || a.label.localeCompare(b.label)),
+  workflowOptions: () => get().items.filter((item) => item.is_active && isWorkflowEnabledStatus(item.key)).sort((a, b) => a.sort_order - b.sort_order || a.label.localeCompare(b.label)),
+  isWorkflowStatus: (key) => isWorkflowEnabledStatus(key),
   kanbanColumns: () => ORDER_STATUS_COLUMNS
 }));
