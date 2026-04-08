@@ -317,8 +317,8 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
       setEditingMaterial(null);
       materialForm.reset(DEFAULT_MATERIAL);
       onRefresh();
-    } catch {
-      toast({ type: 'error', message: 'No se pudo guardar el material' });
+    } catch (error) {
+      toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo guardar el material') });
     } finally {
       setMaterialSaving(false);
     }
@@ -330,8 +330,8 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
       setMaterials((prev) => prev.filter((item) => item.id !== material.id));
       toast({ type: 'info', message: 'Material eliminado' });
       onRefresh();
-    } catch {
-      toast({ type: 'error', message: 'No se pudo eliminar el material' });
+    } catch (error) {
+      toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo eliminar el material') });
     }
   };
 
@@ -585,24 +585,17 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
                 allowCapture
                 defaultCategory="photo"
                 onAdd={async (name, category) => {
-                  try {
-                    const result = await addDocument(name, category);
-                    if (result.ok) toast({ type: 'success', message: 'Documento agregado' });
-                    else if (result.reason === 'duplicate') toast({ type: 'info', message: 'Ese documento ya existe para esta orden' });
-                    else toast({ type: 'error', message: 'Nombre de documento inválido' });
-                  } catch (error) {
-                    toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo registrar el documento') });
-                  }
+                  const result = await addDocument(name, category);
+                  if (result.ok) toast({ type: 'success', message: 'Documento agregado' });
+                  else if (result.reason === 'duplicate') toast({ type: 'info', message: 'Ese documento ya existe para esta orden' });
+                  else if (result.reason === 'invalid') toast({ type: 'error', message: 'Nombre de documento inválido' });
+                  else toast({ type: 'error', message: 'No se pudo registrar el documento' });
                 }}
                 onAddFile={async (file, category) => {
-                  try {
-                    const result = await addDocument(file.name, category, { filePath: `capture://${file.name}` });
-                    if (result.ok) toast({ type: 'success', message: 'Foto asociada a la orden' });
-                    else if (result.reason === 'duplicate') toast({ type: 'info', message: 'Esa foto ya está registrada para esta orden' });
-                    else toast({ type: 'error', message: 'No se pudo registrar la foto' });
-                  } catch (error) {
-                    toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo registrar la foto') });
-                  }
+                  const result = await addDocument(file.name, category, { filePath: `capture://${file.name}` });
+                  if (result.ok) toast({ type: 'success', message: 'Foto asociada a la orden' });
+                  else if (result.reason === 'duplicate') toast({ type: 'info', message: 'Esa foto ya está registrada para esta orden' });
+                  else toast({ type: 'error', message: 'No se pudo registrar la foto' });
                 }}
               />
               <p className="mt-2 text-xs text-[var(--text-secondary)]">Las fotos capturadas hoy se guardan como evidencia registrada dentro del sistema de documentos. El binario real seguirá dependiendo de la futura capa de upload físico.</p>

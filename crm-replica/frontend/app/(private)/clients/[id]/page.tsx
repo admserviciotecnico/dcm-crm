@@ -379,7 +379,7 @@ export default function Client360Page() {
       {selectedTab === 'documentos' ? (
         <Card>
           <h2 className="text-lg font-medium">Documentos</h2>
-          <div className="my-3"><FileUploader onAdd={async (name, category) => { const result = await addDocument(name, category); if (result.ok) toast({ type: 'success', message: 'Documento agregado al cliente' }); else if (result.reason === 'duplicate') toast({ type: 'info', message: 'Ese documento ya existe para este cliente' }); else toast({ type: 'error', message: 'Nombre de documento inválido' }); }} /></div>
+          <div className="my-3"><FileUploader onAdd={async (name, category) => { const result = await addDocument(name, category); if (result.ok) toast({ type: 'success', message: 'Documento agregado al cliente' }); else if (result.reason === 'duplicate') toast({ type: 'info', message: 'Ese documento ya existe para este cliente' }); else if (result.reason === 'invalid') toast({ type: 'error', message: 'Nombre de documento inválido' }); else toast({ type: 'error', message: 'No se pudo agregar el documento' }); }} /></div>
           {docs.length === 0 ? <EmptyState variant="default" title="Sin documentos" subtitle="Subí archivos para centralizar la documentación del cliente." /> : (
             <div className="space-y-3">
               <FileList docs={docs.filter((d) => d.category === 'contract')} onRemove={async (docId) => { const result = await removeDocument(docId); if (result.ok) toast({ type: 'info', message: 'Documento eliminado' }); else toast({ type: 'error', message: 'No se pudo eliminar el documento' }); }} title="Contratos" hideWhenEmpty />

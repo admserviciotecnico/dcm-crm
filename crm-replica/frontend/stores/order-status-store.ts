@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { isWorkflowEnabledStatus, ORDER_STATUS_COLUMNS, ORDER_STATUS_DEFAULT_COLOR, ORDER_STATUS_LABEL } from '@/constants/orderStatus';
+import { isWorkflowEnabledStatus, ORDER_STATUS_COLUMNS, ORDER_STATUS_DEFAULT_COLOR, ORDER_STATUS_LABEL, WORKFLOW_ENABLED_ORDER_STATUSES } from '@/constants/orderStatus';
 import { OrderStatusesApi } from '@/lib/api/endpoints';
 import { BuiltInOrderStatus, OrderStatusConfig } from '@/types/domain';
 
@@ -10,7 +10,7 @@ function isHexColor(value: string | null | undefined) {
 }
 
 function fallbackStatusList(): OrderStatusConfig[] {
-  return ORDER_STATUS_COLUMNS.map((key, index) => ({
+  return WORKFLOW_ENABLED_ORDER_STATUSES.map((key, index) => ({
     id: key,
     key,
     label: ORDER_STATUS_LABEL[key],
