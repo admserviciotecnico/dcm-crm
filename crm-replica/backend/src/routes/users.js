@@ -10,9 +10,13 @@ const router = Router();
 router.use(authRequired);
 
 router.get('/', asyncHandler(async (_req, res) => {
+  const assignmentsWindowStart = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
   const [users, assignments] = await Promise.all([
     prisma.user.findMany({ include: { role: true }, orderBy: [{ first_name: 'asc' }, { last_name: 'asc' }] }),
     prisma.serviceOrderTechnician.findMany({
+      where: {
+        fecha_asignacion: { gte: assignmentsWindowStart }
+      },
       include: {
         service_order: {
           select: {

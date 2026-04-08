@@ -9,8 +9,32 @@ import { asyncHandler, sendError } from '../utils/http.js';
 const router = Router();
 router.use(authRequired);
 
+async function canAccessDocumentEntity(user, entityType, entityId) {
+  if (!user) return false;
+  if (user.role?.name === 'admin') return true;
+  if (user.role?.name !== 'tecnico') return false;
+
+  if (entityType === 'order') {
+    const assigned = await prisma.serviceOrder.findFirst({
+      where: {
+        id: entityId,
+        is_active: true,
+        deleted_at: null,
+        technicians: { some: { technician_id: user.id } }
+      },
+      select: { id: true }
+    });
+    return !!assigned;
+  }
+
+  // No robust ownership model for technicians on client/equipment docs.
+  return false;
+}
+
 router.get('/', validateQuery(documentListSchema), asyncHandler(async (req, res) => {
   const { entityType, entityId, limit, offset } = req.validatedQuery;
+  const allowed = await canAccessDocumentEntity(req.user, entityType, entityId);
+  if (!allowed) return sendError(res, 403, 'Forbidden');
 
   const items = await prisma.document.findMany({
     where: {
@@ -33,6 +57,9 @@ router.get('/', validateQuery(documentListSchema), asyncHandler(async (req, res)
 }));
 
 router.post('/', validateBody(documentCreateSchema), asyncHandler(async (req, res) => {
+  const allowed = await canAccessDocumentEntity(req.user, req.body.entity_type, req.body.entity_id);
+  if (!allowed) return sendError(res, 403, 'Forbidden');
+
   const created = await prisma.document.create({ data: req.body });
   await logEvent({
     entity_type: created.entity_type,
@@ -47,6 +74,8 @@ router.post('/', validateBody(documentCreateSchema), asyncHandler(async (req, re
 router.delete('/:id', validateIdParam, asyncHandler(async (req, res) => {
   const existing = await prisma.document.findUnique({ where: { id: req.params.id } });
   if (!existing) return sendError(res, 404, 'Document not found');
+  const allowed = await canAccessDocumentEntity(req.user, existing.entity_type, existing.entity_id);
+  if (!allowed) return sendError(res, 403, 'Forbidden');
 
   await prisma.document.delete({ where: { id: req.params.id } });
   await logEvent({
