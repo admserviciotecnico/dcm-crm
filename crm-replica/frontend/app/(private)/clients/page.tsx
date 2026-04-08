@@ -40,6 +40,7 @@ const contactSchema = z.object({
 
 const schema = z.object({
   nombre_empresa: z.string().min(1, 'Requerido'),
+  direccion: z.string().optional(),
   persona_contacto: z.string().optional(),
   fecha_vencimiento_documentacion: z.string().optional(),
   observaciones: z.string().optional(),
@@ -90,7 +91,7 @@ export default function ClientsPage() {
 
   const { register, handleSubmit, reset, control, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { nombre_empresa: '', persona_contacto: '', fecha_vencimiento_documentacion: '', observaciones: '', contacts: [emptyContact] }
+    defaultValues: { nombre_empresa: '', direccion: '', persona_contacto: '', fecha_vencimiento_documentacion: '', observaciones: '', contacts: [emptyContact] }
   });
   const { fields, append, remove } = useFieldArray({ control, name: 'contacts' });
 
@@ -115,20 +116,20 @@ export default function ClientsPage() {
     const [legacyNombre, ...legacyRest] = primaryFromLegacy.split(' ').filter(Boolean);
     const legacyApellido = legacyRest.join(' ');
     const contacts = parsed.contacts.length > 0 ? parsed.contacts : [{ nombre: legacyNombre ?? '', apellido: legacyApellido ?? '', email: client.email ?? '', telefono: client.telefono ?? '', area: '' }];
-    return { nombre_empresa: client.nombre_empresa, persona_contacto: client.persona_contacto ?? '', fecha_vencimiento_documentacion: client.fecha_vencimiento_documentacion ?? '', observaciones: parsed.observaciones, contacts: contacts.map((c) => ({ nombre: c.nombre ?? '', apellido: c.apellido ?? '', email: c.email ?? '', telefono: c.telefono ?? '', area: c.area ?? '' })) };
+    return { nombre_empresa: client.nombre_empresa, direccion: client.direccion ?? '', persona_contacto: client.persona_contacto ?? '', fecha_vencimiento_documentacion: client.fecha_vencimiento_documentacion ?? '', observaciones: parsed.observaciones, contacts: contacts.map((c) => ({ nombre: c.nombre ?? '', apellido: c.apellido ?? '', email: c.email ?? '', telefono: c.telefono ?? '', area: c.area ?? '' })) };
   };
 
   const onSubmit = async (data: FormData) => {
     try {
       const contacts: ClientContact[] = data.contacts.map((c) => ({ nombre: c.nombre.trim(), apellido: c.apellido.trim(), email: c.email?.trim() || undefined, telefono: c.telefono?.trim() || undefined, area: c.area?.trim() || undefined }));
       const primary = getPrimaryContact(contacts);
-      const payload = { nombre_empresa: data.nombre_empresa, persona_contacto: primary ? `${primary.nombre} ${primary.apellido}`.trim() : data.persona_contacto, email: primary?.email || 'sin-email@cliente.local', telefono: primary?.telefono || '', fecha_vencimiento_documentacion: data.fecha_vencimiento_documentacion, observaciones: serializeClientObservaciones(contacts, data.observaciones ?? '') };
+      const payload = { nombre_empresa: data.nombre_empresa, direccion: data.direccion, persona_contacto: primary ? `${primary.nombre} ${primary.apellido}`.trim() : data.persona_contacto, email: primary?.email || 'sin-email@cliente.local', telefono: primary?.telefono || '', fecha_vencimiento_documentacion: data.fecha_vencimiento_documentacion, observaciones: serializeClientObservaciones(contacts, data.observaciones ?? '') };
       if (edit) await ClientsApi.update(edit.id, payload);
       else await ClientsApi.create(payload);
       toast({ type: 'success', message: edit ? 'Cliente actualizado' : 'Cliente creado' });
       setOpen(false);
       setEdit(null);
-      reset({ nombre_empresa: '', persona_contacto: '', fecha_vencimiento_documentacion: '', observaciones: '', contacts: [emptyContact] });
+      reset({ nombre_empresa: '', direccion: '', persona_contacto: '', fecha_vencimiento_documentacion: '', observaciones: '', contacts: [emptyContact] });
       await load();
     } catch (error) {
       toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo guardar el cliente') });
@@ -168,7 +169,7 @@ export default function ClientsPage() {
         <PageHeader title="Clientes industriales" description="Administrá cuentas, contactos y documentación de cada cliente." action={<div className="flex items-center gap-2">
 <Input value={queryInput} onChange={(e) => setQueryInput(e.target.value)} placeholder="Buscar por empresa, contacto, email o teléfono" className="w-80" />
 <Button variant="secondary" onClick={() => setParams({ expired: expiredOnly ? null : '1', page: '1' })}>{expiredOnly ? 'Ver todos' : 'Solo vencidos'}</Button>
-<Button onClick={() => { setEdit(null); reset({ nombre_empresa: '', persona_contacto: '', fecha_vencimiento_documentacion: '', observaciones: '', contacts: [emptyContact] }); setOpen(true); }}>Nuevo cliente</Button>
+<Button onClick={() => { setEdit(null); reset({ nombre_empresa: '', direccion: '', persona_contacto: '', fecha_vencimiento_documentacion: '', observaciones: '', contacts: [emptyContact] }); setOpen(true); }}>Nuevo cliente</Button>
 </div>} />
         {loading ? <TableSkeleton rows={7} cols={7} /> : !clients.length ? <EmptyState variant="clients" title="No hay clientes" subtitle="Registra empresas para iniciar operaciones." /> : (
           <>
@@ -244,6 +245,10 @@ export default function ClientsPage() {
             <div className="space-y-2">
 <label className="text-sm font-medium text-[var(--text-secondary)]">Persona de contacto principal</label>
 <Input placeholder="Se completa automáticamente con el primer contacto" {...register('persona_contacto')} />
+</div>
+            <div className="space-y-2">
+<label className="text-sm font-medium text-[var(--text-secondary)]">Dirección</label>
+<Input placeholder="Dirección" {...register('direccion')} />
 </div>
             <div className="space-y-2">
 <label className="text-sm font-medium text-[var(--text-secondary)]">Vencimiento de documentación</label>

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DocumentsApi } from '@/lib/api/endpoints';
 import { DocumentCategory, DocumentEntityType, DocumentItem } from '@/modules/documents/types';
 
-type MutationResult = { ok: true; item?: DocumentItem } | { ok: false; reason: 'invalid' | 'duplicate' | 'missing' };
+type MutationResult = { ok: true; item?: DocumentItem } | { ok: false; reason: 'invalid' | 'duplicate' | 'missing' | 'request_failed' };
 
 type BackendDocument = {
   id: string;
@@ -31,22 +31,26 @@ function fromBackend(doc: BackendDocument): DocumentItem {
 export function useDocumentsState(entityType: DocumentEntityType, entityId: string) {
   const [docs, setDocs] = useState<DocumentItem[]>([]);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (cancelledRef?: { current: boolean }) => {
     if (!entityId) {
-      setDocs([]);
+      if (!cancelledRef?.current) setDocs([]);
       return;
     }
 
     try {
       const remote = await DocumentsApi.list(entityType, entityId);
-      setDocs(remote.map(fromBackend));
+      if (!cancelledRef?.current) setDocs(remote.map(fromBackend));
     } catch {
-      setDocs([]);
+      if (!cancelledRef?.current) setDocs([]);
     }
   }, [entityId, entityType]);
 
   useEffect(() => {
-    void load();
+    const cancelledRef = { current: false };
+    void load(cancelledRef);
+    return () => {
+      cancelledRef.current = true;
+    };
   }, [load]);
 
   const add = useCallback(async (name: string, category: DocumentCategory, options?: { filePath?: string }): Promise<MutationResult> => {
@@ -56,25 +60,33 @@ export function useDocumentsState(entityType: DocumentEntityType, entityId: stri
     const duplicate = docs.some((d) => d.category === category && d.name.toLowerCase() === clean.toLowerCase());
     if (duplicate) return { ok: false, reason: 'duplicate' };
 
-    const created = await DocumentsApi.create({
-      entity_type: entityType,
-      entity_id: entityId,
-      file_name: clean,
-      file_category: category,
-      file_path: options?.filePath
-    });
-    const mapped = fromBackend(created as BackendDocument);
-    setDocs((prev) => [mapped, ...prev]);
-    return { ok: true, item: mapped };
+    try {
+      const created = await DocumentsApi.create({
+        entity_type: entityType,
+        entity_id: entityId,
+        file_name: clean,
+        file_category: category,
+        file_path: options?.filePath
+      });
+      const mapped = fromBackend(created as BackendDocument);
+      setDocs((prev) => [mapped, ...prev]);
+      return { ok: true, item: mapped };
+    } catch {
+      return { ok: false, reason: 'request_failed' };
+    }
   }, [docs, entityId, entityType]);
 
   const remove = useCallback(async (id: string): Promise<MutationResult> => {
     const doc = docs.find((d) => d.id === id);
     if (!doc) return { ok: false, reason: 'missing' };
 
-    await DocumentsApi.remove(id);
-    setDocs((prev) => prev.filter((d) => d.id !== id));
-    return { ok: true };
+    try {
+      await DocumentsApi.remove(id);
+      setDocs((prev) => prev.filter((d) => d.id !== id));
+      return { ok: true };
+    } catch {
+      return { ok: false, reason: 'request_failed' };
+    }
   }, [docs]);
 
   const groupedByCategory = useMemo(() => docs.reduce<Record<DocumentCategory, DocumentItem[]>>((acc, doc) => {
