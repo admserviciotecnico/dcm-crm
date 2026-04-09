@@ -65,7 +65,7 @@ export interface ClientHealth {
   };
 }
 
-export type EquipmentStatus = 'operativo' | 'mantenimiento' | 'fuera_servicio' | 'en_revision' | 'revision';
+export type EquipmentStatus = 'operativo' | 'mantenimiento' | 'fuera_servicio' | 'en_revision';
 
 export interface Equipment {
   id: string;

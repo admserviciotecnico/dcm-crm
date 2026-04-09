@@ -11,7 +11,6 @@ import { authStore } from '@/stores/auth-store';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
 import { appStore } from '@/stores/app-store';
 import { getApiErrorMessage } from '@/lib/api/error-message';
 
@@ -25,8 +24,7 @@ const registerSchema = z.object({
   last_name: z.string().min(1, 'Requerido'),
   email: z.string().email('Email inválido'),
   password: z.string().min(8, 'Mínimo 8 caracteres'),
-  confirm_password: z.string().min(1, 'Requerido'),
-  role: z.enum(['admin', 'tecnico'])
+  confirm_password: z.string().min(1, 'Requerido')
 }).refine((v) => v.password === v.confirm_password, { message: 'Las contraseñas no coinciden', path: ['confirm_password'] });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -41,7 +39,7 @@ export default function LoginPage() {
   const [registerMode, setRegisterMode] = useState(false);
 
   const loginForm = useForm<LoginFormData>({ resolver: zodResolver(loginSchema), defaultValues: { remember_me: false } });
-  const registerForm = useForm<RegisterFormData>({ resolver: zodResolver(registerSchema), defaultValues: { role: 'tecnico' } });
+  const registerForm = useForm<RegisterFormData>({ resolver: zodResolver(registerSchema) });
 
   const onLogin = async (data: LoginFormData) => {
     try {
@@ -57,9 +55,9 @@ export default function LoginPage() {
 
   const onRegister = async (data: RegisterFormData) => {
     try {
-      await AuthApi.register({ first_name: data.first_name, last_name: data.last_name, email: data.email, password: data.password, role: data.role });
+      await AuthApi.register({ first_name: data.first_name, last_name: data.last_name, email: data.email, password: data.password, role: 'tecnico' });
       pushToast({ type: 'success', message: 'Usuario registrado correctamente' });
-      registerForm.reset({ first_name: '', last_name: '', email: '', password: '', confirm_password: '', role: 'tecnico' });
+      registerForm.reset({ first_name: '', last_name: '', email: '', password: '', confirm_password: '' });
       setRegisterMode(false);
     } catch (error) {
       pushToast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo registrar el usuario') });
@@ -94,7 +92,6 @@ export default function LoginPage() {
             <div><Input placeholder="Email" {...registerForm.register('email')} />{registerForm.formState.errors.email ? <p className="mt-1 text-xs text-red-300">{registerForm.formState.errors.email.message}</p> : null}</div>
             <div><Input type="password" placeholder="Contraseña" {...registerForm.register('password')} />{registerForm.formState.errors.password ? <p className="mt-1 text-xs text-red-300">{registerForm.formState.errors.password.message}</p> : null}</div>
             <div><Input type="password" placeholder="Confirmar contraseña" {...registerForm.register('confirm_password')} />{registerForm.formState.errors.confirm_password ? <p className="mt-1 text-xs text-red-300">{registerForm.formState.errors.confirm_password.message}</p> : null}</div>
-            <div><Select {...registerForm.register('role')}><option value="tecnico">Técnico</option><option value="admin">Admin</option></Select>{registerForm.formState.errors.role ? <p className="mt-1 text-xs text-red-300">{registerForm.formState.errors.role.message}</p> : null}</div>
             <Button type="submit" disabled={registerForm.formState.isSubmitting} className="w-full">{registerForm.formState.isSubmitting ? 'Registrando...' : 'Crear cuenta'}</Button>
             <button type="button" onClick={() => setRegisterMode(false)} className="text-xs text-[var(--primary)]">Volver al login</button>
           </form>

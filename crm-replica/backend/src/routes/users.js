@@ -9,7 +9,23 @@ import { buildSafeUsers, createUserAccount, toSafeUser } from '../services/users
 const router = Router();
 router.use(authRequired);
 
-router.get('/', asyncHandler(async (_req, res) => {
+router.get('/', asyncHandler(async (req, res) => {
+  if (req.user.role.name !== 'admin') {
+    const technicians = await prisma.user.findMany({
+      where: { active: true, role: { name: 'tecnico' } },
+      include: { role: true },
+      orderBy: [{ first_name: 'asc' }, { last_name: 'asc' }]
+    });
+    return res.json(technicians.map((user) => ({
+      id: user.id,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      email: user.email,
+      role: user.role.name,
+      active: user.active
+    })));
+  }
+
   const assignmentsWindowStart = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
   const [users, assignments] = await Promise.all([
     prisma.user.findMany({ include: { role: true }, orderBy: [{ first_name: 'asc' }, { last_name: 'asc' }] }),

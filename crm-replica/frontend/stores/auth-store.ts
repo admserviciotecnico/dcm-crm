@@ -49,3 +49,13 @@ export const authStore = create<State>((set) => ({
     set({ token: null, user: null });
   }
 }));
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (event) => {
+    if (event.key !== AUTH_TOKEN_KEY && event.key !== null) return;
+    const token = readStoredToken();
+    const current = authStore.getState().token;
+    if (token === current) return;
+    authStore.setState({ token, user: null });
+  });
+}

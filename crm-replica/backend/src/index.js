@@ -43,6 +43,10 @@ io.use((socket, next) => {
 
   try {
     const payload = jwt.verify(token, env.jwtSecret);
+    if (payload.kind !== 'user') {
+      next(new Error('Unauthorized'));
+      return;
+    }
     socket.data.userId = payload.sub;
     socket.data.role = payload.role;
     next();

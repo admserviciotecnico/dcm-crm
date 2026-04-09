@@ -8,6 +8,13 @@ export const registerSchema = z.object({
   role: z.enum(['admin', 'tecnico']).default('tecnico')
 }).strict();
 
+export const publicRegisterSchema = z.object({
+  first_name: z.string().min(1),
+  last_name: z.string().min(1),
+  email: z.string().email(),
+  password: z.string().min(8)
+}).strict();
+
 export const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1)
