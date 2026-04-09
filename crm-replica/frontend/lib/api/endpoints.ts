@@ -1,6 +1,6 @@
 import { api } from './client';
 import { portalApi } from './portal-client';
-import { AutomationRule, AutomationRunResult, Client, ClientHealth, DashboardKpis, Equipment, EventEntityType, EventLog, ExternalCalendarConnection, ExternalCalendarEventStatus, InvoiceDraft, MapOrderMarker, NotificationItem, OrderHistory, OrderLocationEvent, OrderMaterial, PortalDocument, PortalUser, SearchResultGroup, ServiceOrder, TechnicianMapLocation, User } from '@/types/domain';
+import { AutomationRule, AutomationRunResult, Client, ClientHealth, DashboardKpis, Equipment, EventEntityType, EventLog, ExternalCalendarConnection, ExternalCalendarEventStatus, InvoiceDraft, MapOrderMarker, NotificationItem, OrderHistory, OrderLocationEvent, OrderMaterial, OrderStatusConfig, PortalDocument, PortalUser, SearchResultGroup, ServiceOrder, TechnicianMapLocation, User } from '@/types/domain';
 import { DocumentCategory, DocumentEntityType } from '@/modules/documents/types';
 
 type PaginatedResponse<T> = {
@@ -67,6 +67,12 @@ export const OrdersApi = {
   recordLocationEvent: (id: string, payload: { event_type: 'arrival' | 'departure'; latitude: number; longitude: number }) => api.post<OrderLocationEvent>(`/api/orders/${id}/location-events`, payload).then((r) => r.data),
   exportPdf: (id: string) => api.get<Blob>(`/api/orders/${id}/pdf`, { responseType: 'blob' }).then((r) => r.data),
   createInvoiceDraft: (id: string, payload?: { labor_rate?: number }) => api.post<InvoiceDraft>(`/api/orders/${id}/invoice-draft`, payload ?? {}).then((r) => r.data)
+};
+
+export const OrderStatusesApi = {
+  list: () => api.get<OrderStatusConfig[]>('/api/order-statuses').then((r) => r.data),
+  create: (payload: { key: string; label: string; color: string; sort_order?: number; is_active?: boolean }) => api.post<OrderStatusConfig>('/api/order-statuses', payload).then((r) => r.data),
+  update: (id: string, payload: Partial<{ key: string; label: string; color: string; sort_order: number; is_active: boolean }>) => api.patch<OrderStatusConfig>(`/api/order-statuses/${id}`, payload).then((r) => r.data)
 };
 
 export const ClientsApi = {

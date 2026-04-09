@@ -8,6 +8,13 @@ export const registerSchema = z.object({
   role: z.enum(['admin', 'tecnico']).default('tecnico')
 }).strict();
 
+export const publicRegisterSchema = z.object({
+  first_name: z.string().min(1),
+  last_name: z.string().min(1),
+  email: z.string().email(),
+  password: z.string().min(8)
+}).strict();
+
 export const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1)
@@ -86,7 +93,7 @@ export const automationRuleSchema = z.object({
 export const automationRuleUpdateSchema = automationRuleSchema.partial().strict();
 
 export const calendarConnectSchema = z.object({
-  provider: z.enum(['google', 'outlook'])
+  provider: z.literal('google')
 }).strict();
 
 export const calendarCallbackQuerySchema = z.object({
@@ -117,9 +124,28 @@ export const materialSchema = z.object({
   unit_cost: z.coerce.number().min(0)
 }).strict();
 
+const orderStatusKeySchema = z.string().regex(/^[a-z0-9_]+$/, 'Estado inválido').min(1);
+
+export const orderStatusCreateSchema = z.object({
+  key: orderStatusKeySchema,
+  label: z.string().trim().min(1).max(80),
+  color: z.string().trim().min(1).max(20),
+  sort_order: z.coerce.number().int().min(0).max(9999).optional(),
+  is_active: z.boolean().optional()
+}).strict();
+
+export const orderStatusPatchSchema = z.object({
+  key: orderStatusKeySchema.optional(),
+  label: z.string().trim().min(1).max(80).optional(),
+  color: z.string().trim().min(1).max(20).optional(),
+  sort_order: z.coerce.number().int().min(0).max(9999).optional(),
+  is_active: z.boolean().optional(),
+  is_system: z.never().optional()
+}).strict();
+
 export const orderCreateSchema = z.object({
   client_id: z.string().min(1),
-  estado: z.enum(['presupuesto_generado','oc_recibida','facturado','pago_recibido','documentacion_enviada','documentacion_aprobada','service_programado','en_ejecucion','completado','cancelado']).default('presupuesto_generado'),
+  estado: orderStatusKeySchema.default('presupuesto_generado'),
   prioridad: z.enum(['baja', 'media', 'alta']).default('media'),
   fecha_programada: z.coerce.date().optional(),
   direccion_service: z.string().optional(),
@@ -136,9 +162,9 @@ export const orderCreateSchema = z.object({
 }).strict();
 
 export const orderPatchSchema = z.object({
-  estado: z.enum(['presupuesto_generado','oc_recibida','facturado','pago_recibido','documentacion_enviada','documentacion_aprobada','service_programado','en_ejecucion','completado','cancelado']).optional(),
+  estado: orderStatusKeySchema.optional(),
   prioridad: z.enum(['baja', 'media', 'alta']).optional(),
-  fecha_programada: z.coerce.date().optional(),
+  fecha_programada: z.coerce.date().transform((d) => d.toISOString()).optional(),
   direccion_service: z.string().optional(),
   contacto_planta: z.string().optional(),
   telefono_contacto_planta: z.string().optional(),
@@ -154,6 +180,10 @@ export const orderPatchSchema = z.object({
 
 export const techniciansUpdateSchema = z.object({
   technicians: z.array(z.string()).default([])
+}).strict();
+
+export const invoiceDraftCreateSchema = z.object({
+  labor_rate: z.coerce.number().finite().min(0).default(0)
 }).strict();
 
 export const searchQuerySchema = z.object({

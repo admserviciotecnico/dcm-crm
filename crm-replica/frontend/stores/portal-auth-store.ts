@@ -7,7 +7,7 @@ const PORTAL_TOKEN_KEY = 'portal_auth_token';
 
 function readStoredPortalToken() {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem(PORTAL_TOKEN_KEY);
+  return sessionStorage.getItem(PORTAL_TOKEN_KEY);
 }
 
 type PortalAuthState = {
@@ -23,15 +23,15 @@ export const portalAuthStore = create<PortalAuthState>((set) => ({
   user: null,
   setToken: (token) => {
     if (typeof window !== 'undefined') {
-      if (token) localStorage.setItem(PORTAL_TOKEN_KEY, token);
-      else localStorage.removeItem(PORTAL_TOKEN_KEY);
+      if (token) sessionStorage.setItem(PORTAL_TOKEN_KEY, token);
+      else sessionStorage.removeItem(PORTAL_TOKEN_KEY);
     }
     set({ token });
   },
   setUser: (user) => set({ user }),
   logout: () => {
     if (typeof window !== 'undefined') {
-      localStorage.removeItem(PORTAL_TOKEN_KEY);
+      sessionStorage.removeItem(PORTAL_TOKEN_KEY);
     }
     set({ token: null, user: null });
   }
