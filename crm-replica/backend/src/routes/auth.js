@@ -5,7 +5,7 @@ import { prisma } from '../config/prisma.js';
 import { env } from '../config/env.js';
 import { validateBody } from '../middleware/validation.js';
 import { authRequired } from '../middleware/auth.js';
-import { forgotPasswordSchema, loginSchema, registerSchema, resetPasswordSchema } from '../services/schemas.js';
+import { forgotPasswordSchema, loginSchema, publicRegisterSchema, resetPasswordSchema } from '../services/schemas.js';
 import { asyncHandler, sendError } from '../utils/http.js';
 import { sendPasswordResetEmail } from '../services/mailer.js';
 import { createUserAccount, toSafeUser } from '../services/users.js';
@@ -13,8 +13,8 @@ import bcrypt from 'bcryptjs';
 
 const router = Router();
 
-router.post('/register', validateBody(registerSchema), asyncHandler(async (req, res) => {
-  const created = await createUserAccount(req.body);
+router.post('/register', validateBody(publicRegisterSchema), asyncHandler(async (req, res) => {
+  const created = await createUserAccount({ ...req.body, role: 'tecnico' });
   if (!created.ok) return sendError(res, created.status, created.error);
   res.status(201).json({ id: created.user.id, email: created.user.email });
 }));
@@ -22,7 +22,7 @@ router.post('/register', validateBody(registerSchema), asyncHandler(async (req, 
 router.post('/login', validateBody(loginSchema), asyncHandler(async (req, res) => {
   const user = await prisma.user.findUnique({ where: { email: req.body.email }, include: { role: true } });
   if (!user || !(await bcrypt.compare(req.body.password, user.password))) return sendError(res, 401, 'Invalid credentials');
-  const access_token = jwt.sign({ sub: user.id, role: user.role.name }, env.jwtSecret, { expiresIn: env.jwtExpiresIn });
+  const access_token = jwt.sign({ sub: user.id, role: user.role.name, kind: 'user' }, env.jwtSecret, { expiresIn: env.jwtExpiresIn });
   res.json({ access_token, token_type: 'bearer' });
 }));
 

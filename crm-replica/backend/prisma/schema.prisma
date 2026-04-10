@@ -154,7 +154,7 @@ model ServiceOrder {
   id                       String                      @id @default(cuid())
   client_id                String
   client                   Client                      @relation(fields: [client_id], references: [id])
-  estado                   OrderStatus                 @default(presupuesto_generado)
+  estado                   String                      @default("presupuesto_generado")
   prioridad                Priority                    @default(media)
   prioridad_peso           Int                         @default(2)
   fecha_programada         DateTime?
@@ -184,6 +184,21 @@ model ServiceOrder {
   @@index([estado])
   @@index([client_id])
   @@index([is_active, deleted_at, estado, prioridad, fecha_programada])
+}
+
+
+model OrderStatusConfig {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  label       String
+  color       String
+  sort_order  Int      @default(0)
+  is_active   Boolean  @default(true)
+  is_system   Boolean  @default(false)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  @@index([is_active, sort_order])
 }
 
 model ExternalCalendarConnection {
@@ -300,8 +315,8 @@ model OrderLocationEvent {
 model ServiceOrderStatusHistory {
   id               String       @id @default(cuid())
   service_order_id String
-  estado_anterior  OrderStatus?
-  estado_nuevo     OrderStatus
+  estado_anterior  String?
+  estado_nuevo     String
   campo_modificado String?
   valor_anterior   String?
   valor_nuevo      String?
@@ -330,6 +345,7 @@ model Notification {
 
   @@index([user_id, kind, service_order_id, created_at])
   @@index([user_id, kind, client_id, created_at])
+  @@unique([user_id, kind, service_order_id])
 }
 
 model AutomationRule {
@@ -403,4 +419,11 @@ model EventLog {
 
   @@index([entity_type, entity_id, created_at])
   @@index([created_at])
+}
+
+model SystemTaskRun {
+  id          String   @id @default(cuid())
+  task        String   @unique
+  last_run_at DateTime
+  updated_at  DateTime @updatedAt
 }

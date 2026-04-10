@@ -60,7 +60,7 @@ export default function Equipment360Page() {
   const [search, setSearch] = useState('');
   const [backendEvents, setBackendEvents] = useState<EventLog[]>([]);
 
-  const { docs, add, remove } = useDocumentsState('equipment', id);
+  const { docs, status: docsStatus, add, remove } = useDocumentsState('equipment', id);
 
   const load = async () => {
     setLoading(true);
@@ -239,15 +239,16 @@ export default function Equipment360Page() {
       {tab === 'documentos' ? (
         <Card>
           <h2 className="text-lg font-medium">Documentos</h2>
-          <div className="my-3"><FileUploader onAdd={async (name, category) => { const result = await add(name, category); if (result.ok) toast({ type: 'success', message: 'Documento agregado al equipo' }); else if (result.reason === 'duplicate') toast({ type: 'info', message: 'Documento duplicado para este equipo' }); else toast({ type: 'error', message: 'Nombre de documento inválido' }); }} /></div>
-          {docs.length === 0 ? <EmptyState title="Sin documentos" subtitle="Subí manuales, informes y evidencias del activo." /> : (
+          {docsStatus === 'forbidden' ? <p className="mt-2 text-sm text-red-300">No tenés permisos para ver documentos de este equipo.</p> : <div className="my-3"><FileUploader onAdd={async (name, category) => { const result = await add(name, category); if (result.ok) toast({ type: 'success', message: 'Documento agregado al equipo' }); else if (result.reason === 'duplicate') toast({ type: 'info', message: 'Documento duplicado para este equipo' }); else toast({ type: 'error', message: 'Nombre de documento inválido' }); }} /></div>}
+          {docsStatus !== 'forbidden' && docs.length === 0 ? <EmptyState title="Sin documentos" subtitle="Subí manuales, informes y evidencias del activo." /> : null}
+          {docsStatus !== 'forbidden' && docs.length > 0 ? (
             <div className="space-y-3">
               <FileList docs={docs.filter((d) => d.category === 'contract')} onRemove={async (docId) => { const result = await remove(docId); if (result.ok) toast({ type: 'info', message: 'Documento eliminado' }); else toast({ type: 'error', message: 'No se pudo eliminar el documento' }); }} title="Manual técnico" hideWhenEmpty />
               <FileList docs={docs.filter((d) => d.category === 'report')} onRemove={async (docId) => { const result = await remove(docId); if (result.ok) toast({ type: 'info', message: 'Documento eliminado' }); else toast({ type: 'error', message: 'No se pudo eliminar el documento' }); }} title="Informes de servicio" hideWhenEmpty />
               <FileList docs={docs.filter((d) => d.category === 'photo')} onRemove={async (docId) => { const result = await remove(docId); if (result.ok) toast({ type: 'info', message: 'Documento eliminado' }); else toast({ type: 'error', message: 'No se pudo eliminar el documento' }); }} title="Fotografías" hideWhenEmpty />
               <FileList docs={docs.filter((d) => d.category === 'other')} onRemove={async (docId) => { const result = await remove(docId); if (result.ok) toast({ type: 'info', message: 'Documento eliminado' }); else toast({ type: 'error', message: 'No se pudo eliminar el documento' }); }} title="Hojas técnicas / certificados" hideWhenEmpty />
             </div>
-          )}
+          ) : null}
         </Card>
       ) : null}
 

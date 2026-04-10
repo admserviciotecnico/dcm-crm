@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { CalendarDays, ChevronDown, ChevronUp, Download, Filter, Plus } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ClientsApi, OrdersApi, UsersApi } from '@/lib/api/endpoints';
-import { ServiceOrder, User, OrderStatus } from '@/types/domain';
+import { ServiceOrder, User, OrderStatus, Client } from '@/types/domain';
 import { OrdersTable } from '@/components/orders/orders-table';
 import { OrderDetail } from '@/components/orders/order-detail';
 import { useRealtime } from '@/hooks/use-realtime';
@@ -23,10 +23,10 @@ import { EmptyState } from '@/components/common/empty-state';
 import { PageHeader } from '@/components/layout/page-header';
 import { TableSkeleton } from '@/components/common/skeletons';
 import { getApiErrorMessage } from '@/lib/api/error-message';
-import { ORDER_STATUS_LABEL } from '@/constants/orderStatus';
 import { ErrorBoundary } from '@/components/common/error-boundary';
 import { useOnlineStatus } from '@/hooks/use-online-status';
 import { loadAssignedOrdersSnapshot, saveAssignedOrderDetail, saveAssignedOrdersSnapshot } from '@/lib/offline/assigned-orders';
+import { orderStatusStore } from '@/stores/order-status-store';
 
 const schema = z.object({
   client_id: z.string().min(1),
@@ -44,7 +44,7 @@ const PAGE_SIZE = 20;
 export default function OrdersPage() {
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [clients, setClients] = useState<{ id: string; nombre_empresa: string }[]>([]);
+  const [clients, setClients] = useState<Pick<Client, 'id' | 'nombre_empresa' | 'direccion'>[]>([]);
   const [selected, setSelected] = useState<ServiceOrder | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkStatus, setBulkStatus] = useState<OrderStatus>('service_programado');
@@ -58,6 +58,8 @@ export default function OrdersPage() {
   const user = authStore((s) => s.user);
   const toast = appStore((s) => s.pushToast);
   const online = useOnlineStatus();
+  const activeStatuses = orderStatusStore((s) => s.activeOptions());
+  const workflowStatuses = orderStatusStore((s) => s.workflowOptions());
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
@@ -66,7 +68,13 @@ export default function OrdersPage() {
   const sortBy = searchParams.get('sortBy') || 'updated_at';
   const sortDir = searchParams.get('sortDir') === 'asc' ? 'asc' : 'desc';
   const filters = useMemo(() => ({ status: searchParams.get('status') || '', priority: searchParams.get('priority') || '', client: searchParams.get('client') || '', technician: searchParams.get('technician') || '', from: searchParams.get('from') || '', to: searchParams.get('to') || '', delayed: searchParams.get('delayed') || '' }), [searchParams]);
-  const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm<OrderForm>({ resolver: zodResolver(schema), defaultValues: { estado: 'presupuesto_generado', prioridad: 'media' } });
+  const { register, handleSubmit, reset, setValue, formState: { isSubmitting } } = useForm<OrderForm>({ resolver: zodResolver(schema), defaultValues: { estado: 'presupuesto_generado', prioridad: 'media' } });
+  const clientIdRegister = register('client_id', {
+    onChange: (event) => {
+      const selectedClient = clients.find((client) => client.id === event.target.value);
+      setValue('direccion_service', selectedClient?.direccion ?? '', { shouldValidate: true, shouldDirty: true });
+    }
+  });
 
   const setParams = useCallback((updates: Record<string, string | null>) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -97,7 +105,7 @@ export default function OrdersPage() {
       setOrders(ordersRes.items);
       setTotal(ordersRes.total);
       setUsers(usersRes);
-      setClients(clientsRes.map((c) => ({ id: c.id, nombre_empresa: c.nombre_empresa })));
+      setClients(clientsRes.map((c) => ({ id: c.id, nombre_empresa: c.nombre_empresa, direccion: c.direccion })));
       setOfflineSnapshotAt(null);
       if (user?.role === 'tecnico') {
         await saveAssignedOrdersSnapshot(snapshotKey, ordersRes.items, ordersRes.total);
@@ -199,7 +207,7 @@ export default function OrdersPage() {
 </div>
           {showFilters ? <div className="mt-3 grid gap-2 rounded-[10px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 md:grid-cols-6">
 <Select value={filters.status} onChange={(e) => setParams({ status: e.target.value || null, page: '1' })}>
-<option value="">Estado</option>{(Object.entries(ORDER_STATUS_LABEL) as [OrderStatus, string][]).map(([status, label]) => <option key={status} value={status}>{label}</option>)}</Select>
+<option value="">Estado</option>{activeStatuses.map((status) => <option key={status.key} value={status.key}>{status.label}</option>)}</Select>
 <Select value={filters.priority} onChange={(e) => setParams({ priority: e.target.value || null, page: '1' })}>
 <option value="">Prioridad</option>
 <option value="alta">Alta</option>
@@ -228,7 +236,7 @@ export default function OrdersPage() {
         {selectedIds.length > 0 ? <Card className="sticky top-20 z-20">
 <div className="flex flex-wrap items-center gap-2">
 <Badge>{selectedIds.length} seleccionadas</Badge>
-<Select value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value as OrderStatus)} className="max-w-52">{(['service_programado', 'en_ejecucion', 'completado', 'cancelado'] as OrderStatus[]).map((status) => <option key={status} value={status}>{ORDER_STATUS_LABEL[status]}</option>)}</Select>
+<Select value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value as OrderStatus)} className="max-w-52">{workflowStatuses.map((status) => <option key={status.key} value={status.key}>{status.label}</option>)}</Select>
 <Button onClick={bulkChangeStatus}>Cambiar estado</Button>
 <Select value={bulkTechnician} onChange={(e) => setBulkTechnician(e.target.value)} className="max-w-52">
 <option value="">Asignar técnico</option>{users.filter((u) => u.role === 'tecnico').map((u) => <option key={u.id} value={u.id}>{u.first_name} {u.last_name}</option>)}</Select>
@@ -253,12 +261,12 @@ export default function OrdersPage() {
           <form className="grid gap-2" onSubmit={handleSubmit(onCreate)}>
             <div className="space-y-1">
 <label className="text-xs text-[var(--text-secondary)]">Cliente</label>
-<Select {...register('client_id')}>
+<Select {...clientIdRegister}>
 <option value="">Cliente</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.nombre_empresa}</option>)}</Select>
 </div>
             <div className="space-y-1">
 <label className="text-xs text-[var(--text-secondary)]">Estado</label>
-<Select {...register('estado')}>{(['presupuesto_generado', 'service_programado'] as OrderStatus[]).map((status) => <option key={status} value={status}>{ORDER_STATUS_LABEL[status]}</option>)}</Select>
+<Select {...register('estado')}>{workflowStatuses.map((status) => <option key={status.key} value={status.key}>{status.label}</option>)}</Select>
 </div>
             <div className="space-y-1">
 <label className="text-xs text-[var(--text-secondary)]">Prioridad</label>

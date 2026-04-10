@@ -58,7 +58,7 @@ export default function Client360Page() {
   const [orderStatusFilter, setOrderStatusFilter] = useState('');
   const [equipmentSearch, setEquipmentSearch] = useState('');
   const [backendActivityEvents, setBackendActivityEvents] = useState<EventLog[]>([]);
-  const { docs, add: addDocument, remove: removeDocument } = useDocumentsState('client', id);
+  const { docs, status: docsStatus, add: addDocument, remove: removeDocument } = useDocumentsState('client', id);
   const toast = appStore((st) => st.pushToast);
 
   const contactForm = useForm<{ contacts: ContactForm[] }>({
@@ -246,6 +246,7 @@ export default function Client360Page() {
               <div><p className="text-[var(--text-secondary)]">Persona contacto principal</p><p>{`${primaryContact?.nombre ?? '-'} ${primaryContact?.apellido ?? ''}`.trim()}</p></div>
               <div><p className="text-[var(--text-secondary)]">Email principal</p><p>{primaryContact?.email ?? '-'}</p></div>
               <div><p className="text-[var(--text-secondary)]">Teléfono principal</p><p>{primaryContact?.telefono ?? '-'}</p></div>
+              <div><p className="text-[var(--text-secondary)]">Dirección</p><p>{client.direccion ?? '-'}</p></div>
               <div><p className="text-[var(--text-secondary)]">Vencimiento documentación</p><p>{client.fecha_vencimiento_documentacion ?? '-'}</p></div>
             </div>
           </Card>
@@ -378,15 +379,16 @@ export default function Client360Page() {
       {selectedTab === 'documentos' ? (
         <Card>
           <h2 className="text-lg font-medium">Documentos</h2>
-          <div className="my-3"><FileUploader onAdd={async (name, category) => { const result = await addDocument(name, category); if (result.ok) toast({ type: 'success', message: 'Documento agregado al cliente' }); else if (result.reason === 'duplicate') toast({ type: 'info', message: 'Ese documento ya existe para este cliente' }); else toast({ type: 'error', message: 'Nombre de documento inválido' }); }} /></div>
-          {docs.length === 0 ? <EmptyState variant="default" title="Sin documentos" subtitle="Subí archivos para centralizar la documentación del cliente." /> : (
+          {docsStatus === 'forbidden' ? <p className="mt-2 text-sm text-red-300">No tenés permisos para ver documentos de este cliente.</p> : <div className="my-3"><FileUploader onAdd={async (name, category) => { const result = await addDocument(name, category); if (result.ok) toast({ type: 'success', message: 'Documento agregado al cliente' }); else if (result.reason === 'duplicate') toast({ type: 'info', message: 'Ese documento ya existe para este cliente' }); else if (result.reason === 'invalid') toast({ type: 'error', message: 'Nombre de documento inválido' }); else toast({ type: 'error', message: 'No se pudo agregar el documento' }); }} /></div>}
+          {docsStatus !== 'forbidden' && docs.length === 0 ? <EmptyState variant="default" title="Sin documentos" subtitle="Subí archivos para centralizar la documentación del cliente." /> : null}
+          {docsStatus !== 'forbidden' && docs.length > 0 ? (
             <div className="space-y-3">
               <FileList docs={docs.filter((d) => d.category === 'contract')} onRemove={async (docId) => { const result = await removeDocument(docId); if (result.ok) toast({ type: 'info', message: 'Documento eliminado' }); else toast({ type: 'error', message: 'No se pudo eliminar el documento' }); }} title="Contratos" hideWhenEmpty />
               <FileList docs={docs.filter((d) => d.category === 'report')} onRemove={async (docId) => { const result = await removeDocument(docId); if (result.ok) toast({ type: 'info', message: 'Documento eliminado' }); else toast({ type: 'error', message: 'No se pudo eliminar el documento' }); }} title="Reportes" hideWhenEmpty />
               <FileList docs={docs.filter((d) => d.category === 'photo')} onRemove={async (docId) => { const result = await removeDocument(docId); if (result.ok) toast({ type: 'info', message: 'Documento eliminado' }); else toast({ type: 'error', message: 'No se pudo eliminar el documento' }); }} title="Fotos" hideWhenEmpty />
               <FileList docs={docs.filter((d) => d.category === 'other')} onRemove={async (docId) => { const result = await removeDocument(docId); if (result.ok) toast({ type: 'info', message: 'Documento eliminado' }); else toast({ type: 'error', message: 'No se pudo eliminar el documento' }); }} title="Otros" hideWhenEmpty />
             </div>
-          )}
+          ) : null}
         </Card>
       ) : null}
 
