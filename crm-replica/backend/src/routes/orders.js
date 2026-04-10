@@ -42,6 +42,13 @@ const ORDER_DETAIL_INCLUDE = {
   }
 };
 
+const OPERATIONAL_READ_ONLY_STATES = new Set(['cancelado', 'completado']);
+const READ_ONLY_MESSAGE = 'La orden está en estado final y no puede modificarse';
+
+function isOperationalReadOnly(order) {
+  return Boolean(order && OPERATIONAL_READ_ONLY_STATES.has(order.estado));
+}
+
 function enrichOrderWithSla(order) {
   const slaDeadline = computeSlaDeadline(order.created_at, order.prioridad);
   return {
@@ -272,6 +279,7 @@ export default function ordersRouter(io) {
   router.patch('/:id', validateIdParam, validateBody(orderPatchSchema), asyncHandler(async (req, res) => {
     const order = await prisma.serviceOrder.findUnique({ where: { id: req.params.id }, include: { technicians: true } });
     if (!order || order.deleted_at || !order.is_active) return sendError(res, 404, 'Not found');
+    if (isOperationalReadOnly(order)) return sendError(res, 409, READ_ONLY_MESSAGE);
 
     const role = req.user.role.name;
     const assigned = order.technicians.some((technician) => technician.technician_id === req.user.id);
@@ -380,7 +388,7 @@ export default function ordersRouter(io) {
     const order = await prisma.serviceOrder.findUnique({ where: { id: req.params.id }, include: { technicians: true } });
     const access = ensureOrderAccess(order, req.user);
     if (!access.ok) return sendError(res, access.status, access.message);
-    if (['completado', 'cancelado'].includes(order.estado)) return sendError(res, 400, 'La orden ya no admite registros de llegada o salida');
+    if (isOperationalReadOnly(order)) return sendError(res, 409, READ_ONLY_MESSAGE);
 
     const locationWrite = await validateLocationEventWrite(req.params.id, req.user.id, req.body.event_type);
     if (!locationWrite.ok) return sendError(res, locationWrite.status, locationWrite.message);
@@ -427,6 +435,7 @@ export default function ordersRouter(io) {
     const order = await prisma.serviceOrder.findUnique({ where: { id: req.params.id }, include: { technicians: true } });
     const access = ensureOrderAccess(order, req.user);
     if (!access.ok) return sendError(res, access.status, access.message);
+    if (isOperationalReadOnly(order)) return sendError(res, 409, READ_ONLY_MESSAGE);
 
     const material = await prisma.orderMaterial.create({ data: { order_id: req.params.id, ...req.body } });
     await prisma.serviceOrderStatusHistory.create({
@@ -449,6 +458,7 @@ export default function ordersRouter(io) {
     const order = await prisma.serviceOrder.findUnique({ where: { id: req.params.id }, include: { technicians: true } });
     const access = ensureOrderAccess(order, req.user);
     if (!access.ok) return sendError(res, access.status, access.message);
+    if (isOperationalReadOnly(order)) return sendError(res, 409, READ_ONLY_MESSAGE);
     const materialExists = await prisma.orderMaterial.findFirst({ where: { id: req.params.materialId, order_id: req.params.id } });
     if (!materialExists) return sendError(res, 404, 'Not found');
 
@@ -472,6 +482,7 @@ export default function ordersRouter(io) {
     const order = await prisma.serviceOrder.findUnique({ where: { id: req.params.id }, include: { technicians: true } });
     const access = ensureOrderAccess(order, req.user);
     if (!access.ok) return sendError(res, access.status, access.message);
+    if (isOperationalReadOnly(order)) return sendError(res, 409, READ_ONLY_MESSAGE);
     const materialExists = await prisma.orderMaterial.findFirst({ where: { id: req.params.materialId, order_id: req.params.id } });
     if (!materialExists) return sendError(res, 404, 'Not found');
 
@@ -494,6 +505,7 @@ export default function ordersRouter(io) {
   router.put('/:id/technicians', requireRole('admin'), validateIdParam, validateBody(techniciansUpdateSchema), asyncHandler(async (req, res) => {
     const order = await prisma.serviceOrder.findUnique({ where: { id: req.params.id }, include: { technicians: true } });
     if (!order || order.deleted_at) return sendError(res, 404, 'Not found');
+    if (isOperationalReadOnly(order)) return sendError(res, 409, READ_ONLY_MESSAGE);
 
     const previousIds = order.technicians.map((technician) => technician.technician_id);
     const oldList = previousIds.sort().join(',');
