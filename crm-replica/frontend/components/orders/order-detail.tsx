@@ -94,7 +94,7 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
   const { register, handleSubmit, reset, formState: { isDirty } } = useForm<CommentForm>({ defaultValues: { comment: '' } });
   const materialForm = useForm<MaterialForm>({ defaultValues: DEFAULT_MATERIAL });
   const closureForm = useForm<ClosureForm>({ defaultValues: DEFAULT_CLOSURE });
-  const { docs, add: addDocument, remove: removeDocument } = useDocumentsState('order', order?.id ?? '');
+  const { docs, status: docsStatus, add: addDocument, remove: removeDocument } = useDocumentsState('order', order?.id ?? '');
 
   useEffect(() => {
     if (!order) return;
@@ -581,6 +581,7 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
 
             <div>
               <p className="mb-2 text-sm text-[var(--text-secondary)]">Archivos adjuntos</p>
+              {docsStatus === 'forbidden' ? <p className="mb-2 text-xs text-red-300">No tenés permisos para acceder a documentos de esta orden.</p> : null}
               <FileUploader
                 allowCapture
                 defaultCategory="photo"
@@ -599,7 +600,7 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
                 }}
               />
               <p className="mt-2 text-xs text-[var(--text-secondary)]">Las fotos capturadas hoy se guardan como evidencia registrada dentro del sistema de documentos. El binario real seguirá dependiendo de la futura capa de upload físico.</p>
-              <div className="mt-2"><FileList docs={docs} onRemove={async (id) => { const result = await removeDocument(id); if (result.ok) toast({ type: 'info', message: 'Documento eliminado' }); else toast({ type: 'error', message: 'No se pudo eliminar el documento' }); }} /></div>
+              {docsStatus === 'forbidden' ? null : <div className="mt-2"><FileList docs={docs} onRemove={async (id) => { const result = await removeDocument(id); if (result.ok) toast({ type: 'info', message: 'Documento eliminado' }); else toast({ type: 'error', message: 'No se pudo eliminar el documento' }); }} /></div>}
             </div>
           </div>
         </Drawer>

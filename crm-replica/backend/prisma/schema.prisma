@@ -420,3 +420,10 @@ model EventLog {
   @@index([entity_type, entity_id, created_at])
   @@index([created_at])
 }
+
+model SystemTaskRun {
+  id          String   @id @default(cuid())
+  task        String   @unique
+  last_run_at DateTime
+  updated_at  DateTime @updatedAt
+}

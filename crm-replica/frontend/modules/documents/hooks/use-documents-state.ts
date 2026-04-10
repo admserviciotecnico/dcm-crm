@@ -5,6 +5,7 @@ import { DocumentsApi } from '@/lib/api/endpoints';
 import { DocumentCategory, DocumentEntityType, DocumentItem } from '@/modules/documents/types';
 
 type MutationResult = { ok: true; item?: DocumentItem } | { ok: false; reason: 'invalid' | 'duplicate' | 'missing' | 'request_failed' };
+type DocumentsStatus = 'idle' | 'loading' | 'ready' | 'empty' | 'forbidden' | 'error';
 
 type BackendDocument = {
   id: string;
@@ -30,18 +31,31 @@ function fromBackend(doc: BackendDocument): DocumentItem {
 
 export function useDocumentsState(entityType: DocumentEntityType, entityId: string) {
   const [docs, setDocs] = useState<DocumentItem[]>([]);
+  const [status, setStatus] = useState<DocumentsStatus>('idle');
 
   const load = useCallback(async (cancelledRef?: { current: boolean }) => {
     if (!entityId) {
-      if (!cancelledRef?.current) setDocs([]);
+      if (!cancelledRef?.current) {
+        setDocs([]);
+        setStatus('empty');
+      }
       return;
     }
 
+    if (!cancelledRef?.current) setStatus('loading');
     try {
       const remote = await DocumentsApi.list(entityType, entityId);
-      if (!cancelledRef?.current) setDocs(remote.map(fromBackend));
-    } catch {
-      if (!cancelledRef?.current) setDocs([]);
+      if (!cancelledRef?.current) {
+        const mapped = remote.map(fromBackend);
+        setDocs(mapped);
+        setStatus(mapped.length > 0 ? 'ready' : 'empty');
+      }
+    } catch (error: unknown) {
+      if (!cancelledRef?.current) {
+        setDocs([]);
+        const code = (error as { response?: { status?: number } })?.response?.status;
+        setStatus(code === 403 ? 'forbidden' : 'error');
+      }
     }
   }, [entityId, entityType]);
 
@@ -94,5 +108,5 @@ export function useDocumentsState(entityType: DocumentEntityType, entityId: stri
     return acc;
   }, { contract: [], report: [], photo: [], other: [] }), [docs]);
 
-  return { docs, add, remove, groupedByCategory, reload: load };
+  return { docs, status, add, remove, groupedByCategory, reload: load };
 }
