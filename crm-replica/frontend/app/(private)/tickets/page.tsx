@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
+import { TableSkeleton } from '@/components/common/skeletons';
 
 type TicketForm = {
   client_id: string;
@@ -38,9 +39,13 @@ export default function TicketsPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [selected, setSelected] = useState<Ticket | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const PAGE_SIZE = 20;
   const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm<TicketForm>({
     defaultValues: {
       channel: 'phone',
@@ -52,15 +57,19 @@ export default function TicketsPage() {
 
   const load = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const [ticketsRes, clientsRes] = await Promise.all([
-        TicketsApi.list({ page: 1, pageSize: 50 }),
+        TicketsApi.list({ page, pageSize: PAGE_SIZE }),
         ClientsApi.list()
       ]);
       setTickets(ticketsRes.items);
+      setTotal(ticketsRes.total);
       setClients(clientsRes);
     } catch (error) {
-      toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudieron cargar los tickets') });
+      const message = getApiErrorMessage(error, 'No se pudieron cargar los tickets');
+      setLoadError(message);
+      toast({ type: 'error', message });
     } finally {
       setLoading(false);
     }
@@ -69,7 +78,7 @@ export default function TicketsPage() {
   useEffect(() => {
     if (!canAccess) return;
     void load();
-  }, [canAccess]);
+  }, [canAccess, page]);
 
   const selectedWithDetails = useMemo(() => tickets.find((ticket) => ticket.id === selected?.id) ?? selected, [selected, tickets]);
 
@@ -102,6 +111,8 @@ export default function TicketsPage() {
     return <p className="text-sm text-[var(--text-secondary)]">Esta sección está disponible solo para administradores.</p>;
   }
 
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
   return (
     <div className="space-y-4">
       <PageHeader
@@ -111,9 +122,15 @@ export default function TicketsPage() {
       />
 
       <Card>
-        {loading ? <p className="text-sm text-[var(--text-secondary)]">Cargando tickets…</p> : null}
-        {!loading && tickets.length === 0 ? <p className="text-sm text-[var(--text-secondary)]">No hay tickets cargados.</p> : null}
-        {!loading && tickets.length > 0 ? (
+        {loading ? <TableSkeleton rows={6} cols={5} /> : null}
+        {!loading && loadError ? (
+          <div className="space-y-2">
+            <p className="text-sm text-red-300">{loadError}</p>
+            <Button variant="secondary" onClick={() => void load()}>Reintentar</Button>
+          </div>
+        ) : null}
+        {!loading && !loadError && tickets.length === 0 ? <p className="text-sm text-[var(--text-secondary)]">Todavía no hay tickets. Creá el primer reclamo para iniciar el intake.</p> : null}
+        {!loading && !loadError && tickets.length > 0 ? (
           <Table>
             <thead>
               <tr>
@@ -136,6 +153,15 @@ export default function TicketsPage() {
               ))}
             </tbody>
           </Table>
+        ) : null}
+        {!loading && !loadError && tickets.length > 0 ? (
+          <div className="mt-3 flex items-center justify-between text-sm">
+            <p>Página {page} de {totalPages} · Total {total} tickets</p>
+            <div className="flex gap-2">
+              <Button variant="secondary" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>Anterior</Button>
+              <Button variant="secondary" disabled={page >= totalPages} onClick={() => setPage((current) => Math.min(totalPages, current + 1))}>Siguiente</Button>
+            </div>
+          </div>
         ) : null}
       </Card>
 

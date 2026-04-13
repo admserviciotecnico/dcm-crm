@@ -134,7 +134,7 @@ export const InvoiceDraftsApi = {
 };
 
 export const TicketsApi = {
-  list: (params?: TableListParams) => api.get<TableListResponse<Ticket>>('/api/tickets', { params }).then((r) => r.data),
+  list: (params?: TableListParams) => api.get<{ items: Ticket[]; total: number }>('/api/tickets', { params }).then((r) => r.data),
   get: (id: string) => api.get<Ticket>(`/api/tickets/${id}`).then((r) => r.data),
   create: (payload: {
     client_id: string;

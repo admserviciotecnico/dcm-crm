@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../config/prisma.js';
 import { authRequired, requireRole } from '../middleware/auth.js';
 import { validateBody, validateIdParam } from '../middleware/validation.js';
-import { createTicketSchema, updateTicketSchema } from '../services/schemas.js';
+import { createTicketSchema, TICKET_ALLOWED_STATUSES, updateTicketSchema } from '../services/schemas.js';
 import { asyncHandler, sendError } from '../utils/http.js';
 
 const MAX_PAGE_SIZE = 100;
@@ -13,6 +13,8 @@ function buildUpdateEventMessage(current, patch) {
   }
   return 'Ticket actualizado';
 }
+
+const TICKET_STATUS_SET = new Set(TICKET_ALLOWED_STATUSES);
 
 export default function ticketsRoutes() {
   const router = Router();
@@ -41,7 +43,7 @@ export default function ticketsRoutes() {
       prisma.ticket.count({ where })
     ]);
 
-    res.json({ items, total, page, pageSize });
+    res.json({ items, total });
   }));
 
   router.get('/:id', validateIdParam, asyncHandler(async (req, res) => {
@@ -80,6 +82,15 @@ export default function ticketsRoutes() {
 
     const current = await prisma.ticket.findUnique({ where: { id: req.params.id } });
     if (!current) return sendError(res, 404, 'Not found');
+    if (req.body.status && !TICKET_STATUS_SET.has(req.body.status)) return sendError(res, 400, 'Estado de ticket inválido');
+    if (current.status === 'closed' && req.body.status && req.body.status !== 'closed') {
+      return sendError(res, 409, 'El ticket cerrado no puede volver a estados abiertos sin lógica de reapertura');
+    }
+
+    const changedFields = [];
+    if (req.body.priority && req.body.priority !== current.priority) changedFields.push(`prioridad: ${current.priority} → ${req.body.priority}`);
+    if (req.body.category !== undefined && req.body.category !== current.category) changedFields.push(`categoría: ${current.category ?? '-'} → ${req.body.category ?? '-'}`);
+    if (req.body.issue_description && req.body.issue_description !== current.issue_description) changedFields.push('descripción actualizada');
 
     const updated = await prisma.$transaction(async (db) => {
       const ticket = await db.ticket.update({
@@ -94,6 +105,15 @@ export default function ticketsRoutes() {
             ticket_id: ticket.id,
             type: 'status_changed',
             message: buildUpdateEventMessage(current, req.body)
+          }
+        });
+      }
+      if (changedFields.length) {
+        await db.ticketEvent.create({
+          data: {
+            ticket_id: ticket.id,
+            type: 'updated',
+            message: changedFields.join(' · ')
           }
         });
       }

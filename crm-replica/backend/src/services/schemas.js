@@ -182,6 +182,7 @@ export const techniciansUpdateSchema = z.object({
   technicians: z.array(z.string()).default([])
 }).strict();
 
+export const TICKET_ALLOWED_STATUSES = Object.freeze(['new', 'triage', 'in_diagnosis', 'escalated', 'resolved', 'closed']);
 const ticketStatusSchema = z.enum(['new', 'triage', 'in_diagnosis', 'escalated', 'resolved', 'closed']);
 const ticketChannelSchema = z.enum(['phone', 'email', 'web', 'whatsapp']);
 const ticketPrioritySchema = z.enum(['baja', 'media', 'alta']);
