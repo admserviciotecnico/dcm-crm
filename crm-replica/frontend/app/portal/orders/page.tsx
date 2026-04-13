@@ -10,12 +10,33 @@ import { Table } from '@/components/ui/table';
 import { StatusBadge, PriorityBadge } from '@/components/common/badges';
 import { ServiceOrder } from '@/types/domain';
 import { Button } from '@/components/ui/button';
+import { appStore } from '@/stores/app-store';
+import { getApiErrorMessage } from '@/lib/api/error-message';
 
 export default function PortalOrdersPage() {
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const toast = appStore((state) => state.pushToast);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const data = await PortalApi.listOrders();
+      setOrders(data);
+      setLoadError(null);
+    } catch (error) {
+      const message = getApiErrorMessage(error, 'No se pudieron cargar las órdenes del portal');
+      setOrders([]);
+      setLoadError(message);
+      toast({ type: 'error', message });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    PortalApi.listOrders().then(setOrders).catch(() => setOrders([]));
+    void load();
   }, []);
 
   const downloadPdf = async (id: string) => {
@@ -40,6 +61,14 @@ export default function PortalOrdersPage() {
             <p className="mt-2 text-sm text-[var(--text-secondary)]">Vista de solo lectura de las órdenes pertenecientes a tu empresa.</p>
           </div>
           <Card className="p-0">
+            {loading ? <p className="p-4 text-sm text-[var(--text-secondary)]">Cargando órdenes…</p> : null}
+            {!loading && loadError ? (
+              <div className="p-4">
+                <p className="text-sm text-red-300">{loadError}</p>
+                <button className="mt-2 text-sm text-cyan-300 hover:underline" onClick={() => void load()}>Reintentar</button>
+              </div>
+            ) : null}
+            {!loading && !loadError && orders.length === 0 ? <p className="p-4 text-sm text-[var(--text-secondary)]">No hay órdenes disponibles para tu empresa.</p> : null}
             <Table className="border-0">
               <thead>
                 <tr>
@@ -52,7 +81,7 @@ export default function PortalOrdersPage() {
                 </tr>
               </thead>
               <tbody>
-                {orders.map((order) => (
+                {!loadError && orders.map((order) => (
                   <tr key={order.id} className="border-t border-[var(--border)]">
                     <td className="p-3 font-medium">#{order.id.slice(0, 8)}</td>
                     <td className="p-3"><StatusBadge value={order.estado} /></td>

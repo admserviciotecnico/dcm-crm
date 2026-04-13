@@ -22,9 +22,11 @@ api.interceptors.response.use(
   (error) => {
     appStore.getState().stopLoading();
     const status = error?.response?.status;
-    if ([401, 403].includes(status)) {
+    if (status === 401) {
       authStore.getState().logout();
       if (typeof window !== 'undefined') window.location.href = '/login';
+    } else if (status === 403) {
+      appStore.getState().pushToast({ type: 'error', message: 'No tenés permisos para realizar esta acción' });
     }
     return Promise.reject(error);
   }
