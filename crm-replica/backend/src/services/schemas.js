@@ -182,6 +182,31 @@ export const techniciansUpdateSchema = z.object({
   technicians: z.array(z.string()).default([])
 }).strict();
 
+export const TICKET_ALLOWED_STATUSES = Object.freeze(['new', 'triage', 'in_diagnosis', 'escalated', 'resolved', 'closed']);
+const ticketStatusSchema = z.enum(['new', 'triage', 'in_diagnosis', 'escalated', 'resolved', 'closed']);
+const ticketChannelSchema = z.enum(['phone', 'email', 'web', 'whatsapp']);
+const ticketPrioritySchema = z.enum(['baja', 'media', 'alta']);
+
+export const createTicketSchema = z.object({
+  client_id: z.string().min(1),
+  equipment_id: z.string().min(1).optional(),
+  serial_number: z.string().min(1).optional(),
+  channel: ticketChannelSchema,
+  issue_description: z.string().min(1),
+  priority: ticketPrioritySchema.default('media'),
+  category: z.string().min(1).optional(),
+  status: ticketStatusSchema.default('new'),
+  reported_by_name: z.string().min(1).optional(),
+  reported_by_contact: z.string().min(1).optional()
+}).strict();
+
+export const updateTicketSchema = z.object({
+  issue_description: z.string().min(1).optional(),
+  priority: ticketPrioritySchema.optional(),
+  category: z.string().min(1).optional(),
+  status: ticketStatusSchema.optional()
+}).strict();
+
 export const invoiceDraftCreateSchema = z.object({
   labor_rate: z.coerce.number().finite().min(0).default(0)
 }).strict();
