@@ -87,6 +87,11 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
   const [invoiceDraftLoading, setInvoiceDraftLoading] = useState(false);
   const [locationSaving, setLocationSaving] = useState<'arrival' | 'departure' | null>(null);
   const [closureSaving, setClosureSaving] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [backendEventsError, setBackendEventsError] = useState<string | null>(null);
+  const [materialsError, setMaterialsError] = useState<string | null>(null);
+  const [locationEventsError, setLocationEventsError] = useState<string | null>(null);
+  const [calendarError, setCalendarError] = useState<string | null>(null);
   const user = authStore((s) => s.user);
   const toast = appStore((s) => s.pushToast);
   const labelFor = orderStatusStore((s) => s.labelFor);
@@ -98,15 +103,46 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
 
   useEffect(() => {
     if (!order) return;
-    OrdersApi.history(order.id).then(setHistory).catch(() => setHistory([]));
-    EventsApi.list({ entityType: 'order', entityId: order.id, limit: 200 }).then(setBackendEvents).catch(() => setBackendEvents([]));
+    OrdersApi.history(order.id).then((data) => {
+      setHistory(data);
+      setHistoryError(null);
+    }).catch((error) => {
+      setHistory([]);
+      setHistoryError(getApiErrorMessage(error, 'No se pudo cargar el historial de la orden'));
+    });
+    EventsApi.list({ entityType: 'order', entityId: order.id, limit: 200 }).then((data) => {
+      setBackendEvents(data);
+      setBackendEventsError(null);
+    }).catch((error) => {
+      setBackendEvents([]);
+      setBackendEventsError(getApiErrorMessage(error, 'No se pudo cargar la actividad operativa'));
+    });
     setMaterialsLoading(true);
+    setMaterialsError(null);
     OrdersApi.materials(order.id)
-      .then(setMaterials)
-      .catch(() => setMaterials([]))
+      .then((data) => {
+        setMaterials(data);
+        setMaterialsError(null);
+      })
+      .catch((error) => {
+        setMaterials([]);
+        setMaterialsError(getApiErrorMessage(error, 'No se pudieron cargar los materiales'));
+      })
       .finally(() => setMaterialsLoading(false));
-    OrdersApi.locationEvents(order.id).then(setLocationEvents).catch(() => setLocationEvents(order.location_events ?? []));
-    CalendarIntegrationsApi.orderStatus(order.id).then(setCalendarStatuses).catch(() => setCalendarStatuses([]));
+    OrdersApi.locationEvents(order.id).then((data) => {
+      setLocationEvents(data);
+      setLocationEventsError(null);
+    }).catch((error) => {
+      setLocationEvents(order.location_events ?? []);
+      setLocationEventsError(getApiErrorMessage(error, 'No se pudieron cargar los eventos de ubicación'));
+    });
+    CalendarIntegrationsApi.orderStatus(order.id).then((data) => {
+      setCalendarStatuses(data);
+      setCalendarError(null);
+    }).catch((error) => {
+      setCalendarStatuses([]);
+      setCalendarError(getApiErrorMessage(error, 'No se pudo cargar el estado de sincronización de calendario'));
+    });
     setInvoiceDraft(order.invoice_draft ?? null);
     const ids = (order.technicians ?? []).map((t) => t.technician_id);
     setSelectedTechnicians(ids);
@@ -181,9 +217,11 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
   const latestDeparture = locationEvents.find((event) => event.event_type === 'departure');
   const canGenerateInvoiceDraft = user?.role === 'admin' && order.estado === 'completado';
   const canRetryCalendarSync = user?.role === 'admin';
+  const closureDirty = closureForm.formState.isDirty;
+  const materialDraftDirty = materialModalOpen && (materialForm.formState.isDirty || editingMaterial !== null);
 
   const requestClose = () => {
-    if (isDirty || reassignmentDirty) {
+    if (isDirty || reassignmentDirty || closureDirty || materialDraftDirty) {
       setConfirmClose(true);
       return;
     }
@@ -439,6 +477,7 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
                   ))}
                 </div>
               ) : null}
+              {calendarError ? <p className="mt-2 text-xs text-red-300">{calendarError}</p> : null}
             </div>
 
             <div className="rounded-[10px] border border-[var(--border)] p-3">
@@ -470,6 +509,7 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
               ) : (
                 <p className="mt-3 text-sm text-[var(--text-secondary)]">Todavía no hay eventos de llegada o salida registrados.</p>
               )}
+              {locationEventsError ? <p className="mt-2 text-xs text-red-300">{locationEventsError}</p> : null}
             </div>
 
             <div>
@@ -491,6 +531,7 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
               </div>
               {materialsLoading ? <p className="text-sm text-[var(--text-secondary)]">Cargando materiales...</p> : null}
               {!materialsLoading && materials.length === 0 ? <p className="text-sm text-[var(--text-secondary)]">Todavía no hay materiales cargados.</p> : null}
+              {materialsError ? <p className="mb-2 text-xs text-red-300">{materialsError}</p> : null}
               <div className="space-y-2">
                 {materials.map((material) => (
                   <div key={material.id} className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border)] p-3 text-sm">
@@ -524,19 +565,19 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
               <form className="grid gap-3 md:grid-cols-2" onSubmit={saveClosure}>
                 <div>
                   <label className="mb-1 block text-xs text-[var(--text-secondary)]">Horas trabajadas</label>
-                  <Input type="number" min="0" step="0.5" {...closureForm.register('tiempo_trabajado_horas', { valueAsNumber: true })} />
+                  <Input type="number" min="0" step="0.5" disabled={!canEditClosure} {...closureForm.register('tiempo_trabajado_horas', { valueAsNumber: true })} />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs text-[var(--text-secondary)]">Firma cliente</label>
-                  <Input placeholder="Nombre o referencia de firma" {...closureForm.register('firma_cliente')} />
+                  <Input placeholder="Nombre o referencia de firma" disabled={!canEditClosure} {...closureForm.register('firma_cliente')} />
                 </div>
                 <div className="md:col-span-2">
                   <label className="mb-1 block text-xs text-[var(--text-secondary)]">Foto / evidencia URL</label>
-                  <Input placeholder="https://... o referencia interna" {...closureForm.register('foto_trabajo_url')} />
+                  <Input placeholder="https://... o referencia interna" disabled={!canEditClosure} {...closureForm.register('foto_trabajo_url')} />
                 </div>
                 <div className="md:col-span-2">
                   <label className="mb-1 block text-xs text-[var(--text-secondary)]">Observaciones de cierre</label>
-                  <textarea className="min-h-24 w-full rounded-[10px] border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)]" {...closureForm.register('observaciones_cierre')} />
+                  <textarea disabled={!canEditClosure} className="min-h-24 w-full rounded-[10px] border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-70" {...closureForm.register('observaciones_cierre')} />
                 </div>
                 <div className="md:col-span-2">
                   <p className="mb-2 text-xs text-[var(--text-secondary)]">Checklist</p>
@@ -548,13 +589,14 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
                       ['documentacion_entregada', 'Documentación entregada']
                     ].map(([field, label]) => (
                       <label key={field} className="flex min-h-11 items-center gap-2 rounded-[10px] border border-[var(--border)] px-3 py-2 text-sm">
-                        <input type="checkbox" {...closureForm.register(field as keyof ClosureForm)} />
+                        <input type="checkbox" disabled={!canEditClosure} {...closureForm.register(field as keyof ClosureForm)} />
                         <span>{label}</span>
                       </label>
                     ))}
                   </div>
                 </div>
               </form>
+              {!canEditClosure ? <p className="mt-2 text-xs text-[var(--text-secondary)]">La orden está en modo solo lectura para cierre técnico.</p> : null}
             </div>
 
             <div>
@@ -562,6 +604,8 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
                 <p className="text-sm text-[var(--text-secondary)]">Auditoría reciente</p>
                 <Link href={`/orders/${order.id}`} className="text-sm text-cyan-300">Ver historial completo →</Link>
               </div>
+              {historyError ? <p className="mb-2 text-xs text-red-300">{historyError}</p> : null}
+              {backendEventsError ? <p className="mb-2 text-xs text-red-300">{backendEventsError}</p> : null}
               <Timeline>
                 {recentHistory.map((h) => <TimelineItem key={h.id} title={`${resolveActorName(h.usuario)} · ${getOrderHistoryFieldLabel(h.campo_modificado)}`} subtitle={`${h.valor_anterior ?? '-'} → ${h.valor_nuevo ?? '-'} · ${new Date(h.created_at).toLocaleString()}`} />)}
               </Timeline>
@@ -635,7 +679,7 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
           </div>
         </Modal>
 
-        <ConfirmModal open={confirmClose} title="Descartar cambios" message="Tenés cambios sin guardar en comentarios o reasignación. ¿Cerrar igualmente?" onCancel={() => setConfirmClose(false)} onConfirm={() => { setConfirmClose(false); onClose(); }} />
+        <ConfirmModal open={confirmClose} title="Descartar cambios" message="Tenés cambios sin guardar en comentarios, reasignación, cierre técnico o materiales. ¿Cerrar igualmente?" onCancel={() => setConfirmClose(false)} onConfirm={() => { setConfirmClose(false); onClose(); }} />
         <ConfirmModal open={confirmCancel} title="Cancelar orden" message={`¿Cancelar la orden #${order.id.slice(0, 8)}? Esta acción impactará el seguimiento operativo.`} onCancel={() => { if (!cancelLoading) setConfirmCancel(false); }} onConfirm={async () => { setCancelLoading(true); try { await OrdersApi.patch(order.id, { estado: 'cancelado' }); toast({ type: 'info', message: 'Orden cancelada' }); setConfirmCancel(false); onRefresh(); } catch { toast({ type: 'error', message: 'No se pudo cancelar la orden' }); } finally { setCancelLoading(false); } }} confirmDisabled={cancelLoading} cancelDisabled={cancelLoading} />
       </>
     </ErrorBoundary>
