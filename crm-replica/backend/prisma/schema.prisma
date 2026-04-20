@@ -148,6 +148,7 @@ model Ticket {
   updated_at          DateTime      @updatedAt
   client              Client        @relation(fields: [client_id], references: [id], onDelete: Cascade)
   events              TicketEvent[]
+  service_orders      ServiceOrder[]
 
   @@index([client_id])
   @@index([status])
@@ -189,7 +190,9 @@ model Equipment {
 model ServiceOrder {
   id                       String                      @id @default(cuid())
   client_id                String
+  ticket_id                String?
   client                   Client                      @relation(fields: [client_id], references: [id])
+  ticket                   Ticket?                     @relation(fields: [ticket_id], references: [id], onDelete: SetNull)
   estado                   String                      @default("presupuesto_generado")
   prioridad                Priority                    @default(media)
   prioridad_peso           Int                         @default(2)
@@ -219,6 +222,7 @@ model ServiceOrder {
   @@index([fecha_programada])
   @@index([estado])
   @@index([client_id])
+  @@index([ticket_id])
   @@index([is_active, deleted_at, estado, prioridad, fecha_programada])
 }
 

@@ -4,6 +4,7 @@ import { authRequired, requireRole } from '../middleware/auth.js';
 import { validateBody, validateIdParam } from '../middleware/validation.js';
 import { createTicketSchema, TICKET_ALLOWED_STATUSES, updateTicketSchema } from '../services/schemas.js';
 import { asyncHandler, sendError } from '../utils/http.js';
+import { computePriorityWeight } from '../services/order-rules.js';
 
 const MAX_PAGE_SIZE = 100;
 
@@ -47,7 +48,20 @@ export default function ticketsRoutes() {
 
     const skip = (page - 1) * pageSize;
     const [items, total] = await Promise.all([
-      prisma.ticket.findMany({ where, include: { client: true }, orderBy: [{ created_at: 'desc' }], skip, take: pageSize }),
+      prisma.ticket.findMany({
+        where,
+        include: {
+          client: true,
+          service_orders: {
+            select: { id: true },
+            orderBy: { created_at: 'desc' },
+            take: 1
+          }
+        },
+        orderBy: [{ created_at: 'desc' }],
+        skip,
+        take: pageSize
+      }),
       prisma.ticket.count({ where })
     ]);
 
@@ -61,6 +75,11 @@ export default function ticketsRoutes() {
         client: true,
         events: {
           orderBy: { created_at: 'desc' }
+        },
+        service_orders: {
+          select: { id: true },
+          orderBy: { created_at: 'desc' },
+          take: 1
         }
       }
     });
@@ -148,6 +167,48 @@ export default function ticketsRoutes() {
     });
 
     res.json({ ok: true });
+  }));
+
+  router.post('/:id/escalate', validateIdParam, asyncHandler(async (req, res) => {
+    const ticket = await prisma.ticket.findUnique({ where: { id: req.params.id } });
+    if (!ticket || ticket.deleted_at) return sendError(res, 404, 'Not found');
+    if (ticket.status === 'closed') return sendError(res, 400, 'No se puede escalar un ticket cerrado');
+
+    const order = await prisma.$transaction(async (db) => {
+      const createdOrder = await db.serviceOrder.create({
+        data: {
+          client_id: ticket.client_id,
+          ticket_id: ticket.id,
+          prioridad: ticket.priority,
+          prioridad_peso: computePriorityWeight(ticket.priority),
+          estado: 'presupuesto_generado',
+          observaciones: ticket.equipment_id
+            ? `${ticket.issue_description}\n\nEquipo relacionado: ${ticket.equipment_id}`
+            : ticket.issue_description
+        },
+        include: {
+          client: true,
+          ticket: true
+        }
+      });
+
+      await db.ticket.update({
+        where: { id: ticket.id },
+        data: { status: 'escalated' }
+      });
+
+      await db.ticketEvent.create({
+        data: {
+          ticket_id: ticket.id,
+          type: 'escalated',
+          message: `Escalado a orden #${createdOrder.id.slice(0, 8)}`
+        }
+      });
+
+      return createdOrder;
+    });
+
+    res.status(201).json(order);
   }));
 
   return router;

@@ -25,6 +25,7 @@ const SORT_FIELDS = {
 const ORDER_INCLUDE = {
   technicians: { include: { technician: true } },
   client: true,
+  ticket: true,
   materials: true,
   invoice_draft: true,
   external_calendar_events: true
@@ -229,6 +230,11 @@ export default function ordersRouter(io) {
     const { technicians = [], ...data } = req.body;
     if (!(await statusKeyExists(data.estado))) return sendError(res, 400, 'Estado inválido');
     if (!isWorkflowStatusKey(data.estado)) return sendError(res, 400, 'Estado fuera de flujo operativo');
+    if (data.ticket_id) {
+      const ticket = await prisma.ticket.findUnique({ where: { id: data.ticket_id } });
+      if (!ticket || ticket.deleted_at) return sendError(res, 400, 'Ticket inválido');
+      if (ticket.status === 'closed') return sendError(res, 400, 'No se puede crear orden desde ticket cerrado');
+    }
     data.prioridad_peso = computePriorityWeight(data.prioridad);
 
     const tx = await prisma.$transaction(async (db) => {

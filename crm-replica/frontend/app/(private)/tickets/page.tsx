@@ -50,6 +50,7 @@ export default function TicketsPage() {
   const [priorityFilter, setPriorityFilter] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [escalateLoading, setEscalateLoading] = useState(false);
   const PAGE_SIZE = 20;
   const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm<TicketForm>({
     defaultValues: {
@@ -132,6 +133,29 @@ export default function TicketsPage() {
       toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo eliminar el ticket') });
     } finally {
       setDeleteLoading(false);
+    }
+  };
+
+  const escalateTicket = async () => {
+    if (!selectedWithDetails) return;
+    setEscalateLoading(true);
+    try {
+      const order = await TicketsApi.escalate(selectedWithDetails.id);
+      setSelected((prev) => prev ? {
+        ...prev,
+        status: 'escalated',
+        service_orders: [{ id: order.id }, ...(prev.service_orders ?? [])]
+      } : prev);
+      setTickets((prev) => prev.map((ticket) => ticket.id === selectedWithDetails.id ? {
+        ...ticket,
+        status: 'escalated',
+        service_orders: [{ id: order.id }, ...(ticket.service_orders ?? [])]
+      } : ticket));
+      toast({ type: 'success', message: `Escalado a orden #${order.id.slice(0, 8)}` });
+    } catch (error) {
+      toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo escalar el ticket a orden') });
+    } finally {
+      setEscalateLoading(false);
     }
   };
 
@@ -250,6 +274,9 @@ export default function TicketsPage() {
             <p><span className="font-medium">Estado:</span> {STATUS_LABELS[selectedWithDetails.status] ?? selectedWithDetails.status}</p>
             <p><span className="font-medium">Prioridad:</span> {selectedWithDetails.priority}</p>
             <p><span className="font-medium">Descripción:</span> {selectedWithDetails.issue_description}</p>
+            {selectedWithDetails.service_orders?.[0]?.id ? (
+              <p><span className="font-medium">Orden vinculada:</span> #{selectedWithDetails.service_orders[0].id.slice(0, 8)}</p>
+            ) : null}
             <div>
               <p className="mb-1 font-medium">Eventos</p>
               <div className="space-y-2">
@@ -262,7 +289,12 @@ export default function TicketsPage() {
                 )) : <p className="text-xs text-[var(--text-secondary)]">Sin eventos registrados.</p>}
               </div>
             </div>
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2">
+              {selectedWithDetails.status !== 'closed' && !selectedWithDetails.deleted_at ? (
+                <Button variant="secondary" onClick={() => void escalateTicket()} disabled={escalateLoading}>
+                  {escalateLoading ? 'Escalando…' : 'Escalar a Orden'}
+                </Button>
+              ) : null}
               <Button variant="danger" onClick={() => setConfirmDelete(true)}>Eliminar</Button>
             </div>
           </div>

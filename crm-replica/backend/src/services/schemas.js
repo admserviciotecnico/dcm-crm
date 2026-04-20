@@ -145,6 +145,7 @@ export const orderStatusPatchSchema = z.object({
 
 export const orderCreateSchema = z.object({
   client_id: z.string().min(1),
+  ticket_id: z.string().min(1).optional(),
   estado: orderStatusKeySchema.default('presupuesto_generado'),
   prioridad: z.enum(['baja', 'media', 'alta']).default('media'),
   fecha_programada: z.coerce.date().optional(),

@@ -10,6 +10,7 @@ import { authStore } from '@/stores/auth-store';
 import { appStore } from '@/stores/app-store';
 import { Drawer } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Timeline, TimelineItem } from '@/components/ui/timeline';
 import { PriorityBadge, StatusBadge } from '@/components/common/badges';
 import { SlaBadge } from '@/components/common/sla-badge';
@@ -383,6 +384,7 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
                 <StatusBadge value={order.estado} />
                 <PriorityBadge value={order.prioridad} />
                 <SlaBadge status={order.sla_status} slaDeadline={order.sla_deadline} />
+                {order.ticket_id ? <Badge className="border-sky-400 bg-sky-500/10 text-sky-300">Desde ticket #{order.ticket_id.slice(0, 8)}</Badge> : null}
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="secondary" onClick={handleExportPdf}><Download size={16} /> PDF</Button>
