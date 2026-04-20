@@ -8,10 +8,12 @@ import { asyncHandler, sendError } from '../utils/http.js';
 const MAX_PAGE_SIZE = 100;
 
 function buildUpdateEventMessage(current, patch) {
-  if (patch.status && patch.status !== current.status) {
-    return `Estado actualizado: ${current.status} → ${patch.status}`;
-  }
-  return 'Ticket actualizado';
+  const changes = [];
+  if (patch.status && patch.status !== current.status) changes.push(`status changed from '${current.status}' to '${patch.status}'`);
+  if (patch.priority && patch.priority !== current.priority) changes.push(`priority changed from '${current.priority}' to '${patch.priority}'`);
+  if (patch.category !== undefined && patch.category !== current.category) changes.push(`category changed from '${current.category ?? '-'}' to '${patch.category ?? '-'}'`);
+  if (patch.issue_description && patch.issue_description !== current.issue_description) changes.push('issue_description changed');
+  return changes.length ? changes.join(' · ') : 'Ticket updated';
 }
 
 const TICKET_STATUS_SET = new Set(TICKET_ALLOWED_STATUSES);
@@ -24,10 +26,16 @@ export default function ticketsRoutes() {
     const page = Math.max(1, Number(req.query.page || 1));
     const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, Number(req.query.pageSize || 20)));
     const status = String(req.query.status || '').trim();
+    const priority = String(req.query.priority || '').trim();
+    const clientId = String(req.query.client_id || '').trim();
     const q = String(req.query.q || '').trim();
+    const includeDeleted = String(req.query.includeDeleted || 'false') === 'true';
 
     const where = {
+      ...(includeDeleted ? {} : { deleted_at: null }),
       ...(status ? { status } : {}),
+      ...(priority ? { priority } : {}),
+      ...(clientId ? { client_id: clientId } : {}),
       ...(q ? {
         OR: [
           { issue_description: { contains: q, mode: 'insensitive' } },
@@ -57,7 +65,7 @@ export default function ticketsRoutes() {
       }
     });
 
-    if (!item) return sendError(res, 404, 'Not found');
+    if (!item || item.deleted_at) return sendError(res, 404, 'Not found');
     res.json(item);
   }));
 
@@ -81,16 +89,13 @@ export default function ticketsRoutes() {
     if (!Object.keys(req.body).length) return sendError(res, 400, 'At least one field is required');
 
     const current = await prisma.ticket.findUnique({ where: { id: req.params.id } });
-    if (!current) return sendError(res, 404, 'Not found');
+    if (!current || current.deleted_at) return sendError(res, 404, 'Not found');
     if (req.body.status && !TICKET_STATUS_SET.has(req.body.status)) return sendError(res, 400, 'Estado de ticket inválido');
     if (current.status === 'closed' && req.body.status && req.body.status !== 'closed') {
       return sendError(res, 409, 'El ticket cerrado no puede volver a estados abiertos sin lógica de reapertura');
     }
 
-    const changedFields = [];
-    if (req.body.priority && req.body.priority !== current.priority) changedFields.push(`prioridad: ${current.priority} → ${req.body.priority}`);
-    if (req.body.category !== undefined && req.body.category !== current.category) changedFields.push(`categoría: ${current.category ?? '-'} → ${req.body.category ?? '-'}`);
-    if (req.body.issue_description && req.body.issue_description !== current.issue_description) changedFields.push('descripción actualizada');
+    const updateMessage = buildUpdateEventMessage(current, req.body);
 
     const updated = await prisma.$transaction(async (db) => {
       const ticket = await db.ticket.update({
@@ -108,12 +113,12 @@ export default function ticketsRoutes() {
           }
         });
       }
-      if (changedFields.length) {
+      if (updateMessage !== 'Ticket updated') {
         await db.ticketEvent.create({
           data: {
             ticket_id: ticket.id,
             type: 'updated',
-            message: changedFields.join(' · ')
+            message: updateMessage
           }
         });
       }
@@ -122,6 +127,27 @@ export default function ticketsRoutes() {
     });
 
     res.json(updated);
+  }));
+
+  router.delete('/:id', validateIdParam, asyncHandler(async (req, res) => {
+    const current = await prisma.ticket.findUnique({ where: { id: req.params.id } });
+    if (!current || current.deleted_at) return sendError(res, 404, 'Not found');
+
+    await prisma.$transaction(async (db) => {
+      await db.ticket.update({
+        where: { id: req.params.id },
+        data: { deleted_at: new Date() }
+      });
+      await db.ticketEvent.create({
+        data: {
+          ticket_id: req.params.id,
+          type: 'deleted',
+          message: 'Ticket eliminado (soft delete)'
+        }
+      });
+    });
+
+    res.json({ ok: true });
   }));
 
   return router;

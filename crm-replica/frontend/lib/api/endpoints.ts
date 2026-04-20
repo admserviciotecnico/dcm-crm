@@ -153,7 +153,8 @@ export const TicketsApi = {
     priority: 'baja' | 'media' | 'alta';
     category: string;
     status: 'new' | 'triage' | 'in_diagnosis' | 'escalated' | 'resolved' | 'closed';
-  }>) => api.patch<Ticket>(`/api/tickets/${id}`, payload).then((r) => r.data)
+  }>) => api.patch<Ticket>(`/api/tickets/${id}`, payload).then((r) => r.data),
+  remove: (id: string) => api.delete<{ ok: true }>(`/api/tickets/${id}`).then((r) => r.data)
 };
 
 export const PortalAuthApi = {

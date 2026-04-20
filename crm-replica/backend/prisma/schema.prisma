@@ -143,6 +143,7 @@ model Ticket {
   status              String        @default("new")
   reported_by_name    String?
   reported_by_contact String?
+  deleted_at          DateTime?
   created_at          DateTime      @default(now())
   updated_at          DateTime      @updatedAt
   client              Client        @relation(fields: [client_id], references: [id], onDelete: Cascade)
@@ -150,6 +151,8 @@ model Ticket {
 
   @@index([client_id])
   @@index([status])
+  @@index([deleted_at])
+  @@index([status, created_at])
 }
 
 model TicketEvent {

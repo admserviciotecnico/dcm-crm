@@ -16,6 +16,7 @@ import { Select } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
 import { TableSkeleton } from '@/components/common/skeletons';
+import { ConfirmModal } from '@/components/common/confirm-modal';
 
 type TicketForm = {
   client_id: string;
@@ -45,6 +46,10 @@ export default function TicketsPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [statusFilter, setStatusFilter] = useState('');
+  const [priorityFilter, setPriorityFilter] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const PAGE_SIZE = 20;
   const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm<TicketForm>({
     defaultValues: {
@@ -60,7 +65,7 @@ export default function TicketsPage() {
     setLoadError(null);
     try {
       const [ticketsRes, clientsRes] = await Promise.all([
-        TicketsApi.list({ page, pageSize: PAGE_SIZE }),
+        TicketsApi.list({ page, pageSize: PAGE_SIZE, status: statusFilter || undefined, priority: priorityFilter || undefined }),
         ClientsApi.list()
       ]);
       setTickets(ticketsRes.items);
@@ -78,7 +83,7 @@ export default function TicketsPage() {
   useEffect(() => {
     if (!canAccess) return;
     void load();
-  }, [canAccess, page]);
+  }, [canAccess, page, priorityFilter, statusFilter]);
 
   const selectedWithDetails = useMemo(() => tickets.find((ticket) => ticket.id === selected?.id) ?? selected, [selected, tickets]);
 
@@ -112,6 +117,23 @@ export default function TicketsPage() {
   }
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const hasFilters = Boolean(statusFilter || priorityFilter);
+
+  const deleteTicket = async () => {
+    if (!selectedWithDetails) return;
+    setDeleteLoading(true);
+    try {
+      await TicketsApi.remove(selectedWithDetails.id);
+      toast({ type: 'success', message: 'Ticket eliminado' });
+      setConfirmDelete(false);
+      setSelected(null);
+      await load();
+    } catch (error) {
+      toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo eliminar el ticket') });
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -122,6 +144,23 @@ export default function TicketsPage() {
       />
 
       <Card>
+        <div className="mb-3 flex flex-wrap gap-2">
+          <Select value={statusFilter} onChange={(event) => { setPage(1); setStatusFilter(event.target.value); }} className="max-w-52">
+            <option value="">Estado (todos)</option>
+            <option value="new">Nuevo</option>
+            <option value="triage">Triage</option>
+            <option value="in_diagnosis">Diagnóstico</option>
+            <option value="escalated">Escalado</option>
+            <option value="resolved">Resuelto</option>
+            <option value="closed">Cerrado</option>
+          </Select>
+          <Select value={priorityFilter} onChange={(event) => { setPage(1); setPriorityFilter(event.target.value); }} className="max-w-52">
+            <option value="">Prioridad (todas)</option>
+            <option value="alta">Alta</option>
+            <option value="media">Media</option>
+            <option value="baja">Baja</option>
+          </Select>
+        </div>
         {loading ? <TableSkeleton rows={6} cols={5} /> : null}
         {!loading && loadError ? (
           <div className="space-y-2">
@@ -129,7 +168,7 @@ export default function TicketsPage() {
             <Button variant="secondary" onClick={() => void load()}>Reintentar</Button>
           </div>
         ) : null}
-        {!loading && !loadError && tickets.length === 0 ? <p className="text-sm text-[var(--text-secondary)]">Todavía no hay tickets. Creá el primer reclamo para iniciar el intake.</p> : null}
+        {!loading && !loadError && tickets.length === 0 ? <p className="text-sm text-[var(--text-secondary)]">{hasFilters ? 'No hay tickets con estos filtros.' : 'Todavía no hay tickets. Creá el primer reclamo para iniciar el intake.'}</p> : null}
         {!loading && !loadError && tickets.length > 0 ? (
           <Table>
             <thead>
@@ -216,16 +255,29 @@ export default function TicketsPage() {
               <div className="space-y-2">
                 {selectedWithDetails.events?.length ? selectedWithDetails.events.map((event) => (
                   <div key={event.id} className="rounded-[8px] border border-[var(--border)] px-3 py-2">
-                    <p className="font-medium">{event.type}</p>
+                    <p className="font-medium uppercase tracking-wide text-xs text-[var(--text-secondary)]">{event.type}</p>
+                    <p className="text-sm">{event.message || 'Sin detalle'}</p>
                     <p className="text-xs text-[var(--text-secondary)]">{new Date(event.created_at).toLocaleString()}</p>
-                    {event.message ? <p className="mt-1 text-sm">{event.message}</p> : null}
                   </div>
                 )) : <p className="text-xs text-[var(--text-secondary)]">Sin eventos registrados.</p>}
               </div>
             </div>
+            <div className="flex justify-end">
+              <Button variant="danger" onClick={() => setConfirmDelete(true)}>Eliminar</Button>
+            </div>
           </div>
         )}
       </Modal>
+
+      <ConfirmModal
+        open={confirmDelete}
+        title="Eliminar ticket"
+        message={selectedWithDetails ? `¿Eliminar el ticket #${selectedWithDetails.id.slice(0, 8)}? Se hará soft delete.` : '¿Eliminar ticket?'}
+        onCancel={() => { if (!deleteLoading) setConfirmDelete(false); }}
+        onConfirm={() => void deleteTicket()}
+        confirmDisabled={deleteLoading}
+        cancelDisabled={deleteLoading}
+      />
     </div>
   );
 }
