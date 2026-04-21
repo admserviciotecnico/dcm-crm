@@ -14,11 +14,26 @@ function buildUpdateEventMessage(current, patch) {
   if (patch.priority && patch.priority !== current.priority) changes.push(`priority changed from '${current.priority}' to '${patch.priority}'`);
   if (patch.category !== undefined && patch.category !== current.category) changes.push(`category changed from '${current.category ?? '-'}' to '${patch.category ?? '-'}'`);
   if (patch.issue_description && patch.issue_description !== current.issue_description) changes.push('issue_description changed');
+  if (patch.diagnosis !== undefined && patch.diagnosis !== current.diagnosis) changes.push('diagnosis updated');
+  if (patch.diagnosis_result !== undefined && patch.diagnosis_result !== current.diagnosis_result) changes.push('diagnosis_result updated');
+  if (patch.requires_intervention !== undefined && patch.requires_intervention !== current.requires_intervention) changes.push(`requires_intervention set to '${patch.requires_intervention}'`);
   return changes.length ? changes.join(' · ') : 'Ticket updated';
 }
 
 const TICKET_STATUS_SET = new Set(TICKET_ALLOWED_STATUSES);
 const INVALID_TICKET_FOR_ORDER_MESSAGE = 'Ticket inválido o no disponible para generar orden';
+
+function validateTicketStatePatch(current, patch) {
+  const nextRequiresIntervention = patch.requires_intervention ?? current.requires_intervention;
+  const nextStatus = patch.status ?? current.status;
+  if (nextStatus === 'escalated' && !nextRequiresIntervention) {
+    return { ok: false, status: 409, message: 'No se puede escalar sin marcar que requiere intervención' };
+  }
+  if (nextStatus === 'resolved_remote' && nextRequiresIntervention) {
+    return { ok: false, status: 409, message: 'No se puede resolver en remoto si requiere intervención' };
+  }
+  return { ok: true };
+}
 
 export default function ticketsRoutes() {
   const router = Router();
@@ -114,8 +129,13 @@ export default function ticketsRoutes() {
     if (current.status === 'closed' && req.body.status && req.body.status !== 'closed') {
       return sendError(res, 409, 'El ticket cerrado no puede volver a estados abiertos sin lógica de reapertura');
     }
+    const transitionValidation = validateTicketStatePatch(current, req.body);
+    if (!transitionValidation.ok) return sendError(res, transitionValidation.status, transitionValidation.message);
 
     const updateMessage = buildUpdateEventMessage(current, req.body);
+    const diagnosisStarted = !current.diagnosis && typeof req.body.diagnosis === 'string' && req.body.diagnosis.trim().length > 0;
+    const diagnosisCompleted = !current.diagnosis_result && typeof req.body.diagnosis_result === 'string' && req.body.diagnosis_result.trim().length > 0;
+    const interventionRequired = current.requires_intervention !== true && req.body.requires_intervention === true;
 
     const updated = await prisma.$transaction(async (db) => {
       const ticket = await db.ticket.update({
@@ -139,6 +159,33 @@ export default function ticketsRoutes() {
             ticket_id: ticket.id,
             type: 'updated',
             message: updateMessage
+          }
+        });
+      }
+      if (diagnosisStarted) {
+        await db.ticketEvent.create({
+          data: {
+            ticket_id: ticket.id,
+            type: 'diagnosis_started',
+            message: 'Diagnóstico técnico iniciado'
+          }
+        });
+      }
+      if (diagnosisCompleted) {
+        await db.ticketEvent.create({
+          data: {
+            ticket_id: ticket.id,
+            type: 'diagnosis_completed',
+            message: 'Diagnóstico técnico completado'
+          }
+        });
+      }
+      if (interventionRequired) {
+        await db.ticketEvent.create({
+          data: {
+            ticket_id: ticket.id,
+            type: 'intervention_required',
+            message: 'Se sugiere escalar a orden de servicio'
           }
         });
       }
@@ -226,7 +273,7 @@ export default function ticketsRoutes() {
 
         await db.ticket.update({
           where: { id: ticket.id },
-          data: { status: 'escalated' }
+          data: { status: 'escalated', requires_intervention: true }
         });
 
         await db.ticketEvent.create({

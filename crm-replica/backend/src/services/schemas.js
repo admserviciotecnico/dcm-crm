@@ -183,8 +183,8 @@ export const techniciansUpdateSchema = z.object({
   technicians: z.array(z.string()).default([])
 }).strict();
 
-export const TICKET_ALLOWED_STATUSES = Object.freeze(['new', 'triage', 'in_diagnosis', 'escalated', 'resolved', 'closed']);
-const ticketStatusSchema = z.enum(['new', 'triage', 'in_diagnosis', 'escalated', 'resolved', 'closed']);
+export const TICKET_ALLOWED_STATUSES = Object.freeze(['new', 'triage', 'in_diagnosis', 'resolved_remote', 'escalated', 'resolved', 'closed']);
+const ticketStatusSchema = z.enum(['new', 'triage', 'in_diagnosis', 'resolved_remote', 'escalated', 'resolved', 'closed']);
 const ticketChannelSchema = z.enum(['phone', 'email', 'web', 'whatsapp']);
 const ticketPrioritySchema = z.enum(['baja', 'media', 'alta']);
 
@@ -197,6 +197,9 @@ export const createTicketSchema = z.object({
   priority: ticketPrioritySchema.default('media'),
   category: z.string().min(1).optional(),
   status: ticketStatusSchema.default('new'),
+  diagnosis: z.string().min(1).optional(),
+  diagnosis_result: z.string().min(1).optional(),
+  requires_intervention: z.boolean().optional(),
   reported_by_name: z.string().min(1).optional(),
   reported_by_contact: z.string().min(1).optional()
 }).strict();
@@ -205,7 +208,10 @@ export const updateTicketSchema = z.object({
   issue_description: z.string().min(1).optional(),
   priority: ticketPrioritySchema.optional(),
   category: z.string().min(1).optional(),
-  status: ticketStatusSchema.optional()
+  status: ticketStatusSchema.optional(),
+  diagnosis: z.string().min(1).optional(),
+  diagnosis_result: z.string().min(1).optional(),
+  requires_intervention: z.boolean().optional()
 }).strict();
 
 export const invoiceDraftCreateSchema = z.object({

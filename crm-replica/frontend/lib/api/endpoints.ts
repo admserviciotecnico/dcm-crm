@@ -152,7 +152,10 @@ export const TicketsApi = {
     issue_description: string;
     priority: 'baja' | 'media' | 'alta';
     category: string;
-    status: 'new' | 'triage' | 'in_diagnosis' | 'escalated' | 'resolved' | 'closed';
+    status: 'new' | 'triage' | 'in_diagnosis' | 'resolved_remote' | 'escalated' | 'resolved' | 'closed';
+    diagnosis: string;
+    diagnosis_result: string;
+    requires_intervention: boolean;
   }>) => api.patch<Ticket>(`/api/tickets/${id}`, payload).then((r) => r.data),
   remove: (id: string) => api.delete<{ ok: true }>(`/api/tickets/${id}`).then((r) => r.data),
   escalate: (id: string) => api.post<ServiceOrder>(`/api/tickets/${id}/escalate`).then((r) => r.data)

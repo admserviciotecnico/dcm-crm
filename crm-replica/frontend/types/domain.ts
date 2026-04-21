@@ -144,7 +144,7 @@ export interface ServiceOrder {
 
 export type TicketChannel = 'phone' | 'email' | 'web' | 'whatsapp';
 export type TicketPriority = Priority;
-export type TicketStatus = 'new' | 'triage' | 'in_diagnosis' | 'escalated' | 'resolved' | 'closed';
+export type TicketStatus = 'new' | 'triage' | 'in_diagnosis' | 'resolved_remote' | 'escalated' | 'resolved' | 'closed';
 
 export interface TicketEvent {
   id: string;
@@ -164,6 +164,9 @@ export interface Ticket {
   priority: TicketPriority | string;
   category?: string | null;
   status: TicketStatus | string;
+  diagnosis?: string | null;
+  diagnosis_result?: string | null;
+  requires_intervention?: boolean;
   reported_by_name?: string | null;
   reported_by_contact?: string | null;
   deleted_at?: string | null;

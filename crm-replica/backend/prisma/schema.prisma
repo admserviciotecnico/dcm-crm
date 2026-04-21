@@ -141,6 +141,9 @@ model Ticket {
   priority            String
   category            String?
   status              String        @default("new")
+  diagnosis           String?
+  diagnosis_result    String?
+  requires_intervention Boolean     @default(false)
   reported_by_name    String?
   reported_by_contact String?
   deleted_at          DateTime?

@@ -27,11 +27,19 @@ type TicketForm = {
 
 const STATUS_LABELS: Record<string, string> = {
   new: 'Nuevo',
-  triage: 'Triage',
-  in_diagnosis: 'Diagnóstico',
+  triage: 'Pendiente análisis',
+  in_diagnosis: 'En diagnóstico',
+  resolved_remote: 'Resuelto sin intervención',
   escalated: 'Escalado',
   resolved: 'Resuelto',
   closed: 'Cerrado'
+};
+
+const STATUS_HINTS: Record<string, string> = {
+  triage: 'Pendiente análisis',
+  in_diagnosis: 'En diagnóstico',
+  resolved_remote: 'Resuelto sin intervención',
+  escalated: 'Enviado a orden'
 };
 
 export default function TicketsPage() {
@@ -51,6 +59,8 @@ export default function TicketsPage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [escalateLoading, setEscalateLoading] = useState(false);
+  const [diagnosisSaving, setDiagnosisSaving] = useState(false);
+  const [diagnosisDraft, setDiagnosisDraft] = useState({ diagnosis: '', diagnosis_result: '', requires_intervention: false });
   const PAGE_SIZE = 20;
   const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm<TicketForm>({
     defaultValues: {
@@ -88,12 +98,26 @@ export default function TicketsPage() {
 
   const selectedWithDetails = useMemo(() => tickets.find((ticket) => ticket.id === selected?.id) ?? selected, [selected, tickets]);
 
+  useEffect(() => {
+    if (!selectedWithDetails) return;
+    setDiagnosisDraft({
+      diagnosis: selectedWithDetails.diagnosis ?? '',
+      diagnosis_result: selectedWithDetails.diagnosis_result ?? '',
+      requires_intervention: Boolean(selectedWithDetails.requires_intervention)
+    });
+  }, [selectedWithDetails?.id]);
+
   const openDetail = async (ticket: Ticket) => {
     setDetailLoading(true);
     setSelected(ticket);
     try {
       const detail = await TicketsApi.get(ticket.id);
       setSelected(detail);
+      setDiagnosisDraft({
+        diagnosis: detail.diagnosis ?? '',
+        diagnosis_result: detail.diagnosis_result ?? '',
+        requires_intervention: Boolean(detail.requires_intervention)
+      });
     } catch (error) {
       toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo cargar el detalle del ticket') });
     } finally {
@@ -138,17 +162,23 @@ export default function TicketsPage() {
 
   const escalateTicket = async () => {
     if (!selectedWithDetails) return;
+    if (!selectedWithDetails.requires_intervention) {
+      toast({ type: 'info', message: 'Marcá "requiere intervención" antes de escalar a orden' });
+      return;
+    }
     setEscalateLoading(true);
     try {
       const order = await TicketsApi.escalate(selectedWithDetails.id);
       setSelected((prev) => prev ? {
         ...prev,
         status: 'escalated',
+        requires_intervention: true,
         service_orders: [{ id: order.id }, ...(prev.service_orders ?? [])]
       } : prev);
       setTickets((prev) => prev.map((ticket) => ticket.id === selectedWithDetails.id ? {
         ...ticket,
         status: 'escalated',
+        requires_intervention: true,
         service_orders: [{ id: order.id }, ...(ticket.service_orders ?? [])]
       } : ticket));
       toast({ type: 'success', message: `Escalado a orden #${order.id.slice(0, 8)}` });
@@ -156,6 +186,55 @@ export default function TicketsPage() {
       toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo escalar el ticket a orden') });
     } finally {
       setEscalateLoading(false);
+    }
+  };
+
+  const saveDiagnosis = async () => {
+    if (!selectedWithDetails) return;
+    setDiagnosisSaving(true);
+    try {
+      const updated = await TicketsApi.patch(selectedWithDetails.id, {
+        diagnosis: diagnosisDraft.diagnosis || undefined,
+        diagnosis_result: diagnosisDraft.diagnosis_result || undefined,
+        requires_intervention: diagnosisDraft.requires_intervention,
+        status: diagnosisDraft.diagnosis && (selectedWithDetails.status === 'new' || selectedWithDetails.status === 'triage') ? 'in_diagnosis' : undefined
+      });
+      setSelected(updated);
+      setTickets((prev) => prev.map((ticket) => ticket.id === updated.id ? { ...ticket, ...updated } : ticket));
+      toast({ type: 'success', message: 'Diagnóstico guardado' });
+    } catch (error) {
+      toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo guardar el diagnóstico') });
+    } finally {
+      setDiagnosisSaving(false);
+    }
+  };
+
+  const resolveRemote = async () => {
+    if (!selectedWithDetails) return;
+    if (!diagnosisDraft.diagnosis_result.trim()) {
+      toast({ type: 'info', message: 'Completá la conclusión del diagnóstico antes de resolver en remoto' });
+      return;
+    }
+    setDiagnosisSaving(true);
+    try {
+      const updated = await TicketsApi.patch(selectedWithDetails.id, {
+        diagnosis: diagnosisDraft.diagnosis || undefined,
+        diagnosis_result: diagnosisDraft.diagnosis_result,
+        requires_intervention: false,
+        status: 'resolved_remote'
+      });
+      setSelected(updated);
+      setTickets((prev) => prev.map((ticket) => ticket.id === updated.id ? { ...ticket, ...updated } : ticket));
+      setDiagnosisDraft({
+        diagnosis: updated.diagnosis ?? '',
+        diagnosis_result: updated.diagnosis_result ?? '',
+        requires_intervention: Boolean(updated.requires_intervention)
+      });
+      toast({ type: 'success', message: 'Ticket resuelto en remoto' });
+    } catch (error) {
+      toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo resolver el ticket en remoto') });
+    } finally {
+      setDiagnosisSaving(false);
     }
   };
 
@@ -174,6 +253,7 @@ export default function TicketsPage() {
             <option value="new">Nuevo</option>
             <option value="triage">Triage</option>
             <option value="in_diagnosis">Diagnóstico</option>
+            <option value="resolved_remote">Resuelto remoto</option>
             <option value="escalated">Escalado</option>
             <option value="resolved">Resuelto</option>
             <option value="closed">Cerrado</option>
@@ -272,8 +352,54 @@ export default function TicketsPage() {
             <p><span className="font-medium">Cliente:</span> {selectedWithDetails.client?.nombre_empresa ?? selectedWithDetails.client_id}</p>
             <p><span className="font-medium">Canal:</span> {selectedWithDetails.channel}</p>
             <p><span className="font-medium">Estado:</span> {STATUS_LABELS[selectedWithDetails.status] ?? selectedWithDetails.status}</p>
+            {STATUS_HINTS[selectedWithDetails.status] ? <p className="text-xs text-[var(--text-secondary)]">{STATUS_HINTS[selectedWithDetails.status]}</p> : null}
             <p><span className="font-medium">Prioridad:</span> {selectedWithDetails.priority}</p>
             <p><span className="font-medium">Descripción:</span> {selectedWithDetails.issue_description}</p>
+            {(user?.role === 'admin' || user?.role === 'tecnico') ? (
+              <div className="space-y-2 rounded-[10px] border border-[var(--border)] p-3">
+                <p className="font-medium">Diagnóstico técnico</p>
+                <div className="space-y-1">
+                  <label className="text-xs text-[var(--text-secondary)]">Análisis</label>
+                  <textarea
+                    className="min-h-20 w-full rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-sm"
+                    value={diagnosisDraft.diagnosis}
+                    onChange={(event) => setDiagnosisDraft((prev) => ({ ...prev, diagnosis: event.target.value }))}
+                    placeholder="Detalle de troubleshooting y diagnóstico"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-[var(--text-secondary)]">Conclusión</label>
+                  <textarea
+                    className="min-h-20 w-full rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-sm"
+                    value={diagnosisDraft.diagnosis_result}
+                    onChange={(event) => setDiagnosisDraft((prev) => ({ ...prev, diagnosis_result: event.target.value }))}
+                    placeholder="Conclusión breve del caso"
+                  />
+                </div>
+                <label className="inline-flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={diagnosisDraft.requires_intervention}
+                    onChange={(event) => setDiagnosisDraft((prev) => ({ ...prev, requires_intervention: event.target.checked }))}
+                  />
+                  Requiere intervención en campo
+                </label>
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="secondary" onClick={() => void saveDiagnosis()} disabled={diagnosisSaving}>
+                    {diagnosisSaving ? 'Guardando…' : 'Guardar diagnóstico'}
+                  </Button>
+                  {!diagnosisDraft.requires_intervention ? (
+                    <Button type="button" onClick={() => void resolveRemote()} disabled={diagnosisSaving}>
+                      Marcar como resuelto (remoto)
+                    </Button>
+                  ) : (
+                    <Button type="button" variant="secondary" onClick={() => void escalateTicket()} disabled={escalateLoading || !diagnosisDraft.requires_intervention}>
+                      {escalateLoading ? 'Creando orden…' : 'Escalar a orden'}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ) : null}
             {selectedWithDetails.service_orders?.length ? (
               <div>
                 <p><span className="font-medium">Órdenes vinculadas:</span></p>
@@ -298,7 +424,7 @@ export default function TicketsPage() {
             </div>
               <div className="flex justify-end gap-2">
               {(selectedWithDetails.status === 'triage' || selectedWithDetails.status === 'in_diagnosis') && !selectedWithDetails.deleted_at ? (
-                <Button variant="secondary" onClick={() => void escalateTicket()} disabled={escalateLoading}>
+                <Button variant="secondary" onClick={() => void escalateTicket()} disabled={escalateLoading || !Boolean(selectedWithDetails.requires_intervention)}>
                   {escalateLoading ? 'Creando orden…' : 'Crear orden'}
                 </Button>
               ) : null}
