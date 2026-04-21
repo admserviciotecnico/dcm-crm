@@ -274,8 +274,15 @@ export default function TicketsPage() {
             <p><span className="font-medium">Estado:</span> {STATUS_LABELS[selectedWithDetails.status] ?? selectedWithDetails.status}</p>
             <p><span className="font-medium">Prioridad:</span> {selectedWithDetails.priority}</p>
             <p><span className="font-medium">Descripción:</span> {selectedWithDetails.issue_description}</p>
-            {selectedWithDetails.service_orders?.[0]?.id ? (
-              <p><span className="font-medium">Orden vinculada:</span> #{selectedWithDetails.service_orders[0].id.slice(0, 8)}</p>
+            {selectedWithDetails.service_orders?.length ? (
+              <div>
+                <p><span className="font-medium">Órdenes vinculadas:</span></p>
+                <ul className="mt-1 space-y-1">
+                  {selectedWithDetails.service_orders.map((serviceOrder) => (
+                    <li key={serviceOrder.id}>#{serviceOrder.id.slice(0, 8)}</li>
+                  ))}
+                </ul>
+              </div>
             ) : null}
             <div>
               <p className="mb-1 font-medium">Eventos</p>

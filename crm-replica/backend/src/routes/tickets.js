@@ -18,6 +18,7 @@ function buildUpdateEventMessage(current, patch) {
 }
 
 const TICKET_STATUS_SET = new Set(TICKET_ALLOWED_STATUSES);
+const INVALID_TICKET_FOR_ORDER_MESSAGE = 'Ticket inválido o no disponible para generar orden';
 
 export default function ticketsRoutes() {
   const router = Router();
@@ -78,8 +79,7 @@ export default function ticketsRoutes() {
         },
         service_orders: {
           select: { id: true },
-          orderBy: { created_at: 'desc' },
-          take: 1
+          orderBy: { created_at: 'desc' }
         }
       }
     });
@@ -170,43 +170,78 @@ export default function ticketsRoutes() {
   }));
 
   router.post('/:id/escalate', validateIdParam, asyncHandler(async (req, res) => {
-    const ticket = await prisma.ticket.findUnique({ where: { id: req.params.id } });
-    if (!ticket || ticket.deleted_at) return sendError(res, 404, 'Not found');
-    if (ticket.status === 'closed') return sendError(res, 400, 'No se puede escalar un ticket cerrado');
-
-    const order = await prisma.$transaction(async (db) => {
-      const createdOrder = await db.serviceOrder.create({
-        data: {
-          client_id: ticket.client_id,
-          ticket_id: ticket.id,
-          prioridad: ticket.priority,
-          prioridad_peso: computePriorityWeight(ticket.priority),
-          estado: 'presupuesto_generado',
-          observaciones: ticket.equipment_id
-            ? `${ticket.issue_description}\n\nEquipo relacionado: ${ticket.equipment_id}`
-            : ticket.issue_description
-        },
-        include: {
-          client: true,
-          ticket: true
+    let order;
+    try {
+      order = await prisma.$transaction(async (db) => {
+        const [ticket] = await db.$queryRaw`
+          SELECT *
+          FROM "Ticket"
+          WHERE id = ${req.params.id}
+          FOR UPDATE
+        `;
+        if (!ticket || ticket.deleted_at) {
+          const error = new Error(INVALID_TICKET_FOR_ORDER_MESSAGE);
+          error.httpStatus = 400;
+          throw error;
         }
-      });
-
-      await db.ticket.update({
-        where: { id: ticket.id },
-        data: { status: 'escalated' }
-      });
-
-      await db.ticketEvent.create({
-        data: {
-          ticket_id: ticket.id,
-          type: 'escalated',
-          message: `Escalado a orden #${createdOrder.id.slice(0, 8)}`
+        if (ticket.status === 'closed') {
+          const error = new Error('No se puede escalar un ticket cerrado');
+          error.httpStatus = 409;
+          throw error;
         }
-      });
 
-      return createdOrder;
-    });
+        const existingLinkedOrders = await db.serviceOrder.count({
+          where: {
+            ticket_id: ticket.id,
+            deleted_at: null
+          }
+        });
+        if (existingLinkedOrders > 0) {
+          await db.ticketEvent.create({
+            data: {
+              ticket_id: ticket.id,
+              type: 'escalated_multiple',
+              message: 'Ticket ya tenía órdenes asociadas'
+            }
+          });
+        }
+
+        const createdOrder = await db.serviceOrder.create({
+          data: {
+            client_id: ticket.client_id,
+            ticket_id: ticket.id,
+            prioridad: ticket.priority,
+            prioridad_peso: computePriorityWeight(ticket.priority),
+            estado: 'presupuesto_generado',
+            observaciones: ticket.equipment_id
+              ? `${ticket.issue_description}\n\nEquipo relacionado: ${ticket.equipment_id}`
+              : ticket.issue_description
+          },
+          include: {
+            client: true,
+            ticket: true
+          }
+        });
+
+        await db.ticket.update({
+          where: { id: ticket.id },
+          data: { status: 'escalated' }
+        });
+
+        await db.ticketEvent.create({
+          data: {
+            ticket_id: ticket.id,
+            type: 'escalated',
+            message: `Escalado a orden #${createdOrder.id.slice(0, 8)}`
+          }
+        });
+
+        return createdOrder;
+      });
+    } catch (error) {
+      if (error?.httpStatus) return sendError(res, error.httpStatus, error.message);
+      throw error;
+    }
 
     res.status(201).json(order);
   }));

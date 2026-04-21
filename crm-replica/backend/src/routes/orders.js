@@ -137,6 +137,15 @@ async function validateLocationEventWrite(orderId, userId, eventType) {
   return { ok: true };
 }
 
+async function resolveValidTicketForOrderCreation(ticketId) {
+  if (!ticketId) return { ok: true, ticket: null };
+  const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
+  if (!ticket || ticket.deleted_at || ticket.status === 'closed') {
+    return { ok: false, status: 400, message: 'Ticket inválido o no disponible para generar orden' };
+  }
+  return { ok: true, ticket };
+}
+
 export default function ordersRouter(io) {
   const router = Router();
   router.use(authRequired);
@@ -230,11 +239,8 @@ export default function ordersRouter(io) {
     const { technicians = [], ...data } = req.body;
     if (!(await statusKeyExists(data.estado))) return sendError(res, 400, 'Estado inválido');
     if (!isWorkflowStatusKey(data.estado)) return sendError(res, 400, 'Estado fuera de flujo operativo');
-    if (data.ticket_id) {
-      const ticket = await prisma.ticket.findUnique({ where: { id: data.ticket_id } });
-      if (!ticket || ticket.deleted_at) return sendError(res, 400, 'Ticket inválido');
-      if (ticket.status === 'closed') return sendError(res, 400, 'No se puede crear orden desde ticket cerrado');
-    }
+    const ticketValidation = await resolveValidTicketForOrderCreation(data.ticket_id);
+    if (!ticketValidation.ok) return sendError(res, ticketValidation.status, ticketValidation.message);
     data.prioridad_peso = computePriorityWeight(data.prioridad);
 
     const tx = await prisma.$transaction(async (db) => {
