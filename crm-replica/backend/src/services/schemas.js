@@ -145,6 +145,7 @@ export const orderStatusPatchSchema = z.object({
 
 export const orderCreateSchema = z.object({
   client_id: z.string().min(1),
+  ticket_id: z.string().min(1).optional(),
   estado: orderStatusKeySchema.default('presupuesto_generado'),
   prioridad: z.enum(['baja', 'media', 'alta']).default('media'),
   fecha_programada: z.coerce.date().optional(),
@@ -180,6 +181,37 @@ export const orderPatchSchema = z.object({
 
 export const techniciansUpdateSchema = z.object({
   technicians: z.array(z.string()).default([])
+}).strict();
+
+export const TICKET_ALLOWED_STATUSES = Object.freeze(['new', 'triage', 'in_diagnosis', 'resolved_remote', 'escalated', 'resolved', 'closed']);
+const ticketStatusSchema = z.enum(['new', 'triage', 'in_diagnosis', 'resolved_remote', 'escalated', 'resolved', 'closed']);
+const ticketChannelSchema = z.enum(['phone', 'email', 'web', 'whatsapp']);
+const ticketPrioritySchema = z.enum(['baja', 'media', 'alta']);
+
+export const createTicketSchema = z.object({
+  client_id: z.string().min(1),
+  equipment_id: z.string().min(1).optional(),
+  serial_number: z.string().min(1).optional(),
+  channel: ticketChannelSchema,
+  issue_description: z.string().min(1),
+  priority: ticketPrioritySchema.default('media'),
+  category: z.string().min(1).optional(),
+  status: ticketStatusSchema.default('new'),
+  diagnosis: z.string().min(1).optional(),
+  diagnosis_result: z.string().min(1).optional(),
+  requires_intervention: z.boolean().optional(),
+  reported_by_name: z.string().min(1).optional(),
+  reported_by_contact: z.string().min(1).optional()
+}).strict();
+
+export const updateTicketSchema = z.object({
+  issue_description: z.string().min(1).optional(),
+  priority: ticketPrioritySchema.optional(),
+  category: z.string().min(1).optional(),
+  status: ticketStatusSchema.optional(),
+  diagnosis: z.string().min(1).optional(),
+  diagnosis_result: z.string().min(1).optional(),
+  requires_intervention: z.boolean().optional()
 }).strict();
 
 export const invoiceDraftCreateSchema = z.object({
