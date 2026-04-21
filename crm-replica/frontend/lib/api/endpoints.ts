@@ -1,6 +1,6 @@
 import { api } from './client';
 import { portalApi } from './portal-client';
-import { AutomationRule, AutomationRunResult, Client, ClientHealth, DashboardKpis, Equipment, EventEntityType, EventLog, ExternalCalendarConnection, ExternalCalendarEventStatus, InvoiceDraft, MapOrderMarker, NotificationItem, OrderHistory, OrderLocationEvent, OrderMaterial, OrderStatusConfig, PortalDocument, PortalUser, SearchResultGroup, ServiceOrder, TechnicianMapLocation, User } from '@/types/domain';
+import { AutomationRule, AutomationRunResult, Client, ClientHealth, DashboardKpis, Equipment, EventEntityType, EventLog, ExternalCalendarConnection, ExternalCalendarEventStatus, InvoiceDraft, MapOrderMarker, NotificationItem, OrderHistory, OrderLocationEvent, OrderMaterial, OrderStatusConfig, PortalDocument, PortalUser, SearchResultGroup, ServiceOrder, TechnicianMapLocation, Ticket, User } from '@/types/domain';
 import { DocumentCategory, DocumentEntityType } from '@/modules/documents/types';
 
 type PaginatedResponse<T> = {
@@ -131,6 +131,31 @@ export const AutomationRulesApi = {
 
 export const InvoiceDraftsApi = {
   get: (id: string) => api.get<InvoiceDraft>(`/api/invoice-drafts/${id}`).then((r) => r.data)
+};
+
+export const TicketsApi = {
+  list: (params?: TableListParams) => api.get<{ items: Ticket[]; total: number }>('/api/tickets', { params }).then((r) => r.data),
+  get: (id: string) => api.get<Ticket>(`/api/tickets/${id}`).then((r) => r.data),
+  create: (payload: {
+    client_id: string;
+    equipment_id?: string;
+    serial_number?: string;
+    channel: 'phone' | 'email' | 'web' | 'whatsapp';
+    issue_description: string;
+    priority?: 'baja' | 'media' | 'alta';
+    category?: string;
+    status?: 'new' | 'triage' | 'in_diagnosis' | 'escalated' | 'resolved' | 'closed';
+    reported_by_name?: string;
+    reported_by_contact?: string;
+  }) => api.post<Ticket>('/api/tickets', payload).then((r) => r.data),
+  patch: (id: string, payload: Partial<{
+    issue_description: string;
+    priority: 'baja' | 'media' | 'alta';
+    category: string;
+    status: 'new' | 'triage' | 'in_diagnosis' | 'escalated' | 'resolved' | 'closed';
+  }>) => api.patch<Ticket>(`/api/tickets/${id}`, payload).then((r) => r.data),
+  remove: (id: string) => api.delete<{ ok: true }>(`/api/tickets/${id}`).then((r) => r.data),
+  escalate: (id: string) => api.post<ServiceOrder>(`/api/tickets/${id}/escalate`).then((r) => r.data)
 };
 
 export const PortalAuthApi = {
