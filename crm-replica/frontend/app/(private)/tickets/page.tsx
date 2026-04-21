@@ -296,10 +296,10 @@ export default function TicketsPage() {
                 )) : <p className="text-xs text-[var(--text-secondary)]">Sin eventos registrados.</p>}
               </div>
             </div>
-            <div className="flex justify-end gap-2">
-              {selectedWithDetails.status !== 'closed' && !selectedWithDetails.deleted_at ? (
+              <div className="flex justify-end gap-2">
+              {(selectedWithDetails.status === 'triage' || selectedWithDetails.status === 'in_diagnosis') && !selectedWithDetails.deleted_at ? (
                 <Button variant="secondary" onClick={() => void escalateTicket()} disabled={escalateLoading}>
-                  {escalateLoading ? 'Escalando…' : 'Escalar a Orden'}
+                  {escalateLoading ? 'Creando orden…' : 'Crear orden'}
                 </Button>
               ) : null}
               <Button variant="danger" onClick={() => setConfirmDelete(true)}>Eliminar</Button>

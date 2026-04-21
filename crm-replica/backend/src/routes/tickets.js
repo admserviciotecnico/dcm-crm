@@ -28,6 +28,7 @@ export default function ticketsRoutes() {
     const page = Math.max(1, Number(req.query.page || 1));
     const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, Number(req.query.pageSize || 20)));
     const status = String(req.query.status || '').trim();
+    const statuses = status.includes('|') ? status.split('|').map((entry) => entry.trim()).filter(Boolean) : [];
     const priority = String(req.query.priority || '').trim();
     const clientId = String(req.query.client_id || '').trim();
     const q = String(req.query.q || '').trim();
@@ -35,7 +36,7 @@ export default function ticketsRoutes() {
 
     const where = {
       ...(includeDeleted ? {} : { deleted_at: null }),
-      ...(status ? { status } : {}),
+      ...(statuses.length ? { status: { in: statuses } } : status ? { status } : {}),
       ...(priority ? { priority } : {}),
       ...(clientId ? { client_id: clientId } : {}),
       ...(q ? {
