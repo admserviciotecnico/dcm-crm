@@ -22,6 +22,7 @@ function buildUpdateEventMessage(current, patch) {
 
 const TICKET_STATUS_SET = new Set(TICKET_ALLOWED_STATUSES);
 const INVALID_TICKET_FOR_ORDER_MESSAGE = 'Ticket inválido o no disponible para generar orden';
+const READ_ONLY_TICKET_STATUSES = new Set(['resolved_remote', 'closed']);
 
 function validateTicketStatePatch(current, patch) {
   const nextRequiresIntervention = patch.requires_intervention ?? current.requires_intervention;
@@ -125,31 +126,41 @@ export default function ticketsRoutes() {
 
     const current = await prisma.ticket.findUnique({ where: { id: req.params.id } });
     if (!current || current.deleted_at) return sendError(res, 404, 'Not found');
+    if (READ_ONLY_TICKET_STATUSES.has(current.status)) {
+      return sendError(res, 409, 'El ticket está en estado final y no puede modificarse');
+    }
     if (req.body.status && !TICKET_STATUS_SET.has(req.body.status)) return sendError(res, 400, 'Estado de ticket inválido');
     if (current.status === 'closed' && req.body.status && req.body.status !== 'closed') {
       return sendError(res, 409, 'El ticket cerrado no puede volver a estados abiertos sin lógica de reapertura');
     }
-    const transitionValidation = validateTicketStatePatch(current, req.body);
+    const diagnosisStarted = !current.diagnosis && typeof req.body.diagnosis === 'string' && req.body.diagnosis.trim().length > 0;
+    const shouldAutoMoveToDiagnosis = diagnosisStarted && current.status === 'triage';
+    const patch = {
+      ...req.body,
+      ...(shouldAutoMoveToDiagnosis ? { status: 'in_diagnosis' } : {})
+    };
+
+    const transitionValidation = validateTicketStatePatch(current, patch);
     if (!transitionValidation.ok) return sendError(res, transitionValidation.status, transitionValidation.message);
 
-    const updateMessage = buildUpdateEventMessage(current, req.body);
-    const diagnosisStarted = !current.diagnosis && typeof req.body.diagnosis === 'string' && req.body.diagnosis.trim().length > 0;
-    const diagnosisCompleted = !current.diagnosis_result && typeof req.body.diagnosis_result === 'string' && req.body.diagnosis_result.trim().length > 0;
-    const interventionRequired = current.requires_intervention !== true && req.body.requires_intervention === true;
+    const updateMessage = buildUpdateEventMessage(current, patch);
+    const diagnosisCompleted = !current.diagnosis_result && typeof patch.diagnosis_result === 'string' && patch.diagnosis_result.trim().length > 0;
+    const interventionRequired = current.requires_intervention !== true && patch.requires_intervention === true;
 
     const updated = await prisma.$transaction(async (db) => {
       const ticket = await db.ticket.update({
         where: { id: req.params.id },
-        data: req.body,
+        data: patch,
         include: { client: true }
       });
 
-      if (req.body.status && req.body.status !== current.status) {
+      if (patch.status && patch.status !== current.status) {
         await db.ticketEvent.create({
           data: {
             ticket_id: ticket.id,
             type: 'status_changed',
-            message: buildUpdateEventMessage(current, req.body)
+            message: buildUpdateEventMessage(current, patch),
+            metadata: shouldAutoMoveToDiagnosis ? { from: 'triage', to: 'in_diagnosis', reason: 'auto_on_diagnosis_start' } : undefined
           }
         });
       }
@@ -235,6 +246,11 @@ export default function ticketsRoutes() {
         if (ticket.status === 'closed') {
           const error = new Error('No se puede escalar un ticket cerrado');
           error.httpStatus = 409;
+          throw error;
+        }
+        if (!String(ticket.diagnosis_result ?? '').trim()) {
+          const error = new Error('Debe completar el diagnóstico antes de escalar a una orden');
+          error.httpStatus = 400;
           throw error;
         }
 

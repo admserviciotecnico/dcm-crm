@@ -164,6 +164,7 @@ model TicketEvent {
   ticket_id  String
   type       String
   message    String?
+  metadata   Json?
   created_at DateTime @default(now())
   ticket     Ticket   @relation(fields: [ticket_id], references: [id], onDelete: Cascade)
 

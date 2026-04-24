@@ -151,6 +151,7 @@ export interface TicketEvent {
   ticket_id: string;
   type: string;
   message?: string | null;
+  metadata?: Record<string, unknown> | null;
   created_at: string;
 }
 

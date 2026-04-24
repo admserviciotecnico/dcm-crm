@@ -166,6 +166,10 @@ export default function TicketsPage() {
       toast({ type: 'info', message: 'Marcá "requiere intervención" antes de escalar a orden' });
       return;
     }
+    if (!String(selectedWithDetails.diagnosis_result ?? diagnosisDraft.diagnosis_result).trim()) {
+      toast({ type: 'info', message: 'Completá la conclusión del diagnóstico antes de escalar a orden' });
+      return;
+    }
     setEscalateLoading(true);
     try {
       const order = await TicketsApi.escalate(selectedWithDetails.id);
@@ -393,7 +397,13 @@ export default function TicketsPage() {
                       Marcar como resuelto (remoto)
                     </Button>
                   ) : (
-                    <Button type="button" variant="secondary" onClick={() => void escalateTicket()} disabled={escalateLoading || !diagnosisDraft.requires_intervention}>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => void escalateTicket()}
+                      disabled={escalateLoading || !diagnosisDraft.requires_intervention || !String(diagnosisDraft.diagnosis_result).trim()}
+                      title={!String(diagnosisDraft.diagnosis_result).trim() ? 'Debe completar la conclusión del diagnóstico para escalar' : undefined}
+                    >
                       {escalateLoading ? 'Creando orden…' : 'Escalar a orden'}
                     </Button>
                   )}
@@ -424,7 +434,12 @@ export default function TicketsPage() {
             </div>
               <div className="flex justify-end gap-2">
               {(selectedWithDetails.status === 'triage' || selectedWithDetails.status === 'in_diagnosis') && !selectedWithDetails.deleted_at ? (
-                <Button variant="secondary" onClick={() => void escalateTicket()} disabled={escalateLoading || !Boolean(selectedWithDetails.requires_intervention)}>
+                <Button
+                  variant="secondary"
+                  onClick={() => void escalateTicket()}
+                  disabled={escalateLoading || !Boolean(selectedWithDetails.requires_intervention) || !String(selectedWithDetails.diagnosis_result ?? diagnosisDraft.diagnosis_result).trim()}
+                  title={!String(selectedWithDetails.diagnosis_result ?? diagnosisDraft.diagnosis_result).trim() ? 'Debe completar la conclusión del diagnóstico para escalar' : undefined}
+                >
                   {escalateLoading ? 'Creando orden…' : 'Crear orden'}
                 </Button>
               ) : null}
