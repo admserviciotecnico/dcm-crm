@@ -379,8 +379,15 @@ export interface PortalTicketSummary {
   created_at: string;
 }
 
+export interface PortalTicketAttachment {
+  id: string;
+  filename: string;
+  url?: string | null;
+}
+
 export interface PortalTicketDetail extends PortalTicketSummary {
   diagnosis_result?: string | null;
   requires_intervention?: boolean;
+  attachments?: PortalTicketAttachment[];
   timeline: TicketEvent[];
 }

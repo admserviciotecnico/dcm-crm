@@ -24,6 +24,10 @@ const PORTAL_STATUS_LABELS: Record<string, string> = {
   closed: 'Cerrado'
 };
 
+function ticketCode(id: string) {
+  return id.slice(0, 8).toUpperCase();
+}
+
 export default function PortalTicketsPage() {
   const router = useRouter();
   const toast = appStore((state) => state.pushToast);
@@ -69,14 +73,17 @@ export default function PortalTicketsPage() {
         issue_description: issueDescription.trim(),
         attachments: attachmentName.trim() ? [{ file_name: attachmentName.trim(), file_path: attachmentPath.trim() || undefined }] : undefined
       });
-      toast({ type: 'success', message: 'Reclamo creado correctamente' });
+      if (created.warning) {
+        toast({ type: 'info', message: created.warning });
+      }
+      toast({ type: 'success', message: `Reclamo Ticket #${ticketCode(created.ticket.id)} creado correctamente` });
       setShowCreate(false);
       setSerialNumber('');
       setIssueDescription('');
       setAttachmentName('');
       setAttachmentPath('');
       await load();
-      router.push(`/portal/tickets/${created.id}`);
+      router.push(`/portal/tickets/${created.ticket.id}`);
     } catch (error) {
       toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo crear el reclamo') });
     } finally {
@@ -123,7 +130,7 @@ export default function PortalTicketsPage() {
                 <tbody>
                   {tickets.map((ticket) => (
                     <tr key={ticket.id} className="border-t border-[var(--border)]">
-                      <td className="p-3 font-medium">#{ticket.id.slice(0, 8)}</td>
+                      <td className="p-3 font-medium">Ticket #{ticketCode(ticket.id)}</td>
                       <td className="p-3">{shortDescription(ticket.issue_description)}</td>
                       <td className="p-3"><span className="rounded-full border border-[var(--border)] px-2 py-1 text-xs">{PORTAL_STATUS_LABELS[ticket.status] ?? ticket.status}</span></td>
                       <td className="p-3">{new Date(ticket.created_at).toLocaleString()}</td>

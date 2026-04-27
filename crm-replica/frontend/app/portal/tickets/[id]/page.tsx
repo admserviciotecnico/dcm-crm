@@ -20,6 +20,19 @@ const PORTAL_STATUS_LABELS: Record<string, string> = {
   closed: 'Cerrado'
 };
 
+const PORTAL_STATUS_HELP: Record<string, string> = {
+  new: 'Recibimos tu caso y lo vamos a revisar.',
+  triage: 'Estamos analizando tu caso.',
+  in_diagnosis: 'Estamos realizando diagnóstico técnico remoto.',
+  resolved_remote: 'Tu caso fue resuelto sin intervención en campo.',
+  escalated: 'Un técnico está interviniendo en el equipo.',
+  closed: 'El caso quedó cerrado.'
+};
+
+function ticketCode(id: string) {
+  return id.slice(0, 8).toUpperCase();
+}
+
 export default function PortalTicketDetailPage() {
   const params = useParams<{ id: string }>();
   const toast = appStore((state) => state.pushToast);
@@ -70,13 +83,26 @@ export default function PortalTicketDetailPage() {
             <>
               <Card>
                 <div className="space-y-2 text-sm">
-                  <p><span className="font-medium">Ticket:</span> #{ticket.id.slice(0, 8)}</p>
+                  <p><span className="font-medium">Ticket:</span> #{ticketCode(ticket.id)}</p>
                   <p><span className="font-medium">Serie:</span> {ticket.serial_number ?? '—'}</p>
                   <p><span className="font-medium">Estado:</span> <span className="rounded-full border border-[var(--border)] px-2 py-1 text-xs">{PORTAL_STATUS_LABELS[ticket.status] ?? ticket.status}</span></p>
+                  {PORTAL_STATUS_HELP[ticket.status] ? <p className="text-xs text-[var(--text-secondary)]">{PORTAL_STATUS_HELP[ticket.status]}</p> : null}
                   <p><span className="font-medium">Creado:</span> {new Date(ticket.created_at).toLocaleString()}</p>
                   <p><span className="font-medium">Descripción:</span> {ticket.issue_description}</p>
                   {ticket.diagnosis_result ? <p><span className="font-medium">Resultado diagnóstico:</span> {ticket.diagnosis_result}</p> : null}
                   {ticket.requires_intervention ? <p className="rounded-[8px] border border-amber-300 bg-amber-100 px-3 py-2 text-amber-900">Este caso requiere intervención técnica</p> : null}
+                </div>
+              </Card>
+
+              <Card>
+                <h2 className="text-lg font-semibold">Adjuntos</h2>
+                <div className="mt-3 space-y-2 text-sm">
+                  {!ticket.attachments?.length ? <p className="text-[var(--text-secondary)]">No hay adjuntos para este ticket.</p> : ticket.attachments.map((attachment) => (
+                    <div key={attachment.id} className="rounded-[8px] border border-[var(--border)] px-3 py-2">
+                      <p className="font-medium">{attachment.filename}</p>
+                      {attachment.url ? <a href={attachment.url} target="_blank" rel="noreferrer" className="text-cyan-300 hover:underline">Abrir adjunto</a> : <p className="text-[var(--text-secondary)]">Archivo registrado sin URL pública.</p>}
+                    </div>
+                  ))}
                 </div>
               </Card>
 

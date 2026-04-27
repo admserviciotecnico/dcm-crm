@@ -173,7 +173,7 @@ export const PortalApi = {
   getOrderDocuments: (id: string) => portalApi.get<PortalDocument[]>(`/api/portal/orders/${id}/documents`).then((r) => r.data),
   listTickets: () => portalApi.get<PortalTicketSummary[]>('/api/portal/tickets').then((r) => r.data),
   getTicket: (id: string) => portalApi.get<PortalTicketDetail>(`/api/portal/tickets/${id}`).then((r) => r.data),
-  createTicket: (payload: { serial_number: string; issue_description: string; attachments?: Array<{ file_name: string; file_path?: string; file_category?: 'contract' | 'report' | 'photo' | 'other' }> }) => portalApi.post<PortalTicketSummary>('/api/portal/tickets', payload).then((r) => r.data),
+  createTicket: (payload: { serial_number: string; issue_description: string; attachments?: Array<{ file_name: string; file_path?: string; file_category?: 'contract' | 'report' | 'photo' | 'other' }> }) => portalApi.post<{ ticket: PortalTicketSummary; warning?: string | null }>('/api/portal/tickets', payload).then((r) => r.data),
   listDocuments: () => portalApi.get<{ client: PortalDocument[]; orders: PortalDocument[] }>('/api/portal/documents').then((r) => r.data),
   exportPdf: (id: string) => portalApi.get<Blob>(`/api/portal/orders/${id}/pdf`, { responseType: 'blob' }).then((r) => r.data)
 };

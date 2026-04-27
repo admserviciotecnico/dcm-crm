@@ -17,6 +17,8 @@ const PORTAL_ORDER_INCLUDE = {
   materials: true,
   invoice_draft: true
 };
+const DUPLICATE_TICKET_WARNING = 'Ya existe un reclamo reciente para este equipo. Podés continuar o revisar el anterior.';
+const SAFE_ATTACHMENT_EXTENSIONS = new Set(['.pdf', '.png', '.jpg', '.jpeg', '.webp', '.txt', '.doc', '.docx']);
 
 function mapPortalOrder(order) {
   const delayed = Boolean(
@@ -77,6 +79,13 @@ async function getPortalTicket(ticketId, portalUser) {
       }
     }
   });
+}
+
+function isSafeAttachment(attachment) {
+  const lowerName = String(attachment.file_name || '').toLowerCase();
+  const extension = lowerName.includes('.') ? lowerName.slice(lowerName.lastIndexOf('.')) : '';
+  const safePath = !attachment.file_path || /^https?:\/\//i.test(String(attachment.file_path));
+  return SAFE_ATTACHMENT_EXTENSIONS.has(extension) && safePath;
 }
 
 router.post('/auth/login', validateBody(portalLoginSchema), asyncHandler(async (req, res) => {
@@ -163,6 +172,15 @@ router.get('/tickets', asyncHandler(async (req, res) => {
 router.get('/tickets/:id', validateIdParam, asyncHandler(async (req, res) => {
   const ticket = await getPortalTicket(req.params.id, req.portalUser);
   if (!ticket) return sendError(res, 404, 'Not found');
+  const prefix = `[ticket ${ticket.id.slice(0, 8)}] `;
+  const attachments = await prisma.document.findMany({
+    where: {
+      entity_type: 'client',
+      entity_id: req.portalUser.client_id,
+      file_name: { startsWith: prefix }
+    },
+    orderBy: [{ created_at: 'desc' }]
+  });
   res.json({
     id: ticket.id,
     serial_number: ticket.serial_number,
@@ -172,6 +190,11 @@ router.get('/tickets/:id', validateIdParam, asyncHandler(async (req, res) => {
     created_at: ticket.created_at,
     diagnosis_result: ticket.diagnosis_result,
     requires_intervention: ticket.requires_intervention,
+    attachments: attachments.map((doc) => ({
+      id: doc.id,
+      filename: doc.file_name.replace(prefix, ''),
+      url: doc.file_path ?? null
+    })),
     timeline: ticket.events.map((event) => ({
       id: event.id,
       ticket_id: event.ticket_id,
@@ -185,6 +208,17 @@ router.get('/tickets/:id', validateIdParam, asyncHandler(async (req, res) => {
 
 router.post('/tickets', validateBody(portalTicketCreateSchema), asyncHandler(async (req, res) => {
   const { serial_number, issue_description, attachments = [] } = req.body;
+  const duplicate = await prisma.ticket.findFirst({
+    where: {
+      client_id: req.portalUser.client_id,
+      serial_number,
+      created_at: { gte: new Date(Date.now() - (24 * 60 * 60 * 1000)) },
+      status: { notIn: ['closed'] },
+      deleted_at: null
+    },
+    orderBy: { created_at: 'desc' }
+  });
+
   const created = await prisma.$transaction(async (db) => {
     const ticket = await db.ticket.create({
       data: {
@@ -206,27 +240,45 @@ router.post('/tickets', validateBody(portalTicketCreateSchema), asyncHandler(asy
     });
 
     if (attachments.length) {
-      await db.document.createMany({
-        data: attachments.map((attachment) => ({
-          entity_type: 'client',
-          entity_id: req.portalUser.client_id,
-          file_name: `[ticket ${ticket.id.slice(0, 8)}] ${attachment.file_name}`,
-          file_category: attachment.file_category ?? 'other',
-          file_path: attachment.file_path
-        }))
-      });
+      const safeAttachments = attachments.filter(isSafeAttachment);
+      if (safeAttachments.length) {
+        try {
+          await db.document.createMany({
+            data: safeAttachments.map((attachment) => ({
+              entity_type: 'client',
+              entity_id: req.portalUser.client_id,
+              file_name: `[ticket ${ticket.id.slice(0, 8)}] ${attachment.file_name}`,
+              file_category: attachment.file_category ?? 'other',
+              file_path: attachment.file_path
+            }))
+          });
+        } catch {
+          await db.ticketEvent.create({
+            data: {
+              ticket_id: ticket.id,
+              type: 'attachment_ingest_failed',
+              message: 'No se pudieron registrar algunos adjuntos del portal'
+            }
+          });
+        }
+      }
     }
 
     return ticket;
   });
 
-  res.status(201).json({
+  const responseTicket = {
     id: created.id,
     serial_number: created.serial_number,
     issue_description: created.issue_description,
     status: created.status,
     priority: created.priority,
     created_at: created.created_at
+  };
+
+  res.status(201).json({
+    ticket: responseTicket,
+    warning: duplicate ? DUPLICATE_TICKET_WARNING : null
   });
 }));
 
