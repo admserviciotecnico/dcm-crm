@@ -369,3 +369,18 @@ export interface PortalDocument {
   created_at: string;
   updated_at?: string;
 }
+
+export interface PortalTicketSummary {
+  id: string;
+  serial_number?: string | null;
+  issue_description: string;
+  status: TicketStatus | string;
+  priority: TicketPriority | string;
+  created_at: string;
+}
+
+export interface PortalTicketDetail extends PortalTicketSummary {
+  diagnosis_result?: string | null;
+  requires_intervention?: boolean;
+  timeline: TicketEvent[];
+}

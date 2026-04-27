@@ -42,6 +42,16 @@ export const portalUserCreateSchema = z.object({
   active: z.boolean().optional()
 }).strict();
 
+export const portalTicketCreateSchema = z.object({
+  serial_number: z.string().min(1),
+  issue_description: z.string().min(1),
+  attachments: z.array(z.object({
+    file_name: z.string().min(1).max(120),
+    file_path: z.string().max(500).optional(),
+    file_category: z.enum(['contract', 'report', 'photo', 'other']).optional()
+  }).strict()).optional()
+}).strict();
+
 export const clientCreateSchema = z.object({
   nombre_empresa: z.string().min(1),
   direccion: z.string().optional(),

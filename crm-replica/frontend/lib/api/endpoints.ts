@@ -1,6 +1,6 @@
 import { api } from './client';
 import { portalApi } from './portal-client';
-import { AutomationRule, AutomationRunResult, Client, ClientHealth, DashboardKpis, Equipment, EventEntityType, EventLog, ExternalCalendarConnection, ExternalCalendarEventStatus, InvoiceDraft, MapOrderMarker, NotificationItem, OrderHistory, OrderLocationEvent, OrderMaterial, OrderStatusConfig, PortalDocument, PortalUser, SearchResultGroup, ServiceOrder, TechnicianMapLocation, Ticket, User } from '@/types/domain';
+import { AutomationRule, AutomationRunResult, Client, ClientHealth, DashboardKpis, Equipment, EventEntityType, EventLog, ExternalCalendarConnection, ExternalCalendarEventStatus, InvoiceDraft, MapOrderMarker, NotificationItem, OrderHistory, OrderLocationEvent, OrderMaterial, OrderStatusConfig, PortalDocument, PortalTicketDetail, PortalTicketSummary, PortalUser, SearchResultGroup, ServiceOrder, TechnicianMapLocation, Ticket, User } from '@/types/domain';
 import { DocumentCategory, DocumentEntityType } from '@/modules/documents/types';
 
 type PaginatedResponse<T> = {
@@ -171,6 +171,9 @@ export const PortalApi = {
   getOrder: (id: string) => portalApi.get<ServiceOrder>(`/api/portal/orders/${id}`).then((r) => r.data),
   getOrderHistory: (id: string) => portalApi.get<OrderHistory[]>(`/api/portal/orders/${id}/history`).then((r) => r.data),
   getOrderDocuments: (id: string) => portalApi.get<PortalDocument[]>(`/api/portal/orders/${id}/documents`).then((r) => r.data),
+  listTickets: () => portalApi.get<PortalTicketSummary[]>('/api/portal/tickets').then((r) => r.data),
+  getTicket: (id: string) => portalApi.get<PortalTicketDetail>(`/api/portal/tickets/${id}`).then((r) => r.data),
+  createTicket: (payload: { serial_number: string; issue_description: string; attachments?: Array<{ file_name: string; file_path?: string; file_category?: 'contract' | 'report' | 'photo' | 'other' }> }) => portalApi.post<PortalTicketSummary>('/api/portal/tickets', payload).then((r) => r.data),
   listDocuments: () => portalApi.get<{ client: PortalDocument[]; orders: PortalDocument[] }>('/api/portal/documents').then((r) => r.data),
   exportPdf: (id: string) => portalApi.get<Blob>(`/api/portal/orders/${id}/pdf`, { responseType: 'blob' }).then((r) => r.data)
 };
