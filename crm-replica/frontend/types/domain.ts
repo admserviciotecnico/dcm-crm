@@ -173,6 +173,15 @@ export interface Ticket {
   deleted_at?: string | null;
   created_at: string;
   updated_at: string;
+  sla_response_deadline?: string | null;
+  sla_resolution_deadline?: string | null;
+  first_response_at?: string | null;
+  resolved_at?: string | null;
+  sla_status?: 'ok' | 'warning' | 'breach' | string;
+  sla_response_status?: 'ok' | 'warning' | 'breach' | string;
+  sla_resolution_status?: 'ok' | 'warning' | 'breach' | string;
+  response_time_hours?: number | null;
+  resolution_time_hours?: number | null;
   client?: Pick<Client, 'id' | 'nombre_empresa'>;
   events?: TicketEvent[];
   service_orders?: Array<Pick<ServiceOrder, 'id'>>;

@@ -5,6 +5,7 @@ import { validateBody, validateIdParam } from '../middleware/validation.js';
 import { createTicketSchema, TICKET_ALLOWED_STATUSES, updateTicketSchema } from '../services/schemas.js';
 import { asyncHandler, sendError } from '../utils/http.js';
 import { computePriorityWeight } from '../services/order-rules.js';
+import { computeTicketSlaDeadlines, enrichTicketWithSla, getTicketSlaConfig } from '../services/ticket-sla.js';
 
 const MAX_PAGE_SIZE = 100;
 
@@ -23,6 +24,8 @@ function buildUpdateEventMessage(current, patch) {
 const TICKET_STATUS_SET = new Set(TICKET_ALLOWED_STATUSES);
 const INVALID_TICKET_FOR_ORDER_MESSAGE = 'Ticket inválido o no disponible para generar orden';
 const READ_ONLY_TICKET_STATUSES = new Set(['resolved_remote', 'closed']);
+const FIRST_RESPONSE_STATUSES = new Set(['triage', 'in_diagnosis']);
+const RESOLVED_STATUSES = new Set(['resolved_remote', 'closed']);
 
 function validateTicketStatePatch(current, patch) {
   const nextRequiresIntervention = patch.requires_intervention ?? current.requires_intervention;
@@ -83,7 +86,7 @@ export default function ticketsRoutes() {
       prisma.ticket.count({ where })
     ]);
 
-    res.json({ items, total });
+    res.json({ items: items.map((ticket) => enrichTicketWithSla(ticket)), total });
   }));
 
   router.get('/:id', validateIdParam, asyncHandler(async (req, res) => {
@@ -102,12 +105,21 @@ export default function ticketsRoutes() {
     });
 
     if (!item || item.deleted_at) return sendError(res, 404, 'Not found');
-    res.json(item);
+    res.json(enrichTicketWithSla(item));
   }));
 
   router.post('/', validateBody(createTicketSchema), asyncHandler(async (req, res) => {
     const created = await prisma.$transaction(async (db) => {
-      const ticket = await db.ticket.create({ data: req.body, include: { client: true } });
+      const now = new Date();
+      const slaConfig = await getTicketSlaConfig(db, req.body.priority);
+      const deadlines = computeTicketSlaDeadlines(now, slaConfig);
+      const ticket = await db.ticket.create({
+        data: {
+          ...req.body,
+          ...deadlines
+        },
+        include: { client: true }
+      });
       await db.ticketEvent.create({
         data: {
           ticket_id: ticket.id,
@@ -118,7 +130,7 @@ export default function ticketsRoutes() {
       return ticket;
     });
 
-    res.status(201).json(created);
+    res.status(201).json(enrichTicketWithSla(created));
   }));
 
   router.patch('/:id', validateIdParam, validateBody(updateTicketSchema), asyncHandler(async (req, res) => {
@@ -135,9 +147,13 @@ export default function ticketsRoutes() {
     }
     const diagnosisStarted = !current.diagnosis && typeof req.body.diagnosis === 'string' && req.body.diagnosis.trim().length > 0;
     const shouldAutoMoveToDiagnosis = diagnosisStarted && current.status === 'triage';
+    const hasFirstResponseTransition = !current.first_response_at && current.status === 'new' && FIRST_RESPONSE_STATUSES.has(String(req.body.status ?? ''));
+    const hasResolutionTransition = !current.resolved_at && RESOLVED_STATUSES.has(String(req.body.status ?? ''));
     const patch = {
       ...req.body,
-      ...(shouldAutoMoveToDiagnosis ? { status: 'in_diagnosis' } : {})
+      ...(shouldAutoMoveToDiagnosis ? { status: 'in_diagnosis' } : {}),
+      ...(hasFirstResponseTransition ? { first_response_at: new Date() } : {}),
+      ...(hasResolutionTransition ? { resolved_at: new Date() } : {})
     };
 
     const transitionValidation = validateTicketStatePatch(current, patch);
@@ -204,7 +220,7 @@ export default function ticketsRoutes() {
       return ticket;
     });
 
-    res.json(updated);
+    res.json(enrichTicketWithSla(updated));
   }));
 
   router.delete('/:id', validateIdParam, asyncHandler(async (req, res) => {

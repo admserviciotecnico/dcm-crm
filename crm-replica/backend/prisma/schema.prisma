@@ -144,6 +144,10 @@ model Ticket {
   diagnosis           String?
   diagnosis_result    String?
   requires_intervention Boolean     @default(false)
+  sla_response_deadline DateTime?
+  sla_resolution_deadline DateTime?
+  first_response_at   DateTime?
+  resolved_at         DateTime?
   reported_by_name    String?
   reported_by_contact String?
   deleted_at          DateTime?
@@ -157,6 +161,17 @@ model Ticket {
   @@index([status])
   @@index([deleted_at])
   @@index([status, created_at])
+}
+
+model TicketSLAConfig {
+  id                    String   @id @default(cuid())
+  client_id             String?
+  priority              String
+  response_time_hours   Int
+  resolution_time_hours Int
+  created_at            DateTime @default(now())
+
+  @@index([priority, client_id, created_at])
 }
 
 model TicketEvent {

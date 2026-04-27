@@ -42,6 +42,12 @@ const STATUS_HINTS: Record<string, string> = {
   escalated: 'Enviado a orden'
 };
 
+const SLA_BADGE_CLASS: Record<string, string> = {
+  ok: 'border-emerald-400 bg-emerald-500/10 text-emerald-300',
+  warning: 'border-amber-400 bg-amber-500/10 text-amber-300',
+  breach: 'border-rose-400 bg-rose-500/10 text-rose-300'
+};
+
 export default function TicketsPage() {
   const user = authStore((s) => s.user);
   const toast = appStore((s) => s.pushToast);
@@ -70,6 +76,14 @@ export default function TicketsPage() {
   });
 
   const canAccess = user?.role === 'admin';
+
+  const formatSla = (deadline?: string | null, status?: string | null) => {
+    if (!deadline) return 'Sin SLA';
+    const remainingMs = new Date(deadline).getTime() - Date.now();
+    const hours = Math.round(remainingMs / (60 * 60 * 1000));
+    if (status === 'breach' || remainingMs < 0) return `Vencido (${Math.abs(hours)}h)`;
+    return `Restan ${hours}h`;
+  };
 
   const load = async () => {
     setLoading(true);
@@ -285,6 +299,8 @@ export default function TicketsPage() {
                 <th className="p-2 text-left">Cliente</th>
                 <th className="p-2 text-left">Estado</th>
                 <th className="p-2 text-left">Prioridad</th>
+                <th className="p-2 text-left">SLA respuesta</th>
+                <th className="p-2 text-left">SLA resolución</th>
                 <th className="p-2 text-left">Creado</th>
               </tr>
             </thead>
@@ -295,6 +311,16 @@ export default function TicketsPage() {
                   <td className="p-2">{ticket.client?.nombre_empresa ?? ticket.client_id}</td>
                   <td className="p-2">{STATUS_LABELS[ticket.status] ?? ticket.status}</td>
                   <td className="p-2 capitalize">{ticket.priority}</td>
+                  <td className="p-2">
+                    <span className={`rounded-full border px-2 py-1 text-xs ${SLA_BADGE_CLASS[ticket.sla_response_status ?? 'ok'] ?? SLA_BADGE_CLASS.ok}`}>
+                      {formatSla(ticket.sla_response_deadline, ticket.sla_response_status)}
+                    </span>
+                  </td>
+                  <td className="p-2">
+                    <span className={`rounded-full border px-2 py-1 text-xs ${SLA_BADGE_CLASS[ticket.sla_resolution_status ?? 'ok'] ?? SLA_BADGE_CLASS.ok}`}>
+                      {formatSla(ticket.sla_resolution_deadline, ticket.sla_resolution_status)}
+                    </span>
+                  </td>
                   <td className="p-2">{new Date(ticket.created_at).toLocaleString()}</td>
                 </tr>
               ))}
@@ -359,6 +385,10 @@ export default function TicketsPage() {
             {STATUS_HINTS[selectedWithDetails.status] ? <p className="text-xs text-[var(--text-secondary)]">{STATUS_HINTS[selectedWithDetails.status]}</p> : null}
             <p><span className="font-medium">Prioridad:</span> {selectedWithDetails.priority}</p>
             <p><span className="font-medium">Descripción:</span> {selectedWithDetails.issue_description}</p>
+            <div className="grid gap-2 md:grid-cols-2">
+              <p><span className="font-medium">SLA respuesta:</span> {formatSla(selectedWithDetails.sla_response_deadline, selectedWithDetails.sla_response_status)}</p>
+              <p><span className="font-medium">SLA resolución:</span> {formatSla(selectedWithDetails.sla_resolution_deadline, selectedWithDetails.sla_resolution_status)}</p>
+            </div>
             {(user?.role === 'admin' || user?.role === 'tecnico') ? (
               <div className="space-y-2 rounded-[10px] border border-[var(--border)] p-3">
                 <p className="font-medium">Diagnóstico técnico</p>

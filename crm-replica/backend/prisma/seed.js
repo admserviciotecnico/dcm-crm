@@ -172,7 +172,21 @@ async function seed() {
     });
   }
 
+  const ticketSlaDefaults = [
+    { priority: 'low', response_time_hours: 24, resolution_time_hours: 72 },
+    { priority: 'medium', response_time_hours: 8, resolution_time_hours: 48 },
+    { priority: 'high', response_time_hours: 4, resolution_time_hours: 24 },
+    { priority: 'urgent', response_time_hours: 1, resolution_time_hours: 8 }
+  ];
+  for (const config of ticketSlaDefaults) {
+    const existing = await prisma.ticketSLAConfig.findFirst({ where: { priority: config.priority, client_id: null } });
+    if (!existing) {
+      await prisma.ticketSLAConfig.create({ data: config });
+    }
+  }
+
   console.log('✅ Service orders seeded');
+  console.log('✅ Ticket SLA config seeded');
   console.log('🌱 Seed finished');
 }
 

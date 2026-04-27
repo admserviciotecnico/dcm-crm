@@ -9,6 +9,7 @@ import { portalLoginSchema, portalTicketCreateSchema } from '../services/schemas
 import { asyncHandler, sendError } from '../utils/http.js';
 import { ORDER_STATUS_LABEL, shortId } from '../services/notifications.js';
 import { createSimplePdf } from '../utils/pdf.js';
+import { computeTicketSlaDeadlines, getTicketSlaConfig } from '../services/ticket-sla.js';
 
 const router = Router();
 
@@ -220,6 +221,9 @@ router.post('/tickets', validateBody(portalTicketCreateSchema), asyncHandler(asy
   });
 
   const created = await prisma.$transaction(async (db) => {
+    const now = new Date();
+    const slaConfig = await getTicketSlaConfig(db, 'media');
+    const deadlines = computeTicketSlaDeadlines(now, slaConfig);
     const ticket = await db.ticket.create({
       data: {
         client_id: req.portalUser.client_id,
@@ -227,7 +231,8 @@ router.post('/tickets', validateBody(portalTicketCreateSchema), asyncHandler(asy
         issue_description,
         channel: 'web',
         status: 'new',
-        priority: 'media'
+        priority: 'media',
+        ...deadlines
       }
     });
 
