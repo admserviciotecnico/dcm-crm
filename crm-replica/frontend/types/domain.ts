@@ -114,6 +114,7 @@ export interface OrderChecklist {
 export interface ServiceOrder {
   id: string;
   client_id: string;
+  ticket_id?: string | null;
   estado: OrderStatus;
   prioridad: Priority;
   prioridad_peso: number;
@@ -137,7 +138,44 @@ export interface ServiceOrder {
   materials?: OrderMaterial[];
   location_events?: OrderLocationEvent[];
   invoice_draft?: InvoiceDraft | null;
+  ticket?: Pick<Ticket, 'id'> | null;
   technicians?: { technician_id: string; technician?: Pick<User, 'id' | 'first_name' | 'last_name' | 'email'> }[];
+}
+
+export type TicketChannel = 'phone' | 'email' | 'web' | 'whatsapp';
+export type TicketPriority = Priority;
+export type TicketStatus = 'new' | 'triage' | 'in_diagnosis' | 'resolved_remote' | 'escalated' | 'resolved' | 'closed';
+
+export interface TicketEvent {
+  id: string;
+  ticket_id: string;
+  type: string;
+  message?: string | null;
+  metadata?: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface Ticket {
+  id: string;
+  client_id: string;
+  equipment_id?: string | null;
+  serial_number?: string | null;
+  channel: TicketChannel | string;
+  issue_description: string;
+  priority: TicketPriority | string;
+  category?: string | null;
+  status: TicketStatus | string;
+  diagnosis?: string | null;
+  diagnosis_result?: string | null;
+  requires_intervention?: boolean;
+  reported_by_name?: string | null;
+  reported_by_contact?: string | null;
+  deleted_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  client?: Pick<Client, 'id' | 'nombre_empresa'>;
+  events?: TicketEvent[];
+  service_orders?: Array<Pick<ServiceOrder, 'id'>>;
 }
 
 export interface OrderStatusConfig {
@@ -330,4 +368,26 @@ export interface PortalDocument {
   file_path?: string | null;
   created_at: string;
   updated_at?: string;
+}
+
+export interface PortalTicketSummary {
+  id: string;
+  serial_number?: string | null;
+  issue_description: string;
+  status: TicketStatus | string;
+  priority: TicketPriority | string;
+  created_at: string;
+}
+
+export interface PortalTicketAttachment {
+  id: string;
+  filename: string;
+  url?: string | null;
+}
+
+export interface PortalTicketDetail extends PortalTicketSummary {
+  diagnosis_result?: string | null;
+  requires_intervention?: boolean;
+  attachments?: PortalTicketAttachment[];
+  timeline: TicketEvent[];
 }
