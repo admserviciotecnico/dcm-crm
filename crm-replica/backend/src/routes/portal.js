@@ -5,7 +5,7 @@ import { prisma } from '../config/prisma.js';
 import { env } from '../config/env.js';
 import { portalAuthRequired } from '../middleware/auth.js';
 import { validateBody, validateIdParam } from '../middleware/validation.js';
-import { portalLoginSchema } from '../services/schemas.js';
+import { portalLoginSchema, portalTicketCreateSchema } from '../services/schemas.js';
 import { asyncHandler, sendError } from '../utils/http.js';
 import { ORDER_STATUS_LABEL, shortId } from '../services/notifications.js';
 import { createSimplePdf } from '../utils/pdf.js';
@@ -62,6 +62,21 @@ async function getPortalOrder(orderId, portalUser) {
 
   if (!order) return null;
   return order;
+}
+
+async function getPortalTicket(ticketId, portalUser) {
+  return prisma.ticket.findFirst({
+    where: {
+      id: ticketId,
+      client_id: portalUser.client_id,
+      deleted_at: null
+    },
+    include: {
+      events: {
+        orderBy: { created_at: 'desc' }
+      }
+    }
+  });
 }
 
 router.post('/auth/login', validateBody(portalLoginSchema), asyncHandler(async (req, res) => {
@@ -124,6 +139,95 @@ router.get('/orders', asyncHandler(async (req, res) => {
   });
 
   res.json(items.map(mapPortalOrder));
+}));
+
+router.get('/tickets', asyncHandler(async (req, res) => {
+  const tickets = await prisma.ticket.findMany({
+    where: {
+      client_id: req.portalUser.client_id,
+      deleted_at: null
+    },
+    select: {
+      id: true,
+      serial_number: true,
+      issue_description: true,
+      status: true,
+      priority: true,
+      created_at: true
+    },
+    orderBy: [{ created_at: 'desc' }]
+  });
+  res.json(tickets);
+}));
+
+router.get('/tickets/:id', validateIdParam, asyncHandler(async (req, res) => {
+  const ticket = await getPortalTicket(req.params.id, req.portalUser);
+  if (!ticket) return sendError(res, 404, 'Not found');
+  res.json({
+    id: ticket.id,
+    serial_number: ticket.serial_number,
+    issue_description: ticket.issue_description,
+    status: ticket.status,
+    priority: ticket.priority,
+    created_at: ticket.created_at,
+    diagnosis_result: ticket.diagnosis_result,
+    requires_intervention: ticket.requires_intervention,
+    timeline: ticket.events.map((event) => ({
+      id: event.id,
+      ticket_id: event.ticket_id,
+      type: event.type,
+      message: event.message,
+      metadata: event.metadata,
+      created_at: event.created_at
+    }))
+  });
+}));
+
+router.post('/tickets', validateBody(portalTicketCreateSchema), asyncHandler(async (req, res) => {
+  const { serial_number, issue_description, attachments = [] } = req.body;
+  const created = await prisma.$transaction(async (db) => {
+    const ticket = await db.ticket.create({
+      data: {
+        client_id: req.portalUser.client_id,
+        serial_number,
+        issue_description,
+        channel: 'web',
+        status: 'new',
+        priority: 'media'
+      }
+    });
+
+    await db.ticketEvent.create({
+      data: {
+        ticket_id: ticket.id,
+        type: 'created_from_portal',
+        message: 'Ticket creado desde portal cliente'
+      }
+    });
+
+    if (attachments.length) {
+      await db.document.createMany({
+        data: attachments.map((attachment) => ({
+          entity_type: 'client',
+          entity_id: req.portalUser.client_id,
+          file_name: `[ticket ${ticket.id.slice(0, 8)}] ${attachment.file_name}`,
+          file_category: attachment.file_category ?? 'other',
+          file_path: attachment.file_path
+        }))
+      });
+    }
+
+    return ticket;
+  });
+
+  res.status(201).json({
+    id: created.id,
+    serial_number: created.serial_number,
+    issue_description: created.issue_description,
+    status: created.status,
+    priority: created.priority,
+    created_at: created.created_at
+  });
 }));
 
 router.get('/orders/:id', validateIdParam, asyncHandler(async (req, res) => {
