@@ -6,8 +6,8 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { CalendarDays, ChevronDown, ChevronUp, Download, Filter, Plus } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { ClientsApi, OrdersApi, UsersApi } from '@/lib/api/endpoints';
-import { ServiceOrder, User, OrderStatus, Client } from '@/types/domain';
+import { ClientsApi, OrdersApi, TicketsApi, UsersApi } from '@/lib/api/endpoints';
+import { ServiceOrder, User, OrderStatus, Client, Ticket } from '@/types/domain';
 import { OrdersTable } from '@/components/orders/orders-table';
 import { OrderDetail } from '@/components/orders/order-detail';
 import { useRealtime } from '@/hooks/use-realtime';
@@ -39,6 +39,7 @@ const schema = z.object({
 });
 
 type OrderForm = z.infer<typeof schema>;
+type CreateMode = 'chooser' | 'ticket' | 'manual';
 const PAGE_SIZE = 20;
 
 export default function OrdersPage() {
@@ -52,6 +53,11 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [createMode, setCreateMode] = useState<CreateMode>('chooser');
+  const [triageTickets, setTriageTickets] = useState<Ticket[]>([]);
+  const [triageLoading, setTriageLoading] = useState(false);
+  const [selectedTicketId, setSelectedTicketId] = useState('');
+  const [ticketQuery, setTicketQuery] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [total, setTotal] = useState(0);
   const [offlineSnapshotAt, setOfflineSnapshotAt] = useState<string | null>(null);
@@ -154,6 +160,52 @@ export default function OrdersPage() {
   }
 };
 
+  const openCreateModal = () => {
+    setShowCreate(true);
+    setCreateMode('chooser');
+    setSelectedTicketId('');
+    setTicketQuery('');
+  };
+
+  const closeCreateModal = () => {
+    setShowCreate(false);
+    setCreateMode('chooser');
+    setSelectedTicketId('');
+    setTicketQuery('');
+    reset();
+  };
+
+  const loadTriageTickets = useCallback(async (query: string) => {
+    setTriageLoading(true);
+    try {
+      const response = await TicketsApi.list({ status: 'triage|in_diagnosis', q: query || undefined, page: 1, pageSize: 100 });
+      setTriageTickets(response.items.filter((ticket) => !ticket.deleted_at && ticket.status !== 'closed'));
+    } catch (error) {
+      setTriageTickets([]);
+      toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudieron cargar tickets para triage') });
+    } finally {
+      setTriageLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    if (!showCreate || createMode !== 'ticket') return;
+    void loadTriageTickets(ticketQuery);
+  }, [createMode, loadTriageTickets, showCreate, ticketQuery]);
+
+  const createFromTicket = async () => {
+    if (!selectedTicketId) return;
+    try {
+      const order = await TicketsApi.escalate(selectedTicketId);
+      toast({ type: 'success', message: 'Orden creada desde ticket' });
+      closeCreateModal();
+      await load();
+      router.push(`/orders/${order.id}`);
+    } catch (error) {
+      toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo crear la orden desde ticket') });
+    }
+  };
+
   const toggleSelect = (id: string) => setSelectedIds((prev) => (prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]));
   const toggleSelectAll = () => setSelectedIds((prev) => (prev.length === orders.length ? [] : orders.map((o) => o.id)));
   const toggleSort = (field: string) => setParams({ sortBy: field, sortDir: sortBy === field && sortDir === 'asc' ? 'desc' : 'asc', page: '1' });
@@ -197,7 +249,7 @@ export default function OrdersPage() {
   return (
     <ErrorBoundary>
       <div className="space-y-4">
-        <PageHeader title="Órdenes de Servicio" description="Gestioná, filtrá y ejecutá órdenes de campo desde un único panel." action={user?.role === 'admin' ? <Button onClick={() => setShowCreate(true)}>
+        <PageHeader title="Órdenes de Servicio" description="Gestioná, filtrá y ejecutá órdenes de campo desde un único panel." action={user?.role === 'admin' ? <Button onClick={openCreateModal}>
 <Plus size={16} /> Nueva Orden</Button> : null} />
         <Card>
           {!online && user?.role === 'tecnico' ? (
@@ -265,8 +317,70 @@ export default function OrdersPage() {
 </>}
         <OrderDetail order={selected} users={users} onClose={() => setSelected(null)} onRefresh={load} />
 
-        <Modal open={showCreate} title="Crear nueva orden" onClose={() => setShowCreate(false)}>
-          <form className="grid gap-2" onSubmit={handleSubmit(onCreate)}>
+        <Modal open={showCreate} title="Crear nueva orden" onClose={closeCreateModal}>
+          {createMode === 'chooser' ? (
+            <div className="space-y-3">
+              <p className="text-sm text-[var(--text-secondary)]">Elegí cómo querés iniciar la orden.</p>
+              <button
+                type="button"
+                className="w-full rounded-[10px] border border-cyan-400 bg-cyan-500/10 p-3 text-left"
+                onClick={() => setCreateMode('ticket')}
+              >
+                <p className="font-medium text-cyan-300">Crear desde Ticket</p>
+                <p className="text-sm text-[var(--text-secondary)]">Flujo recomendado para mejor trazabilidad del reclamo.</p>
+              </button>
+              <button
+                type="button"
+                className="w-full rounded-[10px] border border-[var(--border)] bg-[var(--bg-surface)] p-3 text-left"
+                onClick={() => setCreateMode('manual')}
+              >
+                <p className="font-medium">Crear Manualmente</p>
+                <p className="text-sm text-[var(--text-secondary)]">Modo manual (legacy).</p>
+              </button>
+            </div>
+          ) : null}
+
+          {createMode === 'ticket' ? (
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-xs text-[var(--text-secondary)]">Buscar ticket</label>
+                <Input
+                  placeholder="Cliente, serie o descripción..."
+                  value={ticketQuery}
+                  onChange={(event) => setTicketQuery(event.target.value)}
+                />
+              </div>
+              <div className="max-h-72 space-y-2 overflow-y-auto rounded-[10px] border border-[var(--border)] bg-[var(--bg-surface)] p-2">
+                {triageLoading ? <p className="px-2 py-1 text-sm text-[var(--text-secondary)]">Cargando tickets...</p> : null}
+                {!triageLoading && triageTickets.length === 0 ? <p className="px-2 py-1 text-sm text-[var(--text-secondary)]">No hay tickets en triage/diagnóstico disponibles.</p> : null}
+                {!triageLoading ? triageTickets.map((ticket) => (
+                  <button
+                    key={ticket.id}
+                    type="button"
+                    onClick={() => setSelectedTicketId(ticket.id)}
+                    className={`w-full rounded-[8px] border p-2 text-left ${selectedTicketId === ticket.id ? 'border-cyan-400 bg-cyan-500/10' : 'border-[var(--border)]'}`}
+                  >
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                      <p className="font-medium">{ticket.client?.nombre_empresa ?? ticket.client_id}</p>
+                      <Badge className="border-teal-400 bg-teal-500/10 text-teal-300">Listo para triage</Badge>
+                    </div>
+                    <p className="text-sm text-[var(--text-secondary)]">{ticket.issue_description}</p>
+                    <p className="mt-1 text-xs text-[var(--text-secondary)]">Prioridad: {ticket.priority} · {new Date(ticket.created_at).toLocaleString()}</p>
+                  </button>
+                )) : null}
+              </div>
+              <div className="flex justify-between gap-2">
+                <Button type="button" variant="ghost" onClick={() => setCreateMode('chooser')}>Volver</Button>
+                <Button type="button" onClick={() => void createFromTicket()} disabled={!selectedTicketId}>Crear orden</Button>
+              </div>
+            </div>
+          ) : null}
+
+          {createMode === 'manual' ? (
+            <form className="grid gap-2" onSubmit={handleSubmit(onCreate)}>
+              <p className="rounded-[8px] border border-amber-300 bg-amber-100 px-3 py-2 text-sm text-amber-900">
+                Modo manual (sin ticket). Se recomienda crear órdenes desde tickets para mejor trazabilidad.
+              </p>
             <div className="space-y-1">
 <label className="text-xs text-[var(--text-secondary)]">Cliente</label>
 <Select {...clientIdRegister}>
@@ -304,10 +418,11 @@ export default function OrdersPage() {
 <Input placeholder="Observaciones" {...register('observaciones')} />
 </div>
             <div className="mt-2 flex justify-end gap-2">
-<Button type="button" variant="ghost" onClick={() => setShowCreate(false)}>Cancelar</Button>
+<Button type="button" variant="ghost" onClick={closeCreateModal}>Cancelar</Button>
 <Button disabled={isSubmitting} type="submit">Guardar</Button>
 </div>
           </form>
+          ) : null}
         </Modal>
       </div>
     </ErrorBoundary>
