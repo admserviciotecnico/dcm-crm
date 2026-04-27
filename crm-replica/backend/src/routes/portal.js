@@ -48,7 +48,11 @@ function mapPortalOrder(order) {
     materials: order.materials,
     invoice_draft: order.invoice_draft,
     short_id: shortId(order.id),
-    status_label: ORDER_STATUS_LABEL[order.estado] ?? order.estado
+    status_label: ORDER_STATUS_LABEL[order.estado] ?? order.estado,
+    warranty_status: order.warranty_status,
+    coverage: order.coverage,
+    warranty_reason: order.warranty_reason,
+    reviewed_at: order.reviewed_at
   };
 }
 
@@ -163,6 +167,8 @@ router.get('/tickets', asyncHandler(async (req, res) => {
       issue_description: true,
       status: true,
       priority: true,
+      warranty_status: true,
+      coverage: true,
       created_at: true
     },
     orderBy: [{ created_at: 'desc' }]
@@ -191,6 +197,10 @@ router.get('/tickets/:id', validateIdParam, asyncHandler(async (req, res) => {
     created_at: ticket.created_at,
     diagnosis_result: ticket.diagnosis_result,
     requires_intervention: ticket.requires_intervention,
+    warranty_status: ticket.warranty_status,
+    coverage: ticket.coverage,
+    warranty_reason: ticket.warranty_reason,
+    reviewed_at: ticket.reviewed_at,
     attachments: attachments.map((doc) => ({
       id: doc.id,
       filename: doc.file_name.replace(prefix, ''),
@@ -278,6 +288,8 @@ router.post('/tickets', validateBody(portalTicketCreateSchema), asyncHandler(asy
     issue_description: created.issue_description,
     status: created.status,
     priority: created.priority,
+    warranty_status: created.warranty_status,
+    coverage: created.coverage,
     created_at: created.created_at
   };
 

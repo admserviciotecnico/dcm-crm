@@ -15,6 +15,8 @@ export type BuiltInOrderStatus =
 export type OrderStatus = BuiltInOrderStatus | (string & {});
 
 export type SlaStatus = 'ok' | 'warning' | 'critical' | 'breached' | 'met';
+export type WarrantyStatus = 'unknown' | 'pending_review' | 'approved' | 'rejected';
+export type WarrantyCoverage = 'full' | 'partial' | 'none';
 
 export interface UserMetrics {
   assigned_orders: number;
@@ -125,6 +127,14 @@ export interface ServiceOrder {
   contacto_planta?: string;
   telefono_contacto_planta?: string;
   observaciones?: string;
+  warranty_status?: WarrantyStatus | string;
+  coverage?: WarrantyCoverage | string;
+  approved_by?: string | null;
+  warranty_reason?: string | null;
+  warranty_notes?: string | null;
+  reviewed_at?: string | null;
+  warranty_covered?: boolean;
+  billable?: boolean;
   observaciones_cierre?: string;
   tiempo_trabajado_horas?: number | null;
   firma_cliente?: string | null;
@@ -168,6 +178,12 @@ export interface Ticket {
   diagnosis?: string | null;
   diagnosis_result?: string | null;
   requires_intervention?: boolean;
+  warranty_status?: WarrantyStatus | string;
+  coverage?: WarrantyCoverage | string;
+  approved_by?: string | null;
+  warranty_reason?: string | null;
+  warranty_notes?: string | null;
+  reviewed_at?: string | null;
   reported_by_name?: string | null;
   reported_by_contact?: string | null;
   deleted_at?: string | null;
@@ -385,6 +401,10 @@ export interface PortalTicketSummary {
   issue_description: string;
   status: TicketStatus | string;
   priority: TicketPriority | string;
+  warranty_status?: WarrantyStatus | string;
+  coverage?: WarrantyCoverage | string;
+  warranty_reason?: string | null;
+  reviewed_at?: string | null;
   created_at: string;
 }
 

@@ -145,6 +145,10 @@ export const TicketsApi = {
     priority?: 'baja' | 'media' | 'alta';
     category?: string;
     status?: 'new' | 'triage' | 'in_diagnosis' | 'escalated' | 'resolved' | 'closed';
+    warranty_status?: 'unknown' | 'pending_review' | 'approved' | 'rejected';
+    coverage?: 'full' | 'partial' | 'none';
+    warranty_reason?: string;
+    warranty_notes?: string;
     reported_by_name?: string;
     reported_by_contact?: string;
   }) => api.post<Ticket>('/api/tickets', payload).then((r) => r.data),
@@ -156,6 +160,10 @@ export const TicketsApi = {
     diagnosis: string;
     diagnosis_result: string;
     requires_intervention: boolean;
+    warranty_status: 'unknown' | 'pending_review' | 'approved' | 'rejected';
+    coverage: 'full' | 'partial' | 'none';
+    warranty_reason: string;
+    warranty_notes: string;
   }>) => api.patch<Ticket>(`/api/tickets/${id}`, payload).then((r) => r.data),
   remove: (id: string) => api.delete<{ ok: true }>(`/api/tickets/${id}`).then((r) => r.data),
   escalate: (id: string) => api.post<ServiceOrder>(`/api/tickets/${id}/escalate`).then((r) => r.data)

@@ -57,6 +57,12 @@ const DEFAULT_CLOSURE: ClosureForm = {
   equipo_probado: false,
   documentacion_entregada: false
 };
+const WARRANTY_LABELS: Record<string, string> = {
+  unknown: 'Sin evaluar',
+  pending_review: '🟡 Pendiente',
+  approved: '🟢 En garantía',
+  rejected: '🔴 Fuera de garantía'
+};
 
 function buildDownloadUrl(blob: Blob) {
   return window.URL.createObjectURL(blob);
@@ -88,6 +94,7 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
   const [invoiceDraftLoading, setInvoiceDraftLoading] = useState(false);
   const [locationSaving, setLocationSaving] = useState<'arrival' | 'departure' | null>(null);
   const [closureSaving, setClosureSaving] = useState(false);
+  const [warrantySaving, setWarrantySaving] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [backendEventsError, setBackendEventsError] = useState<string | null>(null);
   const [materialsError, setMaterialsError] = useState<string | null>(null);
@@ -374,6 +381,36 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
     }
   };
 
+  const evaluateWarranty = async (decision: 'approved' | 'rejected') => {
+    if (!order || user?.role !== 'admin') return;
+    setWarrantySaving(true);
+    try {
+      await OrdersApi.patch(order.id, {
+        warranty_status: decision,
+        coverage: decision === 'approved' ? 'partial' : 'none'
+      });
+      toast({ type: 'success', message: `Garantía ${decision === 'approved' ? 'aprobada' : 'rechazada'}` });
+      onRefresh();
+    } catch (error) {
+      toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo actualizar la garantía') });
+    } finally {
+      setWarrantySaving(false);
+    }
+  };
+  const startWarrantyReview = async () => {
+    if (!order || user?.role !== 'admin') return;
+    setWarrantySaving(true);
+    try {
+      await OrdersApi.patch(order.id, { warranty_status: 'pending_review' });
+      toast({ type: 'success', message: 'Garantía en revisión' });
+      onRefresh();
+    } catch (error) {
+      toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo iniciar revisión de garantía') });
+    } finally {
+      setWarrantySaving(false);
+    }
+  };
+
   return (
     <ErrorBoundary>
       <>
@@ -419,6 +456,22 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
             </div>
 
             <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-[10px] border border-[var(--border)] p-3 text-sm">
+                <p className="text-[var(--text-secondary)]">Garantía</p>
+                <div className="mt-2 space-y-1">
+                  <p><span className="font-medium">Estado:</span> {WARRANTY_LABELS[order.warranty_status ?? 'unknown'] ?? order.warranty_status}</p>
+                  <p><span className="font-medium">Cobertura:</span> {order.coverage ?? 'none'}</p>
+                  <p><span className="font-medium">Motivo:</span> {order.warranty_reason || '-'}</p>
+                  <p><span className="font-medium">Notas internas:</span> {order.warranty_notes || '-'}</p>
+                </div>
+                {user?.role === 'admin' ? (
+                  <div className="mt-2 flex gap-2">
+                    <Button variant="secondary" disabled={warrantySaving || order.warranty_status !== 'unknown'} onClick={() => void startWarrantyReview()}>Evaluar garantía</Button>
+                    <Button variant="secondary" disabled={warrantySaving || order.warranty_status !== 'pending_review'} onClick={() => void evaluateWarranty('approved')}>Aprobar</Button>
+                    <Button variant="danger" disabled={warrantySaving || order.warranty_status !== 'pending_review'} onClick={() => void evaluateWarranty('rejected')}>Rechazar</Button>
+                  </div>
+                ) : null}
+              </div>
               <div className="rounded-[10px] border border-[var(--border)] p-3 text-sm">
                 <p className="text-[var(--text-secondary)]">Cierre de servicio</p>
                 <div className="mt-2 space-y-1">

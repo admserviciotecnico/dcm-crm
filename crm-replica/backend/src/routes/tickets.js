@@ -6,6 +6,7 @@ import { createTicketSchema, TICKET_ALLOWED_STATUSES, updateTicketSchema } from 
 import { asyncHandler, sendError } from '../utils/http.js';
 import { computePriorityWeight } from '../services/order-rules.js';
 import { computeTicketSlaDeadlines, enrichTicketWithSla, getTicketSlaConfig } from '../services/ticket-sla.js';
+import { applyWarrantyDecisionMetadata, validateWarrantyPatch } from '../services/warranty.js';
 
 const MAX_PAGE_SIZE = 100;
 
@@ -18,6 +19,8 @@ function buildUpdateEventMessage(current, patch) {
   if (patch.diagnosis !== undefined && patch.diagnosis !== current.diagnosis) changes.push('diagnosis updated');
   if (patch.diagnosis_result !== undefined && patch.diagnosis_result !== current.diagnosis_result) changes.push('diagnosis_result updated');
   if (patch.requires_intervention !== undefined && patch.requires_intervention !== current.requires_intervention) changes.push(`requires_intervention set to '${patch.requires_intervention}'`);
+  if (patch.warranty_status && patch.warranty_status !== current.warranty_status) changes.push(`warranty_status changed from '${current.warranty_status}' to '${patch.warranty_status}'`);
+  if (patch.coverage && patch.coverage !== current.coverage) changes.push(`coverage changed from '${current.coverage}' to '${patch.coverage}'`);
   return changes.length ? changes.join(' · ') : 'Ticket updated';
 }
 
@@ -158,24 +161,27 @@ export default function ticketsRoutes() {
 
     const transitionValidation = validateTicketStatePatch(current, patch);
     if (!transitionValidation.ok) return sendError(res, transitionValidation.status, transitionValidation.message);
+    const warrantyValidation = validateWarrantyPatch({ current, patch, role: req.user.role.name });
+    if (!warrantyValidation.ok) return sendError(res, warrantyValidation.status, warrantyValidation.message);
+    const warrantyAwarePatch = applyWarrantyDecisionMetadata({ patch: warrantyValidation.patch, actorUserId: req.user.id });
 
-    const updateMessage = buildUpdateEventMessage(current, patch);
-    const diagnosisCompleted = !current.diagnosis_result && typeof patch.diagnosis_result === 'string' && patch.diagnosis_result.trim().length > 0;
-    const interventionRequired = current.requires_intervention !== true && patch.requires_intervention === true;
+    const updateMessage = buildUpdateEventMessage(current, warrantyAwarePatch);
+    const diagnosisCompleted = !current.diagnosis_result && typeof warrantyAwarePatch.diagnosis_result === 'string' && warrantyAwarePatch.diagnosis_result.trim().length > 0;
+    const interventionRequired = current.requires_intervention !== true && warrantyAwarePatch.requires_intervention === true;
 
     const updated = await prisma.$transaction(async (db) => {
       const ticket = await db.ticket.update({
         where: { id: req.params.id },
-        data: patch,
+        data: warrantyAwarePatch,
         include: { client: true }
       });
 
-      if (patch.status && patch.status !== current.status) {
+      if (warrantyAwarePatch.status && warrantyAwarePatch.status !== current.status) {
         await db.ticketEvent.create({
           data: {
             ticket_id: ticket.id,
             type: 'status_changed',
-            message: buildUpdateEventMessage(current, patch),
+            message: buildUpdateEventMessage(current, warrantyAwarePatch),
             metadata: shouldAutoMoveToDiagnosis ? { from: 'triage', to: 'in_diagnosis', reason: 'auto_on_diagnosis_start' } : undefined
           }
         });
@@ -213,6 +219,20 @@ export default function ticketsRoutes() {
             ticket_id: ticket.id,
             type: 'intervention_required',
             message: 'Se sugiere escalar a orden de servicio'
+          }
+        });
+      }
+      if (warrantyValidation.decisionTaken) {
+        await db.ticketEvent.create({
+          data: {
+            ticket_id: ticket.id,
+            type: 'warranty_decision',
+            message: `Garantía ${warrantyAwarePatch.warranty_status === 'approved' ? 'aprobada' : 'rechazada'}`,
+            metadata: {
+              coverage: warrantyAwarePatch.coverage,
+              reason: warrantyAwarePatch.warranty_reason ?? null,
+              approved_by: req.user.id
+            }
           }
         });
       }
@@ -293,6 +313,10 @@ export default function ticketsRoutes() {
             prioridad: ticket.priority,
             prioridad_peso: computePriorityWeight(ticket.priority),
             estado: 'presupuesto_generado',
+            warranty_status: ticket.warranty_status,
+            coverage: ticket.coverage,
+            warranty_reason: ticket.warranty_reason,
+            warranty_notes: ticket.warranty_notes,
             observaciones: ticket.equipment_id
               ? `${ticket.issue_description}\n\nEquipo relacionado: ${ticket.equipment_id}`
               : ticket.issue_description

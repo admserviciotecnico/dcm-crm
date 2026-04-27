@@ -12,6 +12,7 @@ import { createSimplePdf } from '../utils/pdf.js';
 import { buildInvoiceDraftFromOrder } from '../services/invoice-draft.js';
 import { syncOrderCalendarEvents } from '../services/calendar-integrations.js';
 import { isWorkflowStatusKey, statusKeyExists } from '../services/order-status-config.js';
+import { applyWarrantyDecisionMetadata, isWarrantyCovered, validateWarrantyPatch } from '../services/warranty.js';
 
 const MAX_PAGE_SIZE = 100;
 const SORT_FIELDS = {
@@ -55,7 +56,9 @@ function enrichOrderWithSla(order) {
   return {
     ...order,
     sla_deadline: slaDeadline?.toISOString() ?? null,
-    sla_status: getSlaStatus(slaDeadline, order.estado)
+    sla_status: getSlaStatus(slaDeadline, order.estado),
+    warranty_covered: isWarrantyCovered(order),
+    billable: order.warranty_status === 'rejected'
   };
 }
 
@@ -241,6 +244,12 @@ export default function ordersRouter(io) {
     if (!isWorkflowStatusKey(data.estado)) return sendError(res, 400, 'Estado fuera de flujo operativo');
     const ticketValidation = await resolveValidTicketForOrderCreation(data.ticket_id);
     if (!ticketValidation.ok) return sendError(res, ticketValidation.status, ticketValidation.message);
+    if (ticketValidation.ticket) {
+      data.warranty_status = ticketValidation.ticket.warranty_status;
+      data.coverage = ticketValidation.ticket.coverage;
+      data.warranty_reason = ticketValidation.ticket.warranty_reason;
+      data.warranty_notes = ticketValidation.ticket.warranty_notes;
+    }
     data.prioridad_peso = computePriorityWeight(data.prioridad);
 
     const tx = await prisma.$transaction(async (db) => {
@@ -308,11 +317,14 @@ export default function ordersRouter(io) {
     if (req.body.estado && !isWorkflowStatusKey(req.body.estado)) return sendError(res, 400, 'Estado fuera de flujo operativo');
 
     const patch = { ...req.body };
-    if (patch.prioridad) patch.prioridad_peso = computePriorityWeight(patch.prioridad);
-    if (patch.fecha_programada) patch.fecha_programada = new Date(patch.fecha_programada);
+    const warrantyValidation = validateWarrantyPatch({ current: order, patch, role });
+    if (!warrantyValidation.ok) return sendError(res, warrantyValidation.status, warrantyValidation.message);
+    const patchWithWarranty = applyWarrantyDecisionMetadata({ patch: warrantyValidation.patch, actorUserId: req.user.id });
+    if (patchWithWarranty.prioridad) patchWithWarranty.prioridad_peso = computePriorityWeight(patchWithWarranty.prioridad);
+    if (patchWithWarranty.fecha_programada) patchWithWarranty.fecha_programada = new Date(patchWithWarranty.fecha_programada);
 
     const updated = await prisma.$transaction(async (db) => {
-      const newOrder = await db.serviceOrder.update({ where: { id: order.id }, data: patch });
+      const newOrder = await db.serviceOrder.update({ where: { id: order.id }, data: patchWithWarranty });
       const historyEntries = toHistoryEntries({ before: order, after: newOrder, userId: req.user.id, comment: req.body.comentario });
       if (historyEntries.length) await db.serviceOrderStatusHistory.createMany({ data: historyEntries });
       if (order.estado !== newOrder.estado) {

@@ -47,6 +47,12 @@ const SLA_BADGE_CLASS: Record<string, string> = {
   warning: 'border-amber-400 bg-amber-500/10 text-amber-300',
   breach: 'border-rose-400 bg-rose-500/10 text-rose-300'
 };
+const WARRANTY_STATUS_LABELS: Record<string, string> = {
+  unknown: 'Sin evaluar',
+  pending_review: '🟡 Pendiente',
+  approved: '🟢 En garantía',
+  rejected: '🔴 Fuera de garantía'
+};
 
 export default function TicketsPage() {
   const user = authStore((s) => s.user);
@@ -66,7 +72,9 @@ export default function TicketsPage() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [escalateLoading, setEscalateLoading] = useState(false);
   const [diagnosisSaving, setDiagnosisSaving] = useState(false);
+  const [warrantySaving, setWarrantySaving] = useState(false);
   const [diagnosisDraft, setDiagnosisDraft] = useState({ diagnosis: '', diagnosis_result: '', requires_intervention: false });
+  const [warrantyDraft, setWarrantyDraft] = useState({ warranty_reason: '', warranty_notes: '' });
   const PAGE_SIZE = 20;
   const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm<TicketForm>({
     defaultValues: {
@@ -118,6 +126,10 @@ export default function TicketsPage() {
       diagnosis: selectedWithDetails.diagnosis ?? '',
       diagnosis_result: selectedWithDetails.diagnosis_result ?? '',
       requires_intervention: Boolean(selectedWithDetails.requires_intervention)
+    });
+    setWarrantyDraft({
+      warranty_reason: selectedWithDetails.warranty_reason ?? '',
+      warranty_notes: selectedWithDetails.warranty_notes ?? ''
     });
   }, [selectedWithDetails?.id]);
 
@@ -256,6 +268,40 @@ export default function TicketsPage() {
     }
   };
 
+  const reviewWarranty = async (decision: 'approved' | 'rejected') => {
+    if (!selectedWithDetails) return;
+    setWarrantySaving(true);
+    try {
+      const updated = await TicketsApi.patch(selectedWithDetails.id, {
+        warranty_status: decision,
+        coverage: decision === 'approved' ? 'partial' : 'none',
+        warranty_reason: warrantyDraft.warranty_reason || undefined,
+        warranty_notes: warrantyDraft.warranty_notes || undefined
+      });
+      setSelected(updated);
+      setTickets((prev) => prev.map((ticket) => ticket.id === updated.id ? { ...ticket, ...updated } : ticket));
+      toast({ type: 'success', message: `Garantía ${decision === 'approved' ? 'aprobada' : 'rechazada'}` });
+    } catch (error) {
+      toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo registrar la evaluación de garantía') });
+    } finally {
+      setWarrantySaving(false);
+    }
+  };
+  const markWarrantyPending = async () => {
+    if (!selectedWithDetails) return;
+    setWarrantySaving(true);
+    try {
+      const updated = await TicketsApi.patch(selectedWithDetails.id, { warranty_status: 'pending_review' });
+      setSelected(updated);
+      setTickets((prev) => prev.map((ticket) => ticket.id === updated.id ? { ...ticket, ...updated } : ticket));
+      toast({ type: 'success', message: 'Garantía en revisión' });
+    } catch (error) {
+      toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo iniciar la evaluación de garantía') });
+    } finally {
+      setWarrantySaving(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <PageHeader
@@ -283,7 +329,7 @@ export default function TicketsPage() {
             <option value="baja">Baja</option>
           </Select>
         </div>
-        {loading ? <TableSkeleton rows={6} cols={5} /> : null}
+        {loading ? <TableSkeleton rows={6} cols={6} /> : null}
         {!loading && loadError ? (
           <div className="space-y-2">
             <p className="text-sm text-red-300">{loadError}</p>
@@ -299,6 +345,7 @@ export default function TicketsPage() {
                 <th className="p-2 text-left">Cliente</th>
                 <th className="p-2 text-left">Estado</th>
                 <th className="p-2 text-left">Prioridad</th>
+                <th className="p-2 text-left">Garantía</th>
                 <th className="p-2 text-left">SLA respuesta</th>
                 <th className="p-2 text-left">SLA resolución</th>
                 <th className="p-2 text-left">Creado</th>
@@ -311,6 +358,7 @@ export default function TicketsPage() {
                   <td className="p-2">{ticket.client?.nombre_empresa ?? ticket.client_id}</td>
                   <td className="p-2">{STATUS_LABELS[ticket.status] ?? ticket.status}</td>
                   <td className="p-2 capitalize">{ticket.priority}</td>
+                  <td className="p-2"><span className="rounded-full border border-[var(--border)] px-2 py-1 text-xs">{WARRANTY_STATUS_LABELS[ticket.warranty_status ?? 'unknown'] ?? ticket.warranty_status}</span></td>
                   <td className="p-2">
                     <span className={`rounded-full border px-2 py-1 text-xs ${SLA_BADGE_CLASS[ticket.sla_response_status ?? 'ok'] ?? SLA_BADGE_CLASS.ok}`}>
                       {formatSla(ticket.sla_response_deadline, ticket.sla_response_status)}
@@ -385,6 +433,7 @@ export default function TicketsPage() {
             {STATUS_HINTS[selectedWithDetails.status] ? <p className="text-xs text-[var(--text-secondary)]">{STATUS_HINTS[selectedWithDetails.status]}</p> : null}
             <p><span className="font-medium">Prioridad:</span> {selectedWithDetails.priority}</p>
             <p><span className="font-medium">Descripción:</span> {selectedWithDetails.issue_description}</p>
+            <p><span className="font-medium">Garantía:</span> <span className="rounded-full border border-[var(--border)] px-2 py-1 text-xs">{WARRANTY_STATUS_LABELS[selectedWithDetails.warranty_status ?? 'unknown'] ?? selectedWithDetails.warranty_status}</span></p>
             <div className="grid gap-2 md:grid-cols-2">
               <p><span className="font-medium">SLA respuesta:</span> {formatSla(selectedWithDetails.sla_response_deadline, selectedWithDetails.sla_response_status)}</p>
               <p><span className="font-medium">SLA resolución:</span> {formatSla(selectedWithDetails.sla_resolution_deadline, selectedWithDetails.sla_resolution_status)}</p>
@@ -440,6 +489,26 @@ export default function TicketsPage() {
                 </div>
               </div>
             ) : null}
+            <div className="space-y-2 rounded-[10px] border border-[var(--border)] p-3">
+              <p className="font-medium">Garantía</p>
+              <p><span className="font-medium">Estado:</span> {WARRANTY_STATUS_LABELS[selectedWithDetails.warranty_status ?? 'unknown'] ?? selectedWithDetails.warranty_status}</p>
+              <p><span className="font-medium">Cobertura:</span> {selectedWithDetails.coverage ?? 'none'}</p>
+              <div className="space-y-1">
+                <label className="text-xs text-[var(--text-secondary)]">Motivo</label>
+                <Input value={warrantyDraft.warranty_reason} onChange={(event) => setWarrantyDraft((prev) => ({ ...prev, warranty_reason: event.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-[var(--text-secondary)]">Notas internas</label>
+                <textarea className="min-h-20 w-full rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-sm" value={warrantyDraft.warranty_notes} onChange={(event) => setWarrantyDraft((prev) => ({ ...prev, warranty_notes: event.target.value }))} />
+              </div>
+              {user?.role === 'admin' ? (
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="secondary" disabled={warrantySaving || selectedWithDetails.warranty_status !== 'unknown'} onClick={() => void markWarrantyPending()}>Evaluar garantía</Button>
+                  <Button type="button" variant="secondary" disabled={warrantySaving || selectedWithDetails.warranty_status === 'approved'} onClick={() => void reviewWarranty('approved')}>Aprobar</Button>
+                  <Button type="button" variant="danger" disabled={warrantySaving || selectedWithDetails.warranty_status === 'rejected'} onClick={() => void reviewWarranty('rejected')}>Rechazar</Button>
+                </div>
+              ) : null}
+            </div>
             {selectedWithDetails.service_orders?.length ? (
               <div>
                 <p><span className="font-medium">Órdenes vinculadas:</span></p>

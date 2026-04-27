@@ -127,6 +127,8 @@ const closureChecklistSchema = z.object({
   equipo_probado: z.boolean().optional(),
   documentacion_entregada: z.boolean().optional()
 }).strict();
+const warrantyStatusSchema = z.enum(['unknown', 'pending_review', 'approved', 'rejected']);
+const warrantyCoverageSchema = z.enum(['full', 'partial', 'none']);
 
 export const materialSchema = z.object({
   name: z.string().min(1),
@@ -163,6 +165,10 @@ export const orderCreateSchema = z.object({
   contacto_planta: z.string().optional(),
   telefono_contacto_planta: z.string().optional(),
   observaciones: z.string().optional(),
+  warranty_status: warrantyStatusSchema.optional(),
+  coverage: warrantyCoverageSchema.optional(),
+  warranty_reason: z.string().optional(),
+  warranty_notes: z.string().optional(),
   observaciones_cierre: z.string().optional(),
   tiempo_trabajado_horas: z.coerce.number().min(0).optional(),
   firma_cliente: z.string().optional(),
@@ -180,6 +186,10 @@ export const orderPatchSchema = z.object({
   contacto_planta: z.string().optional(),
   telefono_contacto_planta: z.string().optional(),
   observaciones: z.string().optional(),
+  warranty_status: warrantyStatusSchema.optional(),
+  coverage: warrantyCoverageSchema.optional(),
+  warranty_reason: z.string().optional(),
+  warranty_notes: z.string().optional(),
   observaciones_cierre: z.string().optional(),
   tiempo_trabajado_horas: z.coerce.number().min(0).optional(),
   firma_cliente: z.string().optional(),
@@ -210,6 +220,10 @@ export const createTicketSchema = z.object({
   diagnosis: z.string().min(1).optional(),
   diagnosis_result: z.string().min(1).optional(),
   requires_intervention: z.boolean().optional(),
+  warranty_status: warrantyStatusSchema.optional(),
+  coverage: warrantyCoverageSchema.optional(),
+  warranty_reason: z.string().min(1).optional(),
+  warranty_notes: z.string().min(1).optional(),
   reported_by_name: z.string().min(1).optional(),
   reported_by_contact: z.string().min(1).optional()
 }).strict();
@@ -221,7 +235,11 @@ export const updateTicketSchema = z.object({
   status: ticketStatusSchema.optional(),
   diagnosis: z.string().min(1).optional(),
   diagnosis_result: z.string().min(1).optional(),
-  requires_intervention: z.boolean().optional()
+  requires_intervention: z.boolean().optional(),
+  warranty_status: warrantyStatusSchema.optional(),
+  coverage: warrantyCoverageSchema.optional(),
+  warranty_reason: z.string().min(1).optional(),
+  warranty_notes: z.string().min(1).optional()
 }).strict();
 
 export const invoiceDraftCreateSchema = z.object({

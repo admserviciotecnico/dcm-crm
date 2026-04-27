@@ -79,6 +79,19 @@ enum CalendarSyncStatus {
   error
 }
 
+enum WarrantyStatus {
+  unknown
+  pending_review
+  approved
+  rejected
+}
+
+enum WarrantyCoverage {
+  full
+  partial
+  none
+}
+
 model Role {
   id    String   @id @default(cuid())
   name  UserRole @unique
@@ -150,6 +163,12 @@ model Ticket {
   resolved_at         DateTime?
   reported_by_name    String?
   reported_by_contact String?
+  warranty_status     WarrantyStatus @default(unknown)
+  coverage            WarrantyCoverage @default(none)
+  approved_by         String?
+  warranty_reason     String?
+  warranty_notes      String?
+  reviewed_at         DateTime?
   deleted_at          DateTime?
   created_at          DateTime      @default(now())
   updated_at          DateTime      @updatedAt
@@ -220,6 +239,12 @@ model ServiceOrder {
   contacto_planta          String?
   telefono_contacto_planta String?
   observaciones            String?
+  warranty_status          WarrantyStatus @default(unknown)
+  coverage                 WarrantyCoverage @default(none)
+  approved_by              String?
+  warranty_reason          String?
+  warranty_notes           String?
+  reviewed_at              DateTime?
   observaciones_cierre     String?
   tiempo_trabajado_horas   Float?
   firma_cliente            String?

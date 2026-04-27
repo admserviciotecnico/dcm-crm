@@ -28,6 +28,12 @@ const PORTAL_STATUS_HELP: Record<string, string> = {
   escalated: 'Un técnico está interviniendo en el equipo.',
   closed: 'El caso quedó cerrado.'
 };
+const WARRANTY_LABELS: Record<string, string> = {
+  unknown: 'Sin evaluar',
+  pending_review: 'Pendiente',
+  approved: 'En garantía',
+  rejected: 'Fuera de garantía'
+};
 
 function ticketCode(id: string) {
   return id.slice(0, 8).toUpperCase();
@@ -86,6 +92,7 @@ export default function PortalTicketDetailPage() {
                   <p><span className="font-medium">Ticket:</span> #{ticketCode(ticket.id)}</p>
                   <p><span className="font-medium">Serie:</span> {ticket.serial_number ?? '—'}</p>
                   <p><span className="font-medium">Estado:</span> <span className="rounded-full border border-[var(--border)] px-2 py-1 text-xs">{PORTAL_STATUS_LABELS[ticket.status] ?? ticket.status}</span></p>
+                  <p><span className="font-medium">Garantía:</span> {WARRANTY_LABELS[ticket.warranty_status ?? 'unknown'] ?? ticket.warranty_status} ({ticket.coverage ?? 'none'})</p>
                   {PORTAL_STATUS_HELP[ticket.status] ? <p className="text-xs text-[var(--text-secondary)]">{PORTAL_STATUS_HELP[ticket.status]}</p> : null}
                   <p><span className="font-medium">Creado:</span> {new Date(ticket.created_at).toLocaleString()}</p>
                   <p><span className="font-medium">Descripción:</span> {ticket.issue_description}</p>

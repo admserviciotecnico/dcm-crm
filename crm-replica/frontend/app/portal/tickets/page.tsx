@@ -23,6 +23,12 @@ const PORTAL_STATUS_LABELS: Record<string, string> = {
   escalated: 'En intervención técnica',
   closed: 'Cerrado'
 };
+const WARRANTY_LABELS: Record<string, string> = {
+  unknown: 'Sin evaluar',
+  pending_review: 'Pendiente',
+  approved: 'En garantía',
+  rejected: 'Fuera de garantía'
+};
 
 function ticketCode(id: string) {
   return id.slice(0, 8).toUpperCase();
@@ -123,6 +129,7 @@ export default function PortalTicketsPage() {
                     <th className="p-3 text-left">Ticket</th>
                     <th className="p-3 text-left">Descripción</th>
                     <th className="p-3 text-left">Estado</th>
+                    <th className="p-3 text-left">Garantía</th>
                     <th className="p-3 text-left">Fecha</th>
                     <th className="p-3 text-left">Acción</th>
                   </tr>
@@ -133,6 +140,7 @@ export default function PortalTicketsPage() {
                       <td className="p-3 font-medium">Ticket #{ticketCode(ticket.id)}</td>
                       <td className="p-3">{shortDescription(ticket.issue_description)}</td>
                       <td className="p-3"><span className="rounded-full border border-[var(--border)] px-2 py-1 text-xs">{PORTAL_STATUS_LABELS[ticket.status] ?? ticket.status}</span></td>
+                      <td className="p-3">{WARRANTY_LABELS[ticket.warranty_status ?? 'unknown'] ?? ticket.warranty_status}</td>
                       <td className="p-3">{new Date(ticket.created_at).toLocaleString()}</td>
                       <td className="p-3"><Link href={`/portal/tickets/${ticket.id}`} className="text-cyan-300 hover:underline">Ver detalle</Link></td>
                     </tr>
