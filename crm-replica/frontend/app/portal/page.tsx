@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { FileText, LogOut, PackageSearch } from 'lucide-react';
+import { FileText, LifeBuoy, LogOut, PackageSearch } from 'lucide-react';
 import { PortalApi } from '@/lib/api/endpoints';
 import { PortalProtected } from '@/components/layout/portal-protected';
 import { portalAuthStore } from '@/stores/portal-auth-store';
@@ -49,7 +49,16 @@ export default function PortalHomePage() {
             </Card>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold">Soporte por tickets</h2>
+                <p className="mt-2 text-sm text-[var(--text-secondary)]">Creá reclamos y seguí su estado, diagnóstico y resolución.</p>
+              </div>
+              <Link href="/portal/tickets" className="inline-flex items-center gap-2 rounded-[8px] bg-[var(--primary)] px-3 py-2 text-sm font-medium text-white">
+                <LifeBuoy size={16} /> Ver tickets
+              </Link>
+            </Card>
             <Card className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-lg font-semibold">Órdenes de servicio</h2>

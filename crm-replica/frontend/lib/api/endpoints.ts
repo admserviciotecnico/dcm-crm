@@ -1,6 +1,6 @@
 import { api } from './client';
 import { portalApi } from './portal-client';
-import { AutomationRule, AutomationRunResult, Client, ClientHealth, DashboardKpis, Equipment, EventEntityType, EventLog, ExternalCalendarConnection, ExternalCalendarEventStatus, InvoiceDraft, MapOrderMarker, NotificationItem, OrderHistory, OrderLocationEvent, OrderMaterial, OrderStatusConfig, PortalDocument, PortalUser, SearchResultGroup, ServiceOrder, TechnicianMapLocation, User } from '@/types/domain';
+import { AutomationRule, AutomationRunResult, Client, ClientHealth, DashboardKpis, Equipment, EventEntityType, EventLog, ExternalCalendarConnection, ExternalCalendarEventStatus, InvoiceDraft, MapOrderMarker, NotificationItem, OrderHistory, OrderLocationEvent, OrderMaterial, OrderStatusConfig, PortalDocument, PortalTicketDetail, PortalTicketSummary, PortalUser, SearchResultGroup, ServiceOrder, TechnicianMapLocation, Ticket, User } from '@/types/domain';
 import { DocumentCategory, DocumentEntityType } from '@/modules/documents/types';
 
 type PaginatedResponse<T> = {
@@ -133,6 +133,34 @@ export const InvoiceDraftsApi = {
   get: (id: string) => api.get<InvoiceDraft>(`/api/invoice-drafts/${id}`).then((r) => r.data)
 };
 
+export const TicketsApi = {
+  list: (params?: TableListParams) => api.get<{ items: Ticket[]; total: number }>('/api/tickets', { params }).then((r) => r.data),
+  get: (id: string) => api.get<Ticket>(`/api/tickets/${id}`).then((r) => r.data),
+  create: (payload: {
+    client_id: string;
+    equipment_id?: string;
+    serial_number?: string;
+    channel: 'phone' | 'email' | 'web' | 'whatsapp';
+    issue_description: string;
+    priority?: 'baja' | 'media' | 'alta';
+    category?: string;
+    status?: 'new' | 'triage' | 'in_diagnosis' | 'escalated' | 'resolved' | 'closed';
+    reported_by_name?: string;
+    reported_by_contact?: string;
+  }) => api.post<Ticket>('/api/tickets', payload).then((r) => r.data),
+  patch: (id: string, payload: Partial<{
+    issue_description: string;
+    priority: 'baja' | 'media' | 'alta';
+    category: string;
+    status: 'new' | 'triage' | 'in_diagnosis' | 'resolved_remote' | 'escalated' | 'resolved' | 'closed';
+    diagnosis: string;
+    diagnosis_result: string;
+    requires_intervention: boolean;
+  }>) => api.patch<Ticket>(`/api/tickets/${id}`, payload).then((r) => r.data),
+  remove: (id: string) => api.delete<{ ok: true }>(`/api/tickets/${id}`).then((r) => r.data),
+  escalate: (id: string) => api.post<ServiceOrder>(`/api/tickets/${id}/escalate`).then((r) => r.data)
+};
+
 export const PortalAuthApi = {
   login: (payload: { email: string; password: string }) => portalApi.post<{ access_token: string; token_type: 'bearer'; user: PortalUser }>('/api/portal/auth/login', payload).then((r) => r.data),
   me: () => portalApi.get<PortalUser>('/api/portal/me').then((r) => r.data)
@@ -143,6 +171,9 @@ export const PortalApi = {
   getOrder: (id: string) => portalApi.get<ServiceOrder>(`/api/portal/orders/${id}`).then((r) => r.data),
   getOrderHistory: (id: string) => portalApi.get<OrderHistory[]>(`/api/portal/orders/${id}/history`).then((r) => r.data),
   getOrderDocuments: (id: string) => portalApi.get<PortalDocument[]>(`/api/portal/orders/${id}/documents`).then((r) => r.data),
+  listTickets: () => portalApi.get<PortalTicketSummary[]>('/api/portal/tickets').then((r) => r.data),
+  getTicket: (id: string) => portalApi.get<PortalTicketDetail>(`/api/portal/tickets/${id}`).then((r) => r.data),
+  createTicket: (payload: { serial_number: string; issue_description: string; attachments?: Array<{ file_name: string; file_path?: string; file_category?: 'contract' | 'report' | 'photo' | 'other' }> }) => portalApi.post<{ ticket: PortalTicketSummary; warning?: string | null }>('/api/portal/tickets', payload).then((r) => r.data),
   listDocuments: () => portalApi.get<{ client: PortalDocument[]; orders: PortalDocument[] }>('/api/portal/documents').then((r) => r.data),
   exportPdf: (id: string) => portalApi.get<Blob>(`/api/portal/orders/${id}/pdf`, { responseType: 'blob' }).then((r) => r.data)
 };
