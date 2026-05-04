@@ -6,7 +6,7 @@ import { createTicketSchema, TICKET_ALLOWED_STATUSES, updateTicketSchema } from 
 import { asyncHandler, sendError } from '../utils/http.js';
 import { computePriorityWeight } from '../services/order-rules.js';
 import { computeTicketSlaDeadlines, enrichTicketWithSla, getTicketSlaConfig } from '../services/ticket-sla.js';
-import { applyWarrantyDecisionMetadata, validateWarrantyPatch } from '../services/warranty.js';
+import { applyWarrantyDecisionMetadata, isBillable, isWarrantyCovered, validateWarrantyPatch } from '../services/warranty.js';
 
 const MAX_PAGE_SIZE = 100;
 
@@ -89,7 +89,7 @@ export default function ticketsRoutes() {
       prisma.ticket.count({ where })
     ]);
 
-    res.json({ items: items.map((ticket) => enrichTicketWithSla(ticket)), total });
+    res.json({ items: items.map((ticket) => ({ ...enrichTicketWithSla(ticket), warranty_covered: isWarrantyCovered(ticket), billable: isBillable(ticket) })), total });
   }));
 
   router.get('/:id', validateIdParam, asyncHandler(async (req, res) => {
@@ -108,7 +108,7 @@ export default function ticketsRoutes() {
     });
 
     if (!item || item.deleted_at) return sendError(res, 404, 'Not found');
-    res.json(enrichTicketWithSla(item));
+    res.json({ ...enrichTicketWithSla(item), warranty_covered: isWarrantyCovered(item), billable: isBillable(item) });
   }));
 
   router.post('/', validateBody(createTicketSchema), asyncHandler(async (req, res) => {
@@ -133,7 +133,7 @@ export default function ticketsRoutes() {
       return ticket;
     });
 
-    res.status(201).json(enrichTicketWithSla(created));
+    res.status(201).json({ ...enrichTicketWithSla(created), warranty_covered: isWarrantyCovered(created), billable: isBillable(created) });
   }));
 
   router.patch('/:id', validateIdParam, validateBody(updateTicketSchema), asyncHandler(async (req, res) => {
@@ -227,7 +227,7 @@ export default function ticketsRoutes() {
           data: {
             ticket_id: ticket.id,
             type: 'warranty_decision',
-            message: `Garantía ${warrantyAwarePatch.warranty_status === 'approved' ? 'aprobada' : 'rechazada'}`,
+            message: `Garantía ${warrantyAwarePatch.warranty_status === 'approved' ? 'aprobada' : 'rechazada'} por ${req.user.email} (motivo: ${warrantyAwarePatch.warranty_reason ?? '-'})`,
             metadata: {
               coverage: warrantyAwarePatch.coverage,
               reason: warrantyAwarePatch.warranty_reason ?? null,
@@ -240,7 +240,7 @@ export default function ticketsRoutes() {
       return ticket;
     });
 
-    res.json(enrichTicketWithSla(updated));
+    res.json({ ...enrichTicketWithSla(updated), warranty_covered: isWarrantyCovered(updated), billable: isBillable(updated) });
   }));
 
   router.delete('/:id', validateIdParam, asyncHandler(async (req, res) => {

@@ -17,6 +17,7 @@ export type OrderStatus = BuiltInOrderStatus | (string & {});
 export type SlaStatus = 'ok' | 'warning' | 'critical' | 'breached' | 'met';
 export type WarrantyStatus = 'unknown' | 'pending_review' | 'approved' | 'rejected';
 export type WarrantyCoverage = 'full' | 'partial' | 'none';
+export type WarrantySource = 'ticket' | 'order_override';
 
 export interface UserMetrics {
   assigned_orders: number;
@@ -133,8 +134,10 @@ export interface ServiceOrder {
   warranty_reason?: string | null;
   warranty_notes?: string | null;
   reviewed_at?: string | null;
+  warranty_source?: WarrantySource | string | null;
   warranty_covered?: boolean;
   billable?: boolean;
+  warranty_mismatch?: boolean;
   observaciones_cierre?: string;
   tiempo_trabajado_horas?: number | null;
   firma_cliente?: string | null;
@@ -184,6 +187,9 @@ export interface Ticket {
   warranty_reason?: string | null;
   warranty_notes?: string | null;
   reviewed_at?: string | null;
+  warranty_source?: WarrantySource | string | null;
+  warranty_covered?: boolean;
+  billable?: boolean;
   reported_by_name?: string | null;
   reported_by_contact?: string | null;
   deleted_at?: string | null;

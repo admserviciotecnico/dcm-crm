@@ -12,7 +12,7 @@ import { createSimplePdf } from '../utils/pdf.js';
 import { buildInvoiceDraftFromOrder } from '../services/invoice-draft.js';
 import { syncOrderCalendarEvents } from '../services/calendar-integrations.js';
 import { isWorkflowStatusKey, statusKeyExists } from '../services/order-status-config.js';
-import { applyWarrantyDecisionMetadata, isWarrantyCovered, validateWarrantyPatch } from '../services/warranty.js';
+import { applyWarrantyDecisionMetadata, isBillable, isWarrantyCovered, validateWarrantyPatch } from '../services/warranty.js';
 
 const MAX_PAGE_SIZE = 100;
 const SORT_FIELDS = {
@@ -58,7 +58,8 @@ function enrichOrderWithSla(order) {
     sla_deadline: slaDeadline?.toISOString() ?? null,
     sla_status: getSlaStatus(slaDeadline, order.estado),
     warranty_covered: isWarrantyCovered(order),
-    billable: order.warranty_status === 'rejected'
+    billable: isBillable(order),
+    warranty_mismatch: Boolean(order.ticket && (order.warranty_status !== order.ticket.warranty_status || order.coverage !== order.ticket.coverage))
   };
 }
 
@@ -249,6 +250,7 @@ export default function ordersRouter(io) {
       data.coverage = ticketValidation.ticket.coverage;
       data.warranty_reason = ticketValidation.ticket.warranty_reason;
       data.warranty_notes = ticketValidation.ticket.warranty_notes;
+      data.warranty_source = 'ticket';
     }
     data.prioridad_peso = computePriorityWeight(data.prioridad);
 
@@ -320,6 +322,11 @@ export default function ordersRouter(io) {
     const warrantyValidation = validateWarrantyPatch({ current: order, patch, role });
     if (!warrantyValidation.ok) return sendError(res, warrantyValidation.status, warrantyValidation.message);
     const patchWithWarranty = applyWarrantyDecisionMetadata({ patch: warrantyValidation.patch, actorUserId: req.user.id });
+    if (
+      (patchWithWarranty.warranty_status && patchWithWarranty.warranty_status !== order.warranty_status)
+      || (patchWithWarranty.coverage && patchWithWarranty.coverage !== order.coverage)
+      || (patchWithWarranty.warranty_reason && patchWithWarranty.warranty_reason !== order.warranty_reason)
+    ) patchWithWarranty.warranty_source = 'order_override';
     if (patchWithWarranty.prioridad) patchWithWarranty.prioridad_peso = computePriorityWeight(patchWithWarranty.prioridad);
     if (patchWithWarranty.fecha_programada) patchWithWarranty.fecha_programada = new Date(patchWithWarranty.fecha_programada);
 
@@ -327,6 +334,20 @@ export default function ordersRouter(io) {
       const newOrder = await db.serviceOrder.update({ where: { id: order.id }, data: patchWithWarranty });
       const historyEntries = toHistoryEntries({ before: order, after: newOrder, userId: req.user.id, comment: req.body.comentario });
       if (historyEntries.length) await db.serviceOrderStatusHistory.createMany({ data: historyEntries });
+      if (warrantyValidation.decisionTaken) {
+        await db.serviceOrderStatusHistory.create({
+          data: {
+            service_order_id: order.id,
+            estado_anterior: order.estado,
+            estado_nuevo: newOrder.estado,
+            campo_modificado: 'warranty_status',
+            valor_anterior: String(order.warranty_status ?? ''),
+            valor_nuevo: String(newOrder.warranty_status ?? ''),
+            comentario: `Garantía ${newOrder.warranty_status === 'approved' ? 'aprobada' : 'rechazada'} por ${req.user.email} (motivo: ${newOrder.warranty_reason ?? '-'})`,
+            usuario_id: req.user.id
+          }
+        });
+      }
       if (order.estado !== newOrder.estado) {
         await notifyAssignedTechnicians(db, {
           orderId: order.id,

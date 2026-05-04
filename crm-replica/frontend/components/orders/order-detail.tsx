@@ -421,6 +421,9 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
                 <StatusBadge value={order.estado} />
                 <PriorityBadge value={order.prioridad} />
                 <SlaBadge status={order.sla_status} slaDeadline={order.sla_deadline} />
+                <Badge className={order.billable ? 'border-red-400 bg-red-500/15 text-red-300' : order.warranty_covered ? 'border-emerald-400 bg-emerald-500/15 text-emerald-300' : 'border-[var(--border)]'}>
+                  {order.billable ? '💰 Facturable' : order.warranty_covered ? '🛠 En garantía' : 'Garantía sin definir'}
+                </Badge>
                 {order.ticket_id ? <Badge className="border-sky-400 bg-sky-500/10 text-sky-300">Desde ticket #{order.ticket_id.slice(0, 8)}</Badge> : null}
               </div>
               <div className="flex items-center gap-2">
@@ -464,6 +467,7 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
                   <p><span className="font-medium">Motivo:</span> {order.warranty_reason || '-'}</p>
                   <p><span className="font-medium">Notas internas:</span> {order.warranty_notes || '-'}</p>
                 </div>
+                {order.warranty_mismatch ? <p className="mt-2 rounded-[8px] border border-amber-400 bg-amber-500/10 px-2 py-1 text-xs text-amber-300">⚠ La garantía difiere del ticket original</p> : null}
                 {user?.role === 'admin' ? (
                   <div className="mt-2 flex gap-2">
                     <Button variant="secondary" disabled={warrantySaving || order.warranty_status !== 'unknown'} onClick={() => void startWarrantyReview()}>Evaluar garantía</Button>

@@ -92,6 +92,11 @@ enum WarrantyCoverage {
   none
 }
 
+enum WarrantySource {
+  ticket
+  order_override
+}
+
 model Role {
   id    String   @id @default(cuid())
   name  UserRole @unique
@@ -169,6 +174,7 @@ model Ticket {
   warranty_reason     String?
   warranty_notes      String?
   reviewed_at         DateTime?
+  warranty_source     WarrantySource?
   deleted_at          DateTime?
   created_at          DateTime      @default(now())
   updated_at          DateTime      @updatedAt
@@ -245,6 +251,7 @@ model ServiceOrder {
   warranty_reason          String?
   warranty_notes           String?
   reviewed_at              DateTime?
+  warranty_source          WarrantySource?
   observaciones_cierre     String?
   tiempo_trabajado_horas   Float?
   firma_cliente            String?

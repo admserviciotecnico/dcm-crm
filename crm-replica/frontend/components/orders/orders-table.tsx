@@ -50,11 +50,17 @@ function OrdersTableComponent({ rows, users, selectedIds, onToggleSelect, onTogg
     if (cancelLoading) return;
     setConfirmOrder(null);
   };
+
+  const financialLabel = (order: ServiceOrder) => {
+    if (order.billable) return '💰 Facturable';
+    if (order.warranty_covered) return '🛠 En garantía';
+    return 'Sin definir';
   const warrantyLabel = (status?: string) => {
     if (status === 'pending_review') return '🟡 Pendiente';
     if (status === 'approved') return '🟢 En garantía';
     if (status === 'rejected') return '🔴 Fuera de garantía';
     return 'Sin evaluar';
+ main
   };
 
   return (
@@ -84,7 +90,7 @@ function OrdersTableComponent({ rows, users, selectedIds, onToggleSelect, onTogg
               </td>
               <td className="p-2" onClick={() => onClick(o)}><StatusBadge value={o.estado} /></td>
               <td className="p-2" onClick={() => onClick(o)}><PriorityBadge value={o.prioridad} /></td>
-              <td className="p-2" onClick={() => onClick(o)}><span className="rounded-full border border-[var(--border)] px-2 py-1 text-xs">{warrantyLabel(o.warranty_status)}</span></td>
+              <td className="p-2" onClick={() => onClick(o)}><span className={`rounded-full border px-2 py-1 text-xs ${o.billable ? 'border-red-400 bg-red-500/15 text-red-300' : o.warranty_covered ? 'border-emerald-400 bg-emerald-500/15 text-emerald-300' : 'border-[var(--border)]'}`}>{financialLabel(o)}</span></td>
               <td className="p-2" onClick={() => onClick(o)}><SlaBadge status={o.sla_status} slaDeadline={o.sla_deadline} /></td>
               <td className="p-2" onClick={() => onClick(o)}><div className="flex items-center">{visible.map((t, idx) => <Avatar key={t.technician_id} name={getTechName(t.technician_id)} className={`h-7 w-7 border-2 border-white ${idx > 0 ? '-ml-1.5' : ''}`} />)}{extra > 0 ? <span className="ml-1 grid h-7 w-7 place-items-center rounded-full border-2 border-white bg-[var(--bg-surface-muted)] text-xs">+{extra}</span> : null}</div></td>
               <td className="p-2" onClick={() => onClick(o)}><RelativeTime value={o.fecha_programada} /></td>

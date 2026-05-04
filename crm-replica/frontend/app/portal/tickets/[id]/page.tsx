@@ -30,9 +30,9 @@ const PORTAL_STATUS_HELP: Record<string, string> = {
 };
 const WARRANTY_LABELS: Record<string, string> = {
   unknown: 'Sin evaluar',
-  pending_review: 'Pendiente',
-  approved: 'En garantía',
-  rejected: 'Fuera de garantía'
+  pending_review: 'En evaluación de garantía',
+  approved: 'Cubierto por garantía',
+  rejected: 'Fuera de garantía (puede generar costos)'
 };
 
 function ticketCode(id: string) {

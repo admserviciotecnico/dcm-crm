@@ -12,9 +12,9 @@ import { PortalDocument, ServiceOrder, OrderHistory } from '@/types/domain';
 import { StatusBadge, PriorityBadge } from '@/components/common/badges';
 const WARRANTY_LABELS: Record<string, string> = {
   unknown: 'Sin evaluar',
-  pending_review: 'Pendiente',
-  approved: 'En garantía',
-  rejected: 'Fuera de garantía'
+  pending_review: 'En evaluación de garantía',
+  approved: 'Cubierto por garantía',
+  rejected: 'Fuera de garantía (puede generar costos)'
 };
 
 export default function PortalOrderDetailPage() {

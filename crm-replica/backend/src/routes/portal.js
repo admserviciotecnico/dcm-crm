@@ -51,6 +51,7 @@ function mapPortalOrder(order) {
     status_label: ORDER_STATUS_LABEL[order.estado] ?? order.estado,
     warranty_status: order.warranty_status,
     coverage: order.coverage,
+    billable: order.coverage === 'none',
     warranty_reason: order.warranty_reason,
     reviewed_at: order.reviewed_at
   };
@@ -169,6 +170,7 @@ router.get('/tickets', asyncHandler(async (req, res) => {
       priority: true,
       warranty_status: true,
       coverage: true,
+      ticket_id: true,
       created_at: true
     },
     orderBy: [{ created_at: 'desc' }]
@@ -199,6 +201,7 @@ router.get('/tickets/:id', validateIdParam, asyncHandler(async (req, res) => {
     requires_intervention: ticket.requires_intervention,
     warranty_status: ticket.warranty_status,
     coverage: ticket.coverage,
+    billable: ticket.coverage === 'none',
     warranty_reason: ticket.warranty_reason,
     reviewed_at: ticket.reviewed_at,
     attachments: attachments.map((doc) => ({

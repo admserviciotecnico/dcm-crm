@@ -358,7 +358,7 @@ export default function TicketsPage() {
                   <td className="p-2">{ticket.client?.nombre_empresa ?? ticket.client_id}</td>
                   <td className="p-2">{STATUS_LABELS[ticket.status] ?? ticket.status}</td>
                   <td className="p-2 capitalize">{ticket.priority}</td>
-                  <td className="p-2"><span className="rounded-full border border-[var(--border)] px-2 py-1 text-xs">{WARRANTY_STATUS_LABELS[ticket.warranty_status ?? 'unknown'] ?? ticket.warranty_status}</span></td>
+                  <td className="p-2"><span className={`rounded-full border px-2 py-1 text-xs ${ticket.billable ? 'border-red-400 bg-red-500/15 text-red-300' : ticket.warranty_covered ? 'border-emerald-400 bg-emerald-500/15 text-emerald-300' : 'border-[var(--border)]'}`}>{ticket.billable ? '💰 Facturable' : ticket.warranty_covered ? '🛠 En garantía' : (WARRANTY_STATUS_LABELS[ticket.warranty_status ?? 'unknown'] ?? ticket.warranty_status)}</span></td>
                   <td className="p-2">
                     <span className={`rounded-full border px-2 py-1 text-xs ${SLA_BADGE_CLASS[ticket.sla_response_status ?? 'ok'] ?? SLA_BADGE_CLASS.ok}`}>
                       {formatSla(ticket.sla_response_deadline, ticket.sla_response_status)}
@@ -433,7 +433,7 @@ export default function TicketsPage() {
             {STATUS_HINTS[selectedWithDetails.status] ? <p className="text-xs text-[var(--text-secondary)]">{STATUS_HINTS[selectedWithDetails.status]}</p> : null}
             <p><span className="font-medium">Prioridad:</span> {selectedWithDetails.priority}</p>
             <p><span className="font-medium">Descripción:</span> {selectedWithDetails.issue_description}</p>
-            <p><span className="font-medium">Garantía:</span> <span className="rounded-full border border-[var(--border)] px-2 py-1 text-xs">{WARRANTY_STATUS_LABELS[selectedWithDetails.warranty_status ?? 'unknown'] ?? selectedWithDetails.warranty_status}</span></p>
+            <p><span className="font-medium">Garantía:</span> <span className={`rounded-full border px-2 py-1 text-xs ${selectedWithDetails.billable ? 'border-red-400 bg-red-500/15 text-red-300' : selectedWithDetails.warranty_covered ? 'border-emerald-400 bg-emerald-500/15 text-emerald-300' : 'border-[var(--border)]'}`}>{selectedWithDetails.billable ? '💰 Facturable' : selectedWithDetails.warranty_covered ? '🛠 En garantía' : (WARRANTY_STATUS_LABELS[selectedWithDetails.warranty_status ?? 'unknown'] ?? selectedWithDetails.warranty_status)}</span></p>
             <div className="grid gap-2 md:grid-cols-2">
               <p><span className="font-medium">SLA respuesta:</span> {formatSla(selectedWithDetails.sla_response_deadline, selectedWithDetails.sla_response_status)}</p>
               <p><span className="font-medium">SLA resolución:</span> {formatSla(selectedWithDetails.sla_resolution_deadline, selectedWithDetails.sla_resolution_status)}</p>

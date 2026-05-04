@@ -6,6 +6,10 @@ export function isWarrantyCovered(entity) {
   if (!entity) return false;
   return entity.warranty_status === 'approved' && (entity.coverage === 'full' || entity.coverage === 'partial');
 }
+export function isBillable(entity) {
+  if (!entity) return false;
+  return entity.coverage === 'none';
+}
 
 export function validateWarrantyPatch({ current, patch, role }) {
   const hasWarrantyChange = [
@@ -48,6 +52,9 @@ export function validateWarrantyPatch({ current, patch, role }) {
 
   if (nextStatus === 'rejected' && nextCoverage !== 'none') {
     return { ok: false, status: 409, message: 'Cuando la garantía se rechaza, la cobertura debe ser none' };
+  }
+  if (WARRANTY_DECISION_STATUSES.has(nextStatus) && !String(patch.warranty_reason ?? current.warranty_reason ?? '').trim()) {
+    return { ok: false, status: 400, message: 'Debe ingresar un motivo para aprobar/rechazar garantía' };
   }
 
   const nextPatch = { ...patch };
