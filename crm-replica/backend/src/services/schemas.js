@@ -129,6 +129,7 @@ const closureChecklistSchema = z.object({
 }).strict();
 const warrantyStatusSchema = z.enum(['unknown', 'pending_review', 'approved', 'rejected']);
 const warrantyCoverageSchema = z.enum(['full', 'partial', 'none']);
+const maintenanceFrequencySchema = z.enum(['monthly', 'quarterly', 'semiannual', 'annual']);
 
 export const materialSchema = z.object({
   name: z.string().min(1),
@@ -157,6 +158,8 @@ export const orderStatusPatchSchema = z.object({
 
 export const orderCreateSchema = z.object({
   client_id: z.string().min(1),
+  equipment_id: z.string().min(1).optional(),
+  maintenance_plan_id: z.string().min(1).optional(),
   ticket_id: z.string().min(1).optional(),
   estado: orderStatusKeySchema.default('presupuesto_generado'),
   prioridad: z.enum(['baja', 'media', 'alta']).default('media'),
@@ -182,6 +185,8 @@ export const orderPatchSchema = z.object({
   estado: orderStatusKeySchema.optional(),
   prioridad: z.enum(['baja', 'media', 'alta']).optional(),
   fecha_programada: z.coerce.date().transform((d) => d.toISOString()).optional(),
+  equipment_id: z.string().min(1).optional(),
+  maintenance_plan_id: z.string().min(1).optional(),
   direccion_service: z.string().optional(),
   contacto_planta: z.string().optional(),
   telefono_contacto_planta: z.string().optional(),
@@ -198,6 +203,19 @@ export const orderPatchSchema = z.object({
   is_active: z.boolean().optional(),
   comentario: z.string().optional()
 }).strict();
+
+export const maintenancePlanCreateSchema = z.object({
+  client_id: z.string().min(1),
+  equipment_id: z.string().min(1),
+  name: z.string().min(1),
+  frequency_type: maintenanceFrequencySchema,
+  frequency_value: z.coerce.number().int().positive().optional(),
+  next_execution_at: z.coerce.date(),
+  is_active: z.boolean().optional(),
+  auto_generate: z.boolean().optional()
+}).strict();
+
+export const maintenancePlanPatchSchema = maintenancePlanCreateSchema.partial().strict();
 
 export const techniciansUpdateSchema = z.object({
   technicians: z.array(z.string()).default([])

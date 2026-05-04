@@ -425,6 +425,7 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
                   {order.billable ? '💰 Facturable' : order.warranty_covered ? '🛠 En garantía' : 'Garantía sin definir'}
                 </Badge>
                 {order.ticket_id ? <Badge className="border-sky-400 bg-sky-500/10 text-sky-300">Desde ticket #{order.ticket_id.slice(0, 8)}</Badge> : null}
+                {order.maintenance_plan_id ? <Badge className="border-sky-400 bg-sky-500/15 text-sky-300">🟦 Preventivo</Badge> : null}
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="secondary" onClick={handleExportPdf}><Download size={16} /> PDF</Button>

@@ -1,6 +1,6 @@
 import { api } from './client';
 import { portalApi } from './portal-client';
-import { AutomationRule, AutomationRunResult, Client, ClientHealth, DashboardKpis, Equipment, EventEntityType, EventLog, ExternalCalendarConnection, ExternalCalendarEventStatus, InvoiceDraft, MapOrderMarker, NotificationItem, OrderHistory, OrderLocationEvent, OrderMaterial, OrderStatusConfig, PortalDocument, PortalTicketDetail, PortalTicketSummary, PortalUser, SearchResultGroup, ServiceOrder, TechnicianMapLocation, Ticket, User } from '@/types/domain';
+import { AutomationRule, AutomationRunResult, Client, ClientHealth, DashboardKpis, Equipment, EventEntityType, EventLog, ExternalCalendarConnection, ExternalCalendarEventStatus, InvoiceDraft, MaintenancePlan, MapOrderMarker, NotificationItem, OrderHistory, OrderLocationEvent, OrderMaterial, OrderStatusConfig, PortalDocument, PortalTicketDetail, PortalTicketSummary, PortalUser, SearchResultGroup, ServiceOrder, TechnicianMapLocation, Ticket, User } from '@/types/domain';
 import { DocumentCategory, DocumentEntityType } from '@/modules/documents/types';
 
 type PaginatedResponse<T> = {
@@ -192,6 +192,14 @@ export const CalendarIntegrationsApi = {
   disconnect: (id: string) => api.delete(`/api/calendar-integrations/${id}`).then((r) => r.data),
   orderStatus: (orderId: string) => api.get<ExternalCalendarEventStatus[]>(`/api/calendar-integrations/orders/${orderId}/status`).then((r) => r.data),
   syncOrderNow: (orderId: string) => api.post<{ processed: number; synced: number; errors: number }>(`/api/calendar-integrations/orders/${orderId}/sync`).then((r) => r.data)
+};
+
+export const MaintenanceApi = {
+  listPlans: () => api.get<MaintenancePlan[]>('/api/maintenance-plans').then((r) => r.data),
+  createPlan: (payload: Partial<MaintenancePlan>) => api.post<MaintenancePlan>('/api/maintenance-plans', payload).then((r) => r.data),
+  updatePlan: (id: string, payload: Partial<MaintenancePlan>) => api.patch<MaintenancePlan>(`/api/maintenance-plans/${id}`, payload).then((r) => r.data),
+  disablePlan: (id: string) => api.delete(`/api/maintenance-plans/${id}`).then((r) => r.data),
+  runNow: () => api.post<{ scanned: number; generated: number; skipped: number; failed: number; errors: Array<{ plan_id: string; message: string }> }>('/api/maintenance/run').then((r) => r.data)
 };
 
 export const MapApi = {

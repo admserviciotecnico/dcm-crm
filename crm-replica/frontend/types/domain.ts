@@ -18,6 +18,7 @@ export type SlaStatus = 'ok' | 'warning' | 'critical' | 'breached' | 'met';
 export type WarrantyStatus = 'unknown' | 'pending_review' | 'approved' | 'rejected';
 export type WarrantyCoverage = 'full' | 'partial' | 'none';
 export type WarrantySource = 'ticket' | 'order_override';
+export type MaintenanceFrequencyType = 'monthly' | 'quarterly' | 'semiannual' | 'annual';
 
 export interface UserMetrics {
   assigned_orders: number;
@@ -117,6 +118,8 @@ export interface OrderChecklist {
 export interface ServiceOrder {
   id: string;
   client_id: string;
+  equipment_id?: string | null;
+  maintenance_plan_id?: string | null;
   ticket_id?: string | null;
   estado: OrderStatus;
   prioridad: Priority;
@@ -153,6 +156,23 @@ export interface ServiceOrder {
   invoice_draft?: InvoiceDraft | null;
   ticket?: Pick<Ticket, 'id'> | null;
   technicians?: { technician_id: string; technician?: Pick<User, 'id' | 'first_name' | 'last_name' | 'email'> }[];
+}
+
+export interface MaintenancePlan {
+  id: string;
+  client_id: string;
+  equipment_id: string;
+  name: string;
+  frequency_type: MaintenanceFrequencyType;
+  frequency_value?: number | null;
+  last_executed_at?: string | null;
+  next_execution_at: string;
+  is_active: boolean;
+  auto_generate: boolean;
+  created_at: string;
+  updated_at: string;
+  client?: Pick<Client, 'id' | 'nombre_empresa'>;
+  equipment?: Pick<Equipment, 'id' | 'numero_serie' | 'tipo_equipo'>;
 }
 
 export type TicketChannel = 'phone' | 'email' | 'web' | 'whatsapp';

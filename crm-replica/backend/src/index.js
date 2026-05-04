@@ -23,6 +23,7 @@ import mapRoutes from './routes/map.js';
 import techniciansRoutes from './routes/technicians.js';
 import orderStatusesRoutes from './routes/order-statuses.js';
 import ticketsRoutes from './routes/tickets.js';
+import maintenanceRoutes from './routes/maintenance.js';
 import { sanitizeBody } from './middleware/sanitize.js';
 import { errorHandler, notFoundHandler } from './middleware/error-handler.js';
 import { rateLimit } from './middleware/rate-limit.js';
@@ -84,6 +85,7 @@ app.use('/api/map', mapRoutes);
 app.use('/api/technicians', techniciansRoutes);
 app.use('/api/order-statuses', orderStatusesRoutes());
 app.use('/api/tickets', ticketsRoutes());
+app.use('/api', maintenanceRoutes());
 app.use(notFoundHandler);
 app.use(errorHandler);
 
