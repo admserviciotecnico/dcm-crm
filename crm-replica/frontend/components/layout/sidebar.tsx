@@ -11,11 +11,11 @@ import { uiStore } from '@/stores/ui-store';
 type LinkItem = { href: string; label: string; icon: typeof LayoutDashboard; adminOnly?: boolean; match?: string[] };
 const groups: { title: string; links: LinkItem[] }[] = [
   { title: 'Dashboard', links: [{ href: '/dashboard', label: 'Overview', icon: LayoutDashboard }] },
-  { title: 'Operaciones', links: [{ href: '/orders', label: 'Órdenes', icon: ClipboardList, match: ['/orders', '/orders/kanban'] }, { href: '/orders/kanban', label: 'Kanban', icon: KanbanSquare }, { href: '/planner', label: 'Planner', icon: CalendarRange }, { href: '/map', label: 'Mapa', icon: MapPinned }, { href: '/calendar', label: 'Calendario', icon: Calendar }] },
+  { title: 'Operaciones', links: [{ href: '/orders', label: 'Órdenes', icon: ClipboardList, match: ['/orders', '/orders/kanban'] }, { href: '/tickets', label: 'Tickets', icon: ClipboardList, adminOnly: true }, { href: '/orders/kanban', label: 'Kanban', icon: KanbanSquare }, { href: '/planner', label: 'Planner', icon: CalendarRange }, { href: '/map', label: 'Mapa', icon: MapPinned }, { href: '/calendar', label: 'Calendario', icon: Calendar }] },
   { title: 'Clientes', links: [{ href: '/clients', label: 'Empresas', icon: Users }] },
   { title: 'Equipos', links: [{ href: '/equipments', label: 'Instalados', icon: Package }] },
   { title: 'Colaboración', links: [{ href: '/activity', label: 'Actividad', icon: Activity }, { href: '/analytics', label: 'Analytics', icon: LineChart }] },
-  { title: 'Administración', links: [{ href: '/users', label: 'Usuarios', icon: Users, adminOnly: true }, { href: '/automation-rules', label: 'Automatizaciones', icon: Bot, adminOnly: true }, { href: '/settings/order-statuses', label: 'Estados de órdenes', icon: Settings, adminOnly: true }, { href: '/profile', label: 'Configuración', icon: Settings }] }
+  { title: 'Administración', links: [{ href: '/users', label: 'Usuarios', icon: Users, adminOnly: true }, { href: '/automation-rules', label: 'Automatizaciones', icon: Bot, adminOnly: true }, { href: '/settings/order-statuses', label: 'Estados de órdenes', icon: Settings, adminOnly: true }, { href: '/settings/maintenance', label: 'Mantenimiento', icon: Settings, adminOnly: true }, { href: '/profile', label: 'Configuración', icon: Settings }] }
 ];
 
 export function Sidebar() {
