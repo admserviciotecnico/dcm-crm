@@ -14,6 +14,8 @@ import { EmptyState } from '@/components/common/empty-state';
 import { appStore } from '@/stores/app-store';
 import { getApiErrorMessage } from '@/lib/api/error-message';
 import { orderStatusStore } from '@/stores/order-status-store';
+import { authStore } from '@/stores/auth-store';
+import { ORDER_STATUS_WORKFLOW } from '@/constants/orderStatus';
 
 export default function OrdersKanbanPage() {
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
@@ -22,8 +24,24 @@ export default function OrdersKanbanPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const toast = appStore((s) => s.pushToast);
+  const user = authStore((s) => s.user);
   const kanbanColumns = orderStatusStore((s) => s.kanbanColumns());
   const labelFor = orderStatusStore((s) => s.labelFor);
+
+  const canMoveTo = (order: ServiceOrder, nextStatus: OrderStatus) => {
+    if (!user) return false;
+    if (user.role === 'admin') {
+      const allowed = ORDER_STATUS_WORKFLOW[order.estado as keyof typeof ORDER_STATUS_WORKFLOW] ?? [];
+      return allowed.includes(nextStatus as never);
+    }
+    if (user.role === 'tecnico') {
+      return (order.estado === 'service_programado' && nextStatus === 'en_ejecucion')
+        || (order.estado === 'en_ejecucion' && nextStatus === 'completado');
+    }
+    return false;
+  };
+
+  const canDragOrder = (order: ServiceOrder) => kanbanColumns.some((status) => canMoveTo(order, status));
 
   const load = async () => {
     setLoading(true);
@@ -52,6 +70,12 @@ export default function OrdersKanbanPage() {
   const onDrop = async (event: DragEvent<HTMLDivElement>, nextStatus: OrderStatus) => {
     const orderId = event.dataTransfer.getData('order-id');
     if (!orderId) return;
+    const order = orders.find((item) => item.id === orderId);
+    if (!order) return;
+    if (!canMoveTo(order, nextStatus)) {
+      toast({ type: 'info', message: 'No tenés permisos o la transición no es válida para esta orden' });
+      return;
+    }
     try {
       await OrdersApi.patch(orderId, { estado: nextStatus });
       await load();
@@ -74,7 +98,7 @@ export default function OrdersKanbanPage() {
               <p className="mb-3 text-sm font-semibold">{labelFor(col)} ({byStatus[col]?.length ?? 0})</p>
               <div className="space-y-2">
               {(byStatus[col] ?? []).map((order) => (
-                <button key={order.id} draggable onDragStart={(e) => e.dataTransfer.setData('order-id', order.id)} onClick={() => setSelected(order)} className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] p-3 text-left transition hover:border-blue-500">
+                <button key={order.id} draggable={canDragOrder(order)} onDragStart={(e) => { if (!canDragOrder(order)) return; e.dataTransfer.setData('order-id', order.id); }} onClick={() => setSelected(order)} className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] p-3 text-left transition hover:border-blue-500 disabled:cursor-not-allowed disabled:opacity-70">
                   <p className="mono text-xs">#{order.id.slice(0, 8)}</p>
                   <p className="text-sm">{order.client?.nombre_empresa ?? order.client_id}</p>
                   <div className="mt-2 flex items-center justify-between"><PriorityBadge value={order.prioridad} /><span className="text-xs text-[var(--text-secondary)]"><RelativeTime value={order.fecha_programada} /></span></div>

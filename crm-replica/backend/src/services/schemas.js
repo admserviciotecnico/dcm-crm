@@ -42,6 +42,16 @@ export const portalUserCreateSchema = z.object({
   active: z.boolean().optional()
 }).strict();
 
+export const portalTicketCreateSchema = z.object({
+  serial_number: z.string().min(1),
+  issue_description: z.string().min(1),
+  attachments: z.array(z.object({
+    file_name: z.string().min(1).max(120),
+    file_path: z.string().max(500).optional(),
+    file_category: z.enum(['contract', 'report', 'photo', 'other']).optional()
+  }).strict()).optional()
+}).strict();
+
 export const clientCreateSchema = z.object({
   nombre_empresa: z.string().min(1),
   direccion: z.string().optional(),
@@ -117,6 +127,9 @@ const closureChecklistSchema = z.object({
   equipo_probado: z.boolean().optional(),
   documentacion_entregada: z.boolean().optional()
 }).strict();
+const warrantyStatusSchema = z.enum(['unknown', 'pending_review', 'approved', 'rejected']);
+const warrantyCoverageSchema = z.enum(['full', 'partial', 'none']);
+const maintenanceFrequencySchema = z.enum(['monthly', 'quarterly', 'semiannual', 'annual']);
 
 export const materialSchema = z.object({
   name: z.string().min(1),
@@ -145,6 +158,9 @@ export const orderStatusPatchSchema = z.object({
 
 export const orderCreateSchema = z.object({
   client_id: z.string().min(1),
+  equipment_id: z.string().min(1).optional(),
+  maintenance_plan_id: z.string().min(1).optional(),
+  ticket_id: z.string().min(1).optional(),
   estado: orderStatusKeySchema.default('presupuesto_generado'),
   prioridad: z.enum(['baja', 'media', 'alta']).default('media'),
   fecha_programada: z.coerce.date().optional(),
@@ -152,6 +168,10 @@ export const orderCreateSchema = z.object({
   contacto_planta: z.string().optional(),
   telefono_contacto_planta: z.string().optional(),
   observaciones: z.string().optional(),
+  warranty_status: warrantyStatusSchema.optional(),
+  coverage: warrantyCoverageSchema.optional(),
+  warranty_reason: z.string().optional(),
+  warranty_notes: z.string().optional(),
   observaciones_cierre: z.string().optional(),
   tiempo_trabajado_horas: z.coerce.number().min(0).optional(),
   firma_cliente: z.string().optional(),
@@ -165,10 +185,16 @@ export const orderPatchSchema = z.object({
   estado: orderStatusKeySchema.optional(),
   prioridad: z.enum(['baja', 'media', 'alta']).optional(),
   fecha_programada: z.coerce.date().transform((d) => d.toISOString()).optional(),
+  equipment_id: z.string().min(1).optional(),
+  maintenance_plan_id: z.string().min(1).optional(),
   direccion_service: z.string().optional(),
   contacto_planta: z.string().optional(),
   telefono_contacto_planta: z.string().optional(),
   observaciones: z.string().optional(),
+  warranty_status: warrantyStatusSchema.optional(),
+  coverage: warrantyCoverageSchema.optional(),
+  warranty_reason: z.string().optional(),
+  warranty_notes: z.string().optional(),
   observaciones_cierre: z.string().optional(),
   tiempo_trabajado_horas: z.coerce.number().min(0).optional(),
   firma_cliente: z.string().optional(),
@@ -178,8 +204,60 @@ export const orderPatchSchema = z.object({
   comentario: z.string().optional()
 }).strict();
 
+export const maintenancePlanCreateSchema = z.object({
+  client_id: z.string().min(1),
+  equipment_id: z.string().min(1),
+  name: z.string().min(1),
+  frequency_type: maintenanceFrequencySchema,
+  frequency_value: z.coerce.number().int().positive().optional(),
+  next_execution_at: z.coerce.date(),
+  is_active: z.boolean().optional(),
+  auto_generate: z.boolean().optional()
+}).strict();
+
+export const maintenancePlanPatchSchema = maintenancePlanCreateSchema.partial().strict();
+
 export const techniciansUpdateSchema = z.object({
   technicians: z.array(z.string()).default([])
+}).strict();
+
+export const TICKET_ALLOWED_STATUSES = Object.freeze(['new', 'triage', 'in_diagnosis', 'resolved_remote', 'escalated', 'resolved', 'closed']);
+const ticketStatusSchema = z.enum(['new', 'triage', 'in_diagnosis', 'resolved_remote', 'escalated', 'resolved', 'closed']);
+const ticketChannelSchema = z.enum(['phone', 'email', 'web', 'whatsapp']);
+const ticketPrioritySchema = z.enum(['baja', 'media', 'alta']);
+
+export const createTicketSchema = z.object({
+  client_id: z.string().min(1),
+  equipment_id: z.string().min(1).optional(),
+  serial_number: z.string().min(1).optional(),
+  channel: ticketChannelSchema,
+  issue_description: z.string().min(1),
+  priority: ticketPrioritySchema.default('media'),
+  category: z.string().min(1).optional(),
+  status: ticketStatusSchema.default('new'),
+  diagnosis: z.string().min(1).optional(),
+  diagnosis_result: z.string().min(1).optional(),
+  requires_intervention: z.boolean().optional(),
+  warranty_status: warrantyStatusSchema.optional(),
+  coverage: warrantyCoverageSchema.optional(),
+  warranty_reason: z.string().min(1).optional(),
+  warranty_notes: z.string().min(1).optional(),
+  reported_by_name: z.string().min(1).optional(),
+  reported_by_contact: z.string().min(1).optional()
+}).strict();
+
+export const updateTicketSchema = z.object({
+  issue_description: z.string().min(1).optional(),
+  priority: ticketPrioritySchema.optional(),
+  category: z.string().min(1).optional(),
+  status: ticketStatusSchema.optional(),
+  diagnosis: z.string().min(1).optional(),
+  diagnosis_result: z.string().min(1).optional(),
+  requires_intervention: z.boolean().optional(),
+  warranty_status: warrantyStatusSchema.optional(),
+  coverage: warrantyCoverageSchema.optional(),
+  warranty_reason: z.string().min(1).optional(),
+  warranty_notes: z.string().min(1).optional()
 }).strict();
 
 export const invoiceDraftCreateSchema = z.object({
