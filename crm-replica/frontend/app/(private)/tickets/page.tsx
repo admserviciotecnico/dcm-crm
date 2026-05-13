@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Plus } from 'lucide-react';
-import { ClientsApi, TicketsApi } from '@/lib/api/endpoints';
+import { ClientsApi, FailuresApi, TicketsApi } from '@/lib/api/endpoints';
 import { Client, Ticket } from '@/types/domain';
 import { authStore } from '@/stores/auth-store';
 import { appStore } from '@/stores/app-store';
@@ -73,7 +73,8 @@ export default function TicketsPage() {
   const [escalateLoading, setEscalateLoading] = useState(false);
   const [diagnosisSaving, setDiagnosisSaving] = useState(false);
   const [warrantySaving, setWarrantySaving] = useState(false);
-  const [diagnosisDraft, setDiagnosisDraft] = useState({ diagnosis: '', diagnosis_result: '', requires_intervention: false });
+  const [diagnosisDraft, setDiagnosisDraft] = useState({ diagnosis: '', diagnosis_result: '', requires_intervention: false, failure_type: '', failure_category: '', root_cause: '', solution: '', resolution_type: 'remote' as 'remote' | 'onsite' | 'replacement' });
+  const [failureSuggestions, setFailureSuggestions] = useState<Array<{ id: string; failure_type: string; root_cause: string; solution: string }>>([]);
   const [warrantyDraft, setWarrantyDraft] = useState({ warranty_reason: '', warranty_notes: '' });
   const PAGE_SIZE = 20;
   const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm<TicketForm>({
@@ -125,7 +126,12 @@ export default function TicketsPage() {
     setDiagnosisDraft({
       diagnosis: selectedWithDetails.diagnosis ?? '',
       diagnosis_result: selectedWithDetails.diagnosis_result ?? '',
-      requires_intervention: Boolean(selectedWithDetails.requires_intervention)
+      requires_intervention: Boolean(selectedWithDetails.requires_intervention),
+      failure_type: selectedWithDetails.failure_type ?? '',
+      failure_category: selectedWithDetails.failure_category ?? '',
+      root_cause: selectedWithDetails.root_cause ?? '',
+      solution: selectedWithDetails.solution ?? '',
+      resolution_type: (selectedWithDetails.resolution_type ?? 'remote') as 'remote' | 'onsite' | 'replacement'
     });
     setWarrantyDraft({
       warranty_reason: selectedWithDetails.warranty_reason ?? '',
@@ -142,8 +148,15 @@ export default function TicketsPage() {
       setDiagnosisDraft({
         diagnosis: detail.diagnosis ?? '',
         diagnosis_result: detail.diagnosis_result ?? '',
-        requires_intervention: Boolean(detail.requires_intervention)
+        requires_intervention: Boolean(detail.requires_intervention),
+        failure_type: detail.failure_type ?? '',
+        failure_category: detail.failure_category ?? '',
+        root_cause: detail.root_cause ?? '',
+        solution: detail.solution ?? '',
+        resolution_type: (detail.resolution_type ?? 'remote') as 'remote' | 'onsite' | 'replacement'
       });
+      const suggestions = await FailuresApi.suggestions({ equipment_id: detail.equipment_id ?? undefined, failure_type: detail.failure_type ?? undefined });
+      setFailureSuggestions(suggestions.map((item) => ({ id: item.id, failure_type: item.failure_type, root_cause: item.root_cause, solution: item.solution })));
     } catch (error) {
       toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo cargar el detalle del ticket') });
     } finally {
@@ -227,6 +240,11 @@ export default function TicketsPage() {
         diagnosis: diagnosisDraft.diagnosis || undefined,
         diagnosis_result: diagnosisDraft.diagnosis_result || undefined,
         requires_intervention: diagnosisDraft.requires_intervention,
+        failure_type: diagnosisDraft.failure_type || undefined,
+        failure_category: diagnosisDraft.failure_category || undefined,
+        root_cause: diagnosisDraft.root_cause || undefined,
+        solution: diagnosisDraft.solution || undefined,
+        resolution_type: diagnosisDraft.resolution_type,
         status: diagnosisDraft.diagnosis && (selectedWithDetails.status === 'new' || selectedWithDetails.status === 'triage') ? 'in_diagnosis' : undefined
       });
       setSelected(updated);
@@ -251,6 +269,11 @@ export default function TicketsPage() {
         diagnosis: diagnosisDraft.diagnosis || undefined,
         diagnosis_result: diagnosisDraft.diagnosis_result,
         requires_intervention: false,
+        failure_type: diagnosisDraft.failure_type || undefined,
+        failure_category: diagnosisDraft.failure_category || undefined,
+        root_cause: diagnosisDraft.root_cause || undefined,
+        solution: diagnosisDraft.solution || undefined,
+        resolution_type: diagnosisDraft.resolution_type,
         status: 'resolved_remote'
       });
       setSelected(updated);
@@ -258,7 +281,12 @@ export default function TicketsPage() {
       setDiagnosisDraft({
         diagnosis: updated.diagnosis ?? '',
         diagnosis_result: updated.diagnosis_result ?? '',
-        requires_intervention: Boolean(updated.requires_intervention)
+        requires_intervention: Boolean(updated.requires_intervention),
+        failure_type: updated.failure_type ?? '',
+        failure_category: updated.failure_category ?? '',
+        root_cause: updated.root_cause ?? '',
+        solution: updated.solution ?? '',
+        resolution_type: (updated.resolution_type ?? 'remote') as 'remote' | 'onsite' | 'replacement'
       });
       toast({ type: 'success', message: 'Ticket resuelto en remoto' });
     } catch (error) {
@@ -450,6 +478,23 @@ export default function TicketsPage() {
                     placeholder="Detalle de troubleshooting y diagnóstico"
                   />
                 </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-[var(--text-secondary)]">Tipo de falla</label>
+                  <Input value={diagnosisDraft.failure_type} onChange={(event) => setDiagnosisDraft((prev) => ({ ...prev, failure_type: event.target.value }))} placeholder="Ej: No enciende" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-[var(--text-secondary)]">Categoría</label>
+                  <Input value={diagnosisDraft.failure_category} onChange={(event) => setDiagnosisDraft((prev) => ({ ...prev, failure_category: event.target.value }))} placeholder="Ej: Eléctrico" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-[var(--text-secondary)]">Causa raíz</label>
+                  <textarea className="min-h-20 w-full rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-sm" value={diagnosisDraft.root_cause} onChange={(event) => setDiagnosisDraft((prev) => ({ ...prev, root_cause: event.target.value }))} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-[var(--text-secondary)]">Solución</label>
+                  <textarea className="min-h-20 w-full rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-sm" value={diagnosisDraft.solution} onChange={(event) => setDiagnosisDraft((prev) => ({ ...prev, solution: event.target.value }))} />
+                </div>
+                {failureSuggestions.length > 0 ? <p className="text-xs text-amber-300">Problema similar detectado: {failureSuggestions[0].failure_type} · {failureSuggestions[0].root_cause}</p> : null}
                 <div className="space-y-1">
                   <label className="text-xs text-[var(--text-secondary)]">Conclusión</label>
                   <textarea

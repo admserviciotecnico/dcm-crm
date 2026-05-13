@@ -56,18 +56,6 @@ function OrdersTableComponent({ rows, users, selectedIds, onToggleSelect, onTogg
     return 'Sin definir';
   };
 
-  const financialLabel = (order: ServiceOrder) => {
-    if (order.billable) return '💰 Facturable';
-    if (order.warranty_covered) return '🛠 En garantía';
-    return 'Sin definir';
-  const warrantyLabel = (status?: string) => {
-    if (status === 'pending_review') return '🟡 Pendiente';
-    if (status === 'approved') return '🟢 En garantía';
-    if (status === 'rejected') return '🔴 Fuera de garantía';
-    return 'Sin evaluar';
- main
-  };
-
   return (
     <>
       <Table>

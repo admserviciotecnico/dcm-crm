@@ -38,6 +38,21 @@ export default function maintenanceRoutes() {
     const result = await runMaintenanceScheduler({ prisma, actorUserId: req.user.id });
     res.json(result);
   }));
+  router.post('/maintenance/run/:planId', validateIdParam, asyncHandler(async (req, res) => {
+    const result = await runMaintenanceScheduler({ prisma, actorUserId: req.user.id, planId: req.params.planId });
+    res.json(result);
+  }));
+  router.get('/maintenance-executions', asyncHandler(async (_req, res) => {
+    const rows = await prisma.maintenanceExecution.findMany({ orderBy: { executed_at: 'desc' }, take: 200 });
+    res.json(rows.map((row) => ({
+      plan_id: row.plan_id,
+      execution_key: row.execution_key,
+      status: row.status,
+      order_id: row.order_id,
+      error: row.status === 'failed' ? row.notes : null,
+      timestamp: row.executed_at
+    })));
+  }));
 
   return router;
 }

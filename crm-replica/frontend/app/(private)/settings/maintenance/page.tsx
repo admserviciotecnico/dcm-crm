@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import { ClientsApi, EquipmentsApi, MaintenanceApi } from '@/lib/api/endpoints';
-import { Client, Equipment, MaintenanceFrequencyType, MaintenancePlan } from '@/types/domain';
+import { Client, Equipment, MaintenanceExecution, MaintenanceFrequencyType, MaintenancePlan } from '@/types/domain';
 import { PageHeader } from '@/components/layout/page-header';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,10 +18,11 @@ export default function MaintenanceSettingsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [equipments, setEquipments] = useState<Equipment[]>([]);
   const [form, setForm] = useState<{ client_id: string; equipment_id: string; name: string; frequency_type: MaintenanceFrequencyType; next_execution_at: string }>({ client_id: '', equipment_id: '', name: '', frequency_type: 'monthly', next_execution_at: '' });
+  const [executions, setExecutions] = useState<MaintenanceExecution[]>([]);
 
   const load = async () => {
-    const [p, c, e] = await Promise.all([MaintenanceApi.listPlans(), ClientsApi.list(), EquipmentsApi.list()]);
-    setPlans(p); setClients(c); setEquipments(e);
+    const [p, c, e, x] = await Promise.all([MaintenanceApi.listPlans(), ClientsApi.list(), EquipmentsApi.list(), MaintenanceApi.listExecutions()]);
+    setPlans(p); setClients(c); setEquipments(e); setExecutions(x);
   };
   useEffect(() => { void load(); }, []);
 
@@ -50,7 +51,11 @@ export default function MaintenanceSettingsPage() {
       </form>
     </Card>
     <Card className="p-0">
-      <table className="w-full text-sm"><thead><tr><th className="p-2 text-left">Plan</th><th className="p-2 text-left">Próxima ejecución</th><th className="p-2 text-left">Última ejecución</th><th className="p-2 text-left">Estado</th></tr></thead><tbody>{plans.map((p) => <tr key={p.id} className="border-t border-[var(--border)]"><td className="p-2">{p.name}</td><td className="p-2">{new Date(p.next_execution_at).toLocaleString()}</td><td className="p-2">{p.last_executed_at ? new Date(p.last_executed_at).toLocaleString() : '-'}</td><td className="p-2"><Button variant="secondary" onClick={async () => { await MaintenanceApi.updatePlan(p.id, { is_active: !p.is_active }); await load(); }}>{p.is_active ? 'Activo' : 'Inactivo'}</Button></td></tr>)}</tbody></table>
+      <table className="w-full text-sm"><thead><tr><th className="p-2 text-left">Plan</th><th className="p-2 text-left">Próxima ejecución</th><th className="p-2 text-left">Última ejecución</th><th className="p-2 text-left">Estado</th></tr></thead><tbody>{plans.map((p) => <tr key={p.id} className="border-t border-[var(--border)]"><td className="p-2">{p.name}<div className="mt-1 text-xs text-[var(--text-secondary)]">Órdenes generadas: {executions.filter((x) => x.plan_id === p.id && x.order_id).slice(0, 3).map((x) => x.order_id?.slice(0, 8)).join(', ') || '-'}</div></td><td className="p-2">{new Date(p.next_execution_at).toLocaleString()}</td><td className="p-2">{p.last_executed_at ? new Date(p.last_executed_at).toLocaleString() : '-'}</td><td className="p-2 space-x-2"><Button variant="secondary" onClick={async () => { await MaintenanceApi.updatePlan(p.id, { is_active: !p.is_active }); await load(); }}>{p.is_active ? 'Activo' : 'Inactivo'}</Button><Button variant="secondary" onClick={async () => { await MaintenanceApi.runPlan(p.id); await load(); }}>Ejecutar este plan</Button></td></tr>)}</tbody></table>
+    </Card>
+    <Card className="p-0">
+      <div className="p-3 text-sm font-medium">Historial de ejecuciones</div>
+      <table className="w-full text-sm"><thead><tr><th className="p-2 text-left">Plan</th><th className="p-2 text-left">Periodo</th><th className="p-2 text-left">Estado</th><th className="p-2 text-left">Orden</th><th className="p-2 text-left">Fecha</th><th className="p-2 text-left">Error</th></tr></thead><tbody>{executions.map((x, idx) => <tr key={`${x.plan_id}-${x.execution_key}-${idx}`} className="border-t border-[var(--border)]"><td className="p-2 mono text-xs">{x.plan_id.slice(0, 8)}</td><td className="p-2">{x.execution_key}</td><td className="p-2">{x.status}</td><td className="p-2">{x.order_id ? `#${x.order_id.slice(0, 8)}` : '-'}</td><td className="p-2">{new Date(x.timestamp).toLocaleString()}</td><td className="p-2">{x.error ?? '-'}</td></tr>)}</tbody></table>
     </Card>
   </div>;
 }

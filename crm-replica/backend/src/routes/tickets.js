@@ -29,6 +29,7 @@ const INVALID_TICKET_FOR_ORDER_MESSAGE = 'Ticket inválido o no disponible para 
 const READ_ONLY_TICKET_STATUSES = new Set(['resolved_remote', 'closed']);
 const FIRST_RESPONSE_STATUSES = new Set(['triage', 'in_diagnosis']);
 const RESOLVED_STATUSES = new Set(['resolved_remote', 'closed']);
+const FAILURE_REQUIRED_STATUSES = new Set(['resolved_remote', 'closed']);
 
 function validateTicketStatePatch(current, patch) {
   const nextRequiresIntervention = patch.requires_intervention ?? current.requires_intervention;
@@ -158,6 +159,13 @@ export default function ticketsRoutes() {
       ...(hasFirstResponseTransition ? { first_response_at: new Date() } : {}),
       ...(hasResolutionTransition ? { resolved_at: new Date() } : {})
     };
+    const nextStatus = patch.status ?? current.status;
+    if (FAILURE_REQUIRED_STATUSES.has(nextStatus)) {
+      const finalRootCause = String(patch.root_cause ?? current.root_cause ?? '').trim();
+      const finalSolution = String(patch.solution ?? current.solution ?? '').trim();
+      const finalFailureType = String(patch.failure_type ?? current.failure_type ?? '').trim();
+      if (!finalRootCause || !finalSolution || !finalFailureType) return sendError(res, 400, 'Diagnóstico final incompleto: tipo de falla, causa raíz y solución son obligatorios');
+    }
 
     const transitionValidation = validateTicketStatePatch(current, patch);
     if (!transitionValidation.ok) return sendError(res, transitionValidation.status, transitionValidation.message);
@@ -236,6 +244,23 @@ export default function ticketsRoutes() {
           }
         });
       }
+      if (FAILURE_REQUIRED_STATUSES.has(ticket.status) && !ticket.failure_record_id) {
+        const failure = await db.failureRecord.create({
+          data: {
+            source_type: 'ticket',
+            source_id: ticket.id,
+            equipment_id: ticket.equipment_id,
+            client_id: ticket.client_id,
+            failure_type: ticket.failure_type ?? 'No definido',
+            failure_category: ticket.failure_category ?? 'General',
+            root_cause: ticket.root_cause ?? '',
+            solution: ticket.solution ?? '',
+            resolution_type: ticket.resolution_type ?? 'remote',
+            resolved_by: req.user.id
+          }
+        });
+        await db.ticket.update({ where: { id: ticket.id }, data: { failure_record_id: failure.id } });
+      }
 
       return ticket;
     });
@@ -312,6 +337,7 @@ export default function ticketsRoutes() {
             ticket_id: ticket.id,
             prioridad: ticket.priority,
             prioridad_peso: computePriorityWeight(ticket.priority),
+            order_origin: 'ticket',
             estado: 'presupuesto_generado',
             warranty_status: ticket.warranty_status,
             coverage: ticket.coverage,

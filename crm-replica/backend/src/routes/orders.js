@@ -319,6 +319,13 @@ export default function ordersRouter(io) {
     if (req.body.estado && !isWorkflowStatusKey(req.body.estado)) return sendError(res, 400, 'Estado fuera de flujo operativo');
 
     const patch = { ...req.body };
+    const nextState = patch.estado ?? order.estado;
+    if (nextState === 'completado') {
+      const finalRootCause = String(patch.root_cause ?? order.root_cause ?? '').trim();
+      const finalSolution = String(patch.solution ?? order.solution ?? '').trim();
+      const finalFailureType = String(patch.failure_type ?? order.failure_type ?? '').trim();
+      if (!finalRootCause || !finalSolution || !finalFailureType) return sendError(res, 400, 'Diagnóstico final incompleto: tipo de falla, causa raíz y solución son obligatorios');
+    }
     const warrantyValidation = validateWarrantyPatch({ current: order, patch, role });
     if (!warrantyValidation.ok) return sendError(res, warrantyValidation.status, warrantyValidation.message);
     const patchWithWarranty = applyWarrantyDecisionMetadata({ patch: warrantyValidation.patch, actorUserId: req.user.id });
@@ -356,6 +363,23 @@ export default function ordersRouter(io) {
           description: `La orden #${shortId(order.id)} cambió a ${ORDER_STATUS_LABEL[newOrder.estado] ?? newOrder.estado}`,
           kind: 'order_status_changed'
         });
+      }
+      if (newOrder.estado === 'completado' && !newOrder.failure_record_id) {
+        const failure = await db.failureRecord.create({
+          data: {
+            source_type: 'order',
+            source_id: newOrder.id,
+            equipment_id: newOrder.equipment_id,
+            client_id: newOrder.client_id,
+            failure_type: newOrder.failure_type ?? 'No definido',
+            failure_category: newOrder.failure_category ?? 'General',
+            root_cause: newOrder.root_cause ?? '',
+            solution: newOrder.solution ?? '',
+            resolution_type: newOrder.resolution_type ?? 'onsite',
+            resolved_by: req.user.id
+          }
+        });
+        await db.serviceOrder.update({ where: { id: newOrder.id }, data: { failure_record_id: failure.id } });
       }
       return newOrder;
     });
