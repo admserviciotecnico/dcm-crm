@@ -1,6 +1,6 @@
 import { api } from './client';
 import { portalApi } from './portal-client';
-import { AutomationRule, AutomationRunResult, Client, ClientHealth, DashboardKpis, Equipment, EventEntityType, EventLog, ExternalCalendarConnection, ExternalCalendarEventStatus, InvoiceDraft, MaintenanceExecution, MaintenancePlan, MapOrderMarker, NotificationItem, OrderHistory, OrderLocationEvent, OrderMaterial, OrderStatusConfig, PortalDocument, PortalTicketDetail, PortalTicketSummary, PortalUser, SearchResultGroup, ServiceOrder, TechnicianMapLocation, Ticket, User } from '@/types/domain';
+import { AutomationRule, AutomationRunResult, Client, ClientHealth, DashboardKpis, Equipment, EventEntityType, EventLog, ExternalCalendarConnection, ExternalCalendarEventStatus, FailureRecord, InvoiceDraft, MaintenanceExecution, MaintenancePlan, MapOrderMarker, NotificationItem, OrderHistory, OrderLocationEvent, OrderMaterial, OrderStatusConfig, PortalDocument, PortalTicketDetail, PortalTicketSummary, PortalUser, SearchResultGroup, ServiceOrder, TechnicianMapLocation, Ticket, User } from '@/types/domain';
 import { DocumentCategory, DocumentEntityType } from '@/modules/documents/types';
 
 type PaginatedResponse<T> = {
@@ -164,6 +164,11 @@ export const TicketsApi = {
     coverage: 'full' | 'partial' | 'none';
     warranty_reason: string;
     warranty_notes: string;
+    failure_type: string;
+    failure_category: string;
+    root_cause: string;
+    solution: string;
+    resolution_type: 'remote' | 'onsite' | 'replacement';
   }>) => api.patch<Ticket>(`/api/tickets/${id}`, payload).then((r) => r.data),
   remove: (id: string) => api.delete<{ ok: true }>(`/api/tickets/${id}`).then((r) => r.data),
   escalate: (id: string) => api.post<ServiceOrder>(`/api/tickets/${id}/escalate`).then((r) => r.data)
@@ -202,6 +207,11 @@ export const MaintenanceApi = {
   runNow: () => api.post<{ scanned: number; generated: number; skipped: number; failed: number; errors: Array<{ plan_id: string; message: string }> }>('/api/maintenance/run').then((r) => r.data),
   runPlan: (planId: string) => api.post<{ scanned: number; generated: number; skipped: number; failed: number; errors: Array<{ plan_id: string; message: string }> }>(`/api/maintenance/run/${planId}`).then((r) => r.data),
   listExecutions: () => api.get<MaintenanceExecution[]>('/api/maintenance-executions').then((r) => r.data)
+};
+
+export const FailuresApi = {
+  stats: () => api.get('/api/failures/stats').then((r) => r.data),
+  suggestions: (params?: { equipment_id?: string; failure_type?: string }) => api.get<FailureRecord[]>('/api/failures/suggestions', { params }).then((r) => r.data)
 };
 
 export const MapApi = {

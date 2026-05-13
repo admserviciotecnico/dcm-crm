@@ -115,6 +115,15 @@ enum OrderOrigin {
   ticket
   preventive
 }
+enum FailureSourceType {
+  ticket
+  order
+}
+enum FailureResolutionType {
+  remote
+  onsite
+  replacement
+}
 
 model Role {
   id    String   @id @default(cuid())
@@ -195,10 +204,17 @@ model Ticket {
   warranty_notes      String?
   reviewed_at         DateTime?
   warranty_source     WarrantySource?
+  failure_type        String?
+  failure_category    String?
+  root_cause          String?
+  solution            String?
+  resolution_type     FailureResolutionType?
+  failure_record_id   String?
   deleted_at          DateTime?
   created_at          DateTime      @default(now())
   updated_at          DateTime      @updatedAt
   client              Client        @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  failure_record      FailureRecord? @relation("TicketFailure", fields: [failure_record_id], references: [id], onDelete: SetNull)
   events              TicketEvent[]
   service_orders      ServiceOrder[]
 
@@ -261,6 +277,7 @@ model ServiceOrder {
   equipment                Equipment?                  @relation(fields: [equipment_id], references: [id], onDelete: SetNull)
   maintenance_plan         MaintenancePlan?            @relation(fields: [maintenance_plan_id], references: [id], onDelete: SetNull)
   ticket                   Ticket?                     @relation(fields: [ticket_id], references: [id], onDelete: SetNull)
+  failure_record           FailureRecord?              @relation("OrderFailure", fields: [failure_record_id], references: [id], onDelete: SetNull)
   estado                   String                      @default("presupuesto_generado")
   order_origin             OrderOrigin                 @default(manual)
   prioridad                Priority                    @default(media)
@@ -277,6 +294,12 @@ model ServiceOrder {
   warranty_notes           String?
   reviewed_at              DateTime?
   warranty_source          WarrantySource?
+  failure_type             String?
+  failure_category         String?
+  root_cause               String?
+  solution                 String?
+  resolution_type          FailureResolutionType?
+  failure_record_id        String?
   observaciones_cierre     String?
   tiempo_trabajado_horas   Float?
   firma_cliente            String?
@@ -340,6 +363,28 @@ model MaintenanceExecution {
 
   @@unique([plan_id, execution_key])
   @@index([plan_id, executed_at])
+}
+
+model FailureRecord {
+  id                String                @id @default(cuid())
+  source_type       FailureSourceType
+  source_id         String
+  equipment_id      String?
+  client_id         String?
+  failure_type      String
+  failure_category  String
+  root_cause        String
+  solution          String
+  resolution_type   FailureResolutionType
+  resolved_by       String
+  created_at        DateTime              @default(now())
+  resolved_by_user  User                  @relation(fields: [resolved_by], references: [id], onDelete: Restrict)
+  ticket_links      Ticket[]              @relation("TicketFailure")
+  order_links       ServiceOrder[]        @relation("OrderFailure")
+
+  @@index([source_type, source_id])
+  @@index([equipment_id, failure_type])
+  @@index([client_id, failure_type])
 }
 
 

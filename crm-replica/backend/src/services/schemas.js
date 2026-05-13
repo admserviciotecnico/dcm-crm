@@ -130,6 +130,7 @@ const closureChecklistSchema = z.object({
 const warrantyStatusSchema = z.enum(['unknown', 'pending_review', 'approved', 'rejected']);
 const warrantyCoverageSchema = z.enum(['full', 'partial', 'none']);
 const maintenanceFrequencySchema = z.enum(['monthly', 'quarterly', 'semiannual', 'annual']);
+const failureResolutionTypeSchema = z.enum(['remote', 'onsite', 'replacement']);
 
 export const materialSchema = z.object({
   name: z.string().min(1),
@@ -172,6 +173,11 @@ export const orderCreateSchema = z.object({
   coverage: warrantyCoverageSchema.optional(),
   warranty_reason: z.string().optional(),
   warranty_notes: z.string().optional(),
+  failure_type: z.string().optional(),
+  failure_category: z.string().optional(),
+  root_cause: z.string().optional(),
+  solution: z.string().optional(),
+  resolution_type: failureResolutionTypeSchema.optional(),
   observaciones_cierre: z.string().optional(),
   tiempo_trabajado_horas: z.coerce.number().min(0).optional(),
   firma_cliente: z.string().optional(),
@@ -195,6 +201,11 @@ export const orderPatchSchema = z.object({
   coverage: warrantyCoverageSchema.optional(),
   warranty_reason: z.string().optional(),
   warranty_notes: z.string().optional(),
+  failure_type: z.string().optional(),
+  failure_category: z.string().optional(),
+  root_cause: z.string().optional(),
+  solution: z.string().optional(),
+  resolution_type: failureResolutionTypeSchema.optional(),
   observaciones_cierre: z.string().optional(),
   tiempo_trabajado_horas: z.coerce.number().min(0).optional(),
   firma_cliente: z.string().optional(),
@@ -242,6 +253,11 @@ export const createTicketSchema = z.object({
   coverage: warrantyCoverageSchema.optional(),
   warranty_reason: z.string().min(1).optional(),
   warranty_notes: z.string().min(1).optional(),
+  failure_type: z.string().min(1).optional(),
+  failure_category: z.string().min(1).optional(),
+  root_cause: z.string().min(1).optional(),
+  solution: z.string().min(1).optional(),
+  resolution_type: failureResolutionTypeSchema.optional(),
   reported_by_name: z.string().min(1).optional(),
   reported_by_contact: z.string().min(1).optional()
 }).strict();
@@ -258,6 +274,11 @@ export const updateTicketSchema = z.object({
   coverage: warrantyCoverageSchema.optional(),
   warranty_reason: z.string().min(1).optional(),
   warranty_notes: z.string().min(1).optional()
+  ,failure_type: z.string().min(1).optional(),
+  failure_category: z.string().min(1).optional(),
+  root_cause: z.string().min(1).optional(),
+  solution: z.string().min(1).optional(),
+  resolution_type: failureResolutionTypeSchema.optional()
 }).strict();
 
 export const invoiceDraftCreateSchema = z.object({

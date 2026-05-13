@@ -44,6 +44,11 @@ type ClosureForm = {
   area_limpia: boolean;
   equipo_probado: boolean;
   documentacion_entregada: boolean;
+  failure_type: string;
+  failure_category: string;
+  root_cause: string;
+  solution: string;
+  resolution_type: 'remote' | 'onsite' | 'replacement';
 };
 
 const DEFAULT_MATERIAL: MaterialForm = { name: '', quantity: 1, unit_cost: 0 };
@@ -56,6 +61,11 @@ const DEFAULT_CLOSURE: ClosureForm = {
   area_limpia: false,
   equipo_probado: false,
   documentacion_entregada: false
+  ,failure_type: '',
+  failure_category: '',
+  root_cause: '',
+  solution: '',
+  resolution_type: 'onsite'
 };
 const WARRANTY_LABELS: Record<string, string> = {
   unknown: 'Sin evaluar',
@@ -167,6 +177,11 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
         area_limpia: Boolean(order.checklist_cierre?.area_limpia),
         equipo_probado: Boolean(order.checklist_cierre?.equipo_probado),
         documentacion_entregada: Boolean(order.checklist_cierre?.documentacion_entregada)
+        ,failure_type: order.failure_type ?? '',
+        failure_category: order.failure_category ?? '',
+        root_cause: order.root_cause ?? '',
+        solution: order.solution ?? '',
+        resolution_type: (order.resolution_type ?? 'onsite') as 'remote' | 'onsite' | 'replacement'
       });
     }
     setEditingMaterial(null);
@@ -295,7 +310,12 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
           area_limpia: values.area_limpia,
           equipo_probado: values.equipo_probado,
           documentacion_entregada: values.documentacion_entregada
-        }
+        },
+        failure_type: values.failure_type,
+        failure_category: values.failure_category,
+        root_cause: values.root_cause,
+        solution: values.solution,
+        resolution_type: values.resolution_type
       });
       toast({ type: 'success', message: 'Cierre técnico actualizado' });
       onRefresh();
@@ -459,7 +479,23 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
               </div>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-2">
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-xs text-[var(--text-secondary)]">Tipo de falla</label>
+                    <Input disabled={!canEditClosure} {...closureForm.register('failure_type')} />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs text-[var(--text-secondary)]">Categoría</label>
+                    <Input disabled={!canEditClosure} {...closureForm.register('failure_category')} />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="mb-1 block text-xs text-[var(--text-secondary)]">Causa raíz</label>
+                    <textarea disabled={!canEditClosure} className="min-h-20 w-full rounded-[10px] border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-sm" {...closureForm.register('root_cause')} />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="mb-1 block text-xs text-[var(--text-secondary)]">Solución</label>
+                    <textarea disabled={!canEditClosure} className="min-h-20 w-full rounded-[10px] border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-sm" {...closureForm.register('solution')} />
+                  </div>
               <div className="rounded-[10px] border border-[var(--border)] p-3 text-sm">
                 <p className="text-[var(--text-secondary)]">Garantía</p>
                 <div className="mt-2 space-y-1">

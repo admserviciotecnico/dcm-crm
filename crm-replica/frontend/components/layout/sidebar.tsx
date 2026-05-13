@@ -14,7 +14,7 @@ const groups: { title: string; links: LinkItem[] }[] = [
   { title: 'Operaciones', links: [{ href: '/orders', label: 'Órdenes', icon: ClipboardList, match: ['/orders', '/orders/kanban'] }, { href: '/tickets', label: 'Tickets', icon: ClipboardList, adminOnly: true }, { href: '/orders/kanban', label: 'Kanban', icon: KanbanSquare }, { href: '/planner', label: 'Planner', icon: CalendarRange }, { href: '/map', label: 'Mapa', icon: MapPinned }, { href: '/calendar', label: 'Calendario', icon: Calendar }] },
   { title: 'Clientes', links: [{ href: '/clients', label: 'Empresas', icon: Users }] },
   { title: 'Equipos', links: [{ href: '/equipments', label: 'Instalados', icon: Package }] },
-  { title: 'Colaboración', links: [{ href: '/activity', label: 'Actividad', icon: Activity }, { href: '/analytics', label: 'Analytics', icon: LineChart }] },
+  { title: 'Colaboración', links: [{ href: '/activity', label: 'Actividad', icon: Activity }, { href: '/analytics', label: 'Analytics', icon: LineChart }, { href: '/analytics/failures', label: 'Fallas', icon: LineChart, adminOnly: true }] },
   { title: 'Administración', links: [{ href: '/users', label: 'Usuarios', icon: Users, adminOnly: true }, { href: '/automation-rules', label: 'Automatizaciones', icon: Bot, adminOnly: true }, { href: '/settings/order-statuses', label: 'Estados de órdenes', icon: Settings, adminOnly: true }, { href: '/settings/maintenance', label: 'Mantenimiento', icon: Settings, adminOnly: true }, { href: '/profile', label: 'Configuración', icon: Settings }] }
 ];
 

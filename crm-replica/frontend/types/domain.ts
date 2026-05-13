@@ -51,6 +51,11 @@ export interface Client {
   telefono?: string;
   persona_contacto?: string;
   observaciones?: string;
+  failure_type?: string | null;
+  failure_category?: string | null;
+  root_cause?: string | null;
+  solution?: string | null;
+  resolution_type?: 'remote' | 'onsite' | 'replacement' | string | null;
   fecha_vencimiento_documentacion?: string;
   deleted_at?: string | null;
   delayed?: boolean;
@@ -133,6 +138,11 @@ export interface ServiceOrder {
   contacto_planta?: string;
   telefono_contacto_planta?: string;
   observaciones?: string;
+  failure_type?: string | null;
+  failure_category?: string | null;
+  root_cause?: string | null;
+  solution?: string | null;
+  resolution_type?: 'remote' | 'onsite' | 'replacement' | string | null;
   warranty_status?: WarrantyStatus | string;
   coverage?: WarrantyCoverage | string;
   approved_by?: string | null;
@@ -186,6 +196,21 @@ export interface MaintenanceExecution {
   timestamp: string;
 }
 
+export interface FailureRecord {
+  id: string;
+  source_type: 'ticket' | 'order';
+  source_id: string;
+  equipment_id?: string | null;
+  client_id?: string | null;
+  failure_type: string;
+  failure_category: string;
+  root_cause: string;
+  solution: string;
+  resolution_type: 'remote' | 'onsite' | 'replacement';
+  resolved_by: string;
+  created_at: string;
+}
+
 export type TicketChannel = 'phone' | 'email' | 'web' | 'whatsapp';
 export type TicketPriority = Priority;
 export type TicketStatus = 'new' | 'triage' | 'in_diagnosis' | 'resolved_remote' | 'escalated' | 'resolved' | 'closed';
@@ -212,6 +237,11 @@ export interface Ticket {
   diagnosis?: string | null;
   diagnosis_result?: string | null;
   requires_intervention?: boolean;
+  failure_type?: string | null;
+  failure_category?: string | null;
+  root_cause?: string | null;
+  solution?: string | null;
+  resolution_type?: 'remote' | 'onsite' | 'replacement' | string | null;
   warranty_status?: WarrantyStatus | string;
   coverage?: WarrantyCoverage | string;
   approved_by?: string | null;
