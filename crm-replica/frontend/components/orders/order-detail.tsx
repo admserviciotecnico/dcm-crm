@@ -73,6 +73,12 @@ const WARRANTY_LABELS: Record<string, string> = {
   approved: '🟢 En garantía',
   rejected: '🔴 Fuera de garantía'
 };
+const WARRANTY_LABELS: Record<string, string> = {
+  unknown: 'Sin evaluar',
+  pending_review: '🟡 Pendiente',
+  approved: '🟢 En garantía',
+  rejected: '🔴 Fuera de garantía'
+};
 
 function buildDownloadUrl(blob: Blob) {
   return window.URL.createObjectURL(blob);
@@ -496,6 +502,23 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
                     <label className="mb-1 block text-xs text-[var(--text-secondary)]">Solución</label>
                     <textarea disabled={!canEditClosure} className="min-h-20 w-full rounded-[10px] border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-sm" {...closureForm.register('solution')} />
                   </div>
+              <div className="rounded-[10px] border border-[var(--border)] p-3 text-sm">
+                <p className="text-[var(--text-secondary)]">Garantía</p>
+                <div className="mt-2 space-y-1">
+                  <p><span className="font-medium">Estado:</span> {WARRANTY_LABELS[order.warranty_status ?? 'unknown'] ?? order.warranty_status}</p>
+                  <p><span className="font-medium">Cobertura:</span> {order.coverage ?? 'none'}</p>
+                  <p><span className="font-medium">Motivo:</span> {order.warranty_reason || '-'}</p>
+                  <p><span className="font-medium">Notas internas:</span> {order.warranty_notes || '-'}</p>
+                </div>
+                {order.warranty_mismatch ? <p className="mt-2 rounded-[8px] border border-amber-400 bg-amber-500/10 px-2 py-1 text-xs text-amber-300">⚠ La garantía difiere del ticket original</p> : null}
+                {user?.role === 'admin' ? (
+                  <div className="mt-2 flex gap-2">
+                    <Button variant="secondary" disabled={warrantySaving || order.warranty_status !== 'unknown'} onClick={() => void startWarrantyReview()}>Evaluar garantía</Button>
+                    <Button variant="secondary" disabled={warrantySaving || order.warranty_status !== 'pending_review'} onClick={() => void evaluateWarranty('approved')}>Aprobar</Button>
+                    <Button variant="danger" disabled={warrantySaving || order.warranty_status !== 'pending_review'} onClick={() => void evaluateWarranty('rejected')}>Rechazar</Button>
+                  </div>
+                ) : null}
+              </div>
               <div className="rounded-[10px] border border-[var(--border)] p-3 text-sm">
                 <p className="text-[var(--text-secondary)]">Garantía</p>
                 <div className="mt-2 space-y-1">
