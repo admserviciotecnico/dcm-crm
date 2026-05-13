@@ -10,6 +10,12 @@ import { Table } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { PortalDocument, ServiceOrder, OrderHistory } from '@/types/domain';
 import { StatusBadge, PriorityBadge } from '@/components/common/badges';
+const WARRANTY_LABELS: Record<string, string> = {
+  unknown: 'Sin evaluar',
+  pending_review: 'En evaluación de garantía',
+  approved: 'Cubierto por garantía',
+  rejected: 'Fuera de garantía (puede generar costos)'
+};
 
 export default function PortalOrderDetailPage() {
   const params = useParams<{ id: string }>();
@@ -67,6 +73,13 @@ export default function PortalOrderDetailPage() {
                 <Card><p className="text-sm text-[var(--text-secondary)]">Fecha programada</p><p className="mt-2 text-sm font-medium">{order.fecha_programada ? new Date(order.fecha_programada).toLocaleString() : 'Sin fecha'}</p></Card>
                 <Card><p className="text-sm text-[var(--text-secondary)]">Cliente</p><p className="mt-2 text-sm font-medium">{order.client?.nombre_empresa ?? order.client_id}</p></Card>
               </div>
+              <Card>
+                <h2 className="text-lg font-semibold">Garantía</h2>
+                <div className="mt-2 text-sm">
+                  <p><span className="font-medium">Estado:</span> {WARRANTY_LABELS[order.warranty_status ?? 'unknown'] ?? order.warranty_status}</p>
+                  <p><span className="font-medium">Cobertura:</span> {order.coverage ?? 'none'}</p>
+                </div>
+              </Card>
 
               <div className="grid gap-4 xl:grid-cols-[1.2fr,0.8fr]">
                 <Card>
