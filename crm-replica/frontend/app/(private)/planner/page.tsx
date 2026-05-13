@@ -24,6 +24,7 @@ export default function PlannerPage() {
   const [draggingOrderId, setDraggingOrderId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTarget>(null);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const me = authStore((s) => s.user);
   const toast = appStore((s) => s.pushToast);
 
@@ -36,6 +37,10 @@ export default function PlannerPage() {
       const [ordersRes, usersRes] = await Promise.all([OrdersApi.list({ page: 1, pageSize: 300 }), UsersApi.list()]);
       setOrders(ordersRes.items.filter((o) => ORDER_STATUSES_TO_PLAN.has(o.estado)));
       setUsers(usersRes.filter((u) => u.role === 'tecnico'));
+      setLoadError(null);
+    } catch {
+      setLoadError('No se pudo cargar el planner. Verificá la conexión e intentá nuevamente.');
+      toast({ type: 'error', message: 'No se pudo cargar el planner semanal' });
     } finally {
       setLoading(false);
     }
@@ -102,10 +107,16 @@ export default function PlannerPage() {
       </p>
 
       {loading ? <TableSkeleton rows={8} cols={6} /> : null}
+      {!loading && loadError ? (
+        <Card>
+          <p className="text-sm text-red-300">{loadError}</p>
+          <button className="mt-2 text-sm text-cyan-300 hover:underline" onClick={() => void load()}>Reintentar</button>
+        </Card>
+      ) : null}
 
-      {!loading && orders.length === 0 ? <EmptyState variant="orders" title="Planner sin órdenes" subtitle="No hay servicios planificables en este momento." /> : null}
+      {!loading && !loadError && orders.length === 0 ? <EmptyState variant="orders" title="Planner sin órdenes" subtitle="No hay servicios planificables en este momento." /> : null}
 
-      {!loading && orders.length > 0 ? (
+      {!loading && !loadError && orders.length > 0 ? (
         <Card>
           <div className="mb-3 rounded-[10px] border border-dashed border-[var(--border)] p-3">
             <p className="mb-2 flex items-center gap-2 text-sm font-medium"><CalendarRange size={16} /> Pendientes de asignación</p>
