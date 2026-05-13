@@ -211,7 +211,8 @@ export const MaintenanceApi = {
 
 export const FailuresApi = {
   stats: () => api.get('/api/failures/stats').then((r) => r.data),
-  suggestions: (params?: { equipment_id?: string; failure_type?: string }) => api.get<FailureRecord[]>('/api/failures/suggestions', { params }).then((r) => r.data)
+  suggestions: (params?: { equipment_id?: string; failure_type?: string }) => api.get<FailureRecord[]>('/api/failures/suggestions', { params }).then((r) => r.data),
+  catalog: () => api.get<Array<{ id: string; failure_type: string; failure_category: string; common_root_cause: string; recommended_solution: string; usage_count: number }>>('/api/failures/catalog').then((r) => r.data)
 };
 
 export const MapApi = {

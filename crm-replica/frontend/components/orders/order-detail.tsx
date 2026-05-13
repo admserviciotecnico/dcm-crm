@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { Camera, Download, ExternalLink, MapPin, PackagePlus, Save, Trash2, WifiOff } from 'lucide-react';
 import Link from 'next/link';
 import { EventLog, ExternalCalendarEventStatus, InvoiceDraft, OrderHistory, OrderMaterial, ServiceOrder, User } from '@/types/domain';
-import { CalendarIntegrationsApi, EventsApi, OrdersApi } from '@/lib/api/endpoints';
+import { CalendarIntegrationsApi, EventsApi, FailuresApi, OrdersApi } from '@/lib/api/endpoints';
 import { authStore } from '@/stores/auth-store';
 import { appStore } from '@/stores/app-store';
 import { Drawer } from '@/components/ui/drawer';
@@ -28,6 +28,7 @@ import { ORDER_STATUS_COLUMNS, ORDER_STATUS_WORKFLOW } from '@/constants/orderSt
 import { ErrorBoundary } from '@/components/common/error-boundary';
 import { getOrderHistoryFieldLabel } from '@/lib/order-history';
 import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import { useOnlineStatus } from '@/hooks/use-online-status';
 import { getApiErrorMessage } from '@/lib/api/error-message';
 import { orderStatusStore } from '@/stores/order-status-store';
@@ -73,12 +74,6 @@ const WARRANTY_LABELS: Record<string, string> = {
   approved: '🟢 En garantía',
   rejected: '🔴 Fuera de garantía'
 };
-const WARRANTY_LABELS: Record<string, string> = {
-  unknown: 'Sin evaluar',
-  pending_review: '🟡 Pendiente',
-  approved: '🟢 En garantía',
-  rejected: '🔴 Fuera de garantía'
-};
 
 function buildDownloadUrl(blob: Blob) {
   return window.URL.createObjectURL(blob);
@@ -111,6 +106,7 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
   const [locationSaving, setLocationSaving] = useState<'arrival' | 'departure' | null>(null);
   const [closureSaving, setClosureSaving] = useState(false);
   const [warrantySaving, setWarrantySaving] = useState(false);
+  const [failureCatalog, setFailureCatalog] = useState<Array<{ id: string; failure_type: string; failure_category: string; common_root_cause: string; recommended_solution: string }>>([]);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [backendEventsError, setBackendEventsError] = useState<string | null>(null);
   const [materialsError, setMaterialsError] = useState<string | null>(null);
@@ -192,6 +188,7 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
     }
     setEditingMaterial(null);
     setMaterialModalOpen(false);
+    FailuresApi.catalog().then(setFailureCatalog).catch(() => setFailureCatalog([]));
   }, [closureForm, materialForm, order, reset]);
 
   useEffect(() => {
@@ -487,6 +484,20 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
 
                 <div className="grid gap-3 md:grid-cols-2">
                   <div>
+                    <label className="mb-1 block text-xs text-[var(--text-secondary)]">Catálogo de fallas (opcional)</label>
+                    <Select value="" onChange={(event: any) => {
+                      const item = failureCatalog.find((row) => row.id === event.target.value);
+                      if (!item) return;
+                      closureForm.setValue('failure_type', item.failure_type, { shouldDirty: true });
+                      closureForm.setValue('failure_category', item.failure_category, { shouldDirty: true });
+                      closureForm.setValue('root_cause', item.common_root_cause, { shouldDirty: true });
+                      closureForm.setValue('solution', item.recommended_solution, { shouldDirty: true });
+                    }}>
+                      <option value="">Seleccionar</option>
+                      {failureCatalog.map((item) => <option key={item.id} value={item.id}>{item.failure_type} · {item.failure_category}</option>)}
+                    </Select>
+                  </div>
+                  <div>
                     <label className="mb-1 block text-xs text-[var(--text-secondary)]">Tipo de falla</label>
                     <Input disabled={!canEditClosure} {...closureForm.register('failure_type')} />
                   </div>
@@ -502,23 +513,6 @@ export function OrderDetail({ order, users, onClose, onRefresh }: { order: Servi
                     <label className="mb-1 block text-xs text-[var(--text-secondary)]">Solución</label>
                     <textarea disabled={!canEditClosure} className="min-h-20 w-full rounded-[10px] border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-sm" {...closureForm.register('solution')} />
                   </div>
-              <div className="rounded-[10px] border border-[var(--border)] p-3 text-sm">
-                <p className="text-[var(--text-secondary)]">Garantía</p>
-                <div className="mt-2 space-y-1">
-                  <p><span className="font-medium">Estado:</span> {WARRANTY_LABELS[order.warranty_status ?? 'unknown'] ?? order.warranty_status}</p>
-                  <p><span className="font-medium">Cobertura:</span> {order.coverage ?? 'none'}</p>
-                  <p><span className="font-medium">Motivo:</span> {order.warranty_reason || '-'}</p>
-                  <p><span className="font-medium">Notas internas:</span> {order.warranty_notes || '-'}</p>
-                </div>
-                {order.warranty_mismatch ? <p className="mt-2 rounded-[8px] border border-amber-400 bg-amber-500/10 px-2 py-1 text-xs text-amber-300">⚠ La garantía difiere del ticket original</p> : null}
-                {user?.role === 'admin' ? (
-                  <div className="mt-2 flex gap-2">
-                    <Button variant="secondary" disabled={warrantySaving || order.warranty_status !== 'unknown'} onClick={() => void startWarrantyReview()}>Evaluar garantía</Button>
-                    <Button variant="secondary" disabled={warrantySaving || order.warranty_status !== 'pending_review'} onClick={() => void evaluateWarranty('approved')}>Aprobar</Button>
-                    <Button variant="danger" disabled={warrantySaving || order.warranty_status !== 'pending_review'} onClick={() => void evaluateWarranty('rejected')}>Rechazar</Button>
-                  </div>
-                ) : null}
-              </div>
               <div className="rounded-[10px] border border-[var(--border)] p-3 text-sm">
                 <p className="text-[var(--text-secondary)]">Garantía</p>
                 <div className="mt-2 space-y-1">

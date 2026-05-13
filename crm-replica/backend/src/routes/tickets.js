@@ -7,6 +7,7 @@ import { asyncHandler, sendError } from '../utils/http.js';
 import { computePriorityWeight } from '../services/order-rules.js';
 import { computeTicketSlaDeadlines, enrichTicketWithSla, getTicketSlaConfig } from '../services/ticket-sla.js';
 import { applyWarrantyDecisionMetadata, isBillable, isWarrantyCovered, validateWarrantyPatch } from '../services/warranty.js';
+import { upsertFailureCatalogFromRecord, validateFailureQuality } from '../services/failure-catalog.js';
 
 const MAX_PAGE_SIZE = 100;
 
@@ -165,6 +166,8 @@ export default function ticketsRoutes() {
       const finalSolution = String(patch.solution ?? current.solution ?? '').trim();
       const finalFailureType = String(patch.failure_type ?? current.failure_type ?? '').trim();
       if (!finalRootCause || !finalSolution || !finalFailureType) return sendError(res, 400, 'Diagnóstico final incompleto: tipo de falla, causa raíz y solución son obligatorios');
+      const quality = validateFailureQuality({ rootCause: finalRootCause, solution: finalSolution });
+      if (!quality.ok) return sendError(res, 400, quality.message);
     }
 
     const transitionValidation = validateTicketStatePatch(current, patch);
@@ -259,6 +262,8 @@ export default function ticketsRoutes() {
             resolved_by: req.user.id
           }
         });
+        const catalogId = await upsertFailureCatalogFromRecord(db, failure);
+        await db.failureRecord.update({ where: { id: failure.id }, data: { failure_catalog_id: catalogId } });
         await db.ticket.update({ where: { id: ticket.id }, data: { failure_record_id: failure.id } });
       }
 

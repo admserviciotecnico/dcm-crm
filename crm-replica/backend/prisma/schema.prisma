@@ -377,14 +377,31 @@ model FailureRecord {
   solution          String
   resolution_type   FailureResolutionType
   resolved_by       String
+  failure_catalog_id String?
   created_at        DateTime              @default(now())
   resolved_by_user  User                  @relation(fields: [resolved_by], references: [id], onDelete: Restrict)
+  failure_catalog   FailureCatalog?       @relation(fields: [failure_catalog_id], references: [id], onDelete: SetNull)
   ticket_links      Ticket[]              @relation("TicketFailure")
   order_links       ServiceOrder[]        @relation("OrderFailure")
 
   @@index([source_type, source_id])
   @@index([equipment_id, failure_type])
   @@index([client_id, failure_type])
+}
+
+model FailureCatalog {
+  id                    String   @id @default(cuid())
+  failure_type          String
+  failure_category      String
+  common_root_cause     String
+  recommended_solution  String
+  usage_count           Int      @default(1)
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+  failure_records       FailureRecord[]
+
+  @@unique([failure_type, failure_category])
+  @@index([usage_count])
 }
 
 

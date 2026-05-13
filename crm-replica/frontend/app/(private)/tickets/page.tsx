@@ -75,6 +75,7 @@ export default function TicketsPage() {
   const [warrantySaving, setWarrantySaving] = useState(false);
   const [diagnosisDraft, setDiagnosisDraft] = useState({ diagnosis: '', diagnosis_result: '', requires_intervention: false, failure_type: '', failure_category: '', root_cause: '', solution: '', resolution_type: 'remote' as 'remote' | 'onsite' | 'replacement' });
   const [failureSuggestions, setFailureSuggestions] = useState<Array<{ id: string; failure_type: string; root_cause: string; solution: string }>>([]);
+  const [failureCatalog, setFailureCatalog] = useState<Array<{ id: string; failure_type: string; failure_category: string; common_root_cause: string; recommended_solution: string }>>([]);
   const [warrantyDraft, setWarrantyDraft] = useState({ warranty_reason: '', warranty_notes: '' });
   const PAGE_SIZE = 20;
   const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm<TicketForm>({
@@ -157,6 +158,7 @@ export default function TicketsPage() {
       });
       const suggestions = await FailuresApi.suggestions({ equipment_id: detail.equipment_id ?? undefined, failure_type: detail.failure_type ?? undefined });
       setFailureSuggestions(suggestions.map((item) => ({ id: item.id, failure_type: item.failure_type, root_cause: item.root_cause, solution: item.solution })));
+      setFailureCatalog(await FailuresApi.catalog());
     } catch (error) {
       toast({ type: 'error', message: getApiErrorMessage(error, 'No se pudo cargar el detalle del ticket') });
     } finally {
@@ -477,6 +479,17 @@ export default function TicketsPage() {
                     onChange={(event) => setDiagnosisDraft((prev) => ({ ...prev, diagnosis: event.target.value }))}
                     placeholder="Detalle de troubleshooting y diagnóstico"
                   />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-[var(--text-secondary)]">Catálogo de fallas (opcional)</label>
+                  <Select value="" onChange={(event) => {
+                    const item = failureCatalog.find((row) => row.id === event.target.value);
+                    if (!item) return;
+                    setDiagnosisDraft((prev) => ({ ...prev, failure_type: item.failure_type, failure_category: item.failure_category, root_cause: item.common_root_cause, solution: item.recommended_solution }));
+                  }}>
+                    <option value="">Seleccionar conocimiento reutilizable</option>
+                    {failureCatalog.map((item) => <option key={item.id} value={item.id}>{item.failure_type} · {item.failure_category}</option>)}
+                  </Select>
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs text-[var(--text-secondary)]">Tipo de falla</label>

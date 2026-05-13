@@ -13,6 +13,7 @@ import { buildInvoiceDraftFromOrder } from '../services/invoice-draft.js';
 import { syncOrderCalendarEvents } from '../services/calendar-integrations.js';
 import { isWorkflowStatusKey, statusKeyExists } from '../services/order-status-config.js';
 import { applyWarrantyDecisionMetadata, isBillable, isWarrantyCovered, validateWarrantyPatch } from '../services/warranty.js';
+import { upsertFailureCatalogFromRecord, validateFailureQuality } from '../services/failure-catalog.js';
 
 const MAX_PAGE_SIZE = 100;
 const SORT_FIELDS = {
@@ -325,6 +326,8 @@ export default function ordersRouter(io) {
       const finalSolution = String(patch.solution ?? order.solution ?? '').trim();
       const finalFailureType = String(patch.failure_type ?? order.failure_type ?? '').trim();
       if (!finalRootCause || !finalSolution || !finalFailureType) return sendError(res, 400, 'Diagnóstico final incompleto: tipo de falla, causa raíz y solución son obligatorios');
+      const quality = validateFailureQuality({ rootCause: finalRootCause, solution: finalSolution });
+      if (!quality.ok) return sendError(res, 400, quality.message);
     }
     const warrantyValidation = validateWarrantyPatch({ current: order, patch, role });
     if (!warrantyValidation.ok) return sendError(res, warrantyValidation.status, warrantyValidation.message);
@@ -379,6 +382,8 @@ export default function ordersRouter(io) {
             resolved_by: req.user.id
           }
         });
+        const catalogId = await upsertFailureCatalogFromRecord(db, failure);
+        await db.failureRecord.update({ where: { id: failure.id }, data: { failure_catalog_id: catalogId } });
         await db.serviceOrder.update({ where: { id: newOrder.id }, data: { failure_record_id: failure.id } });
       }
       return newOrder;
