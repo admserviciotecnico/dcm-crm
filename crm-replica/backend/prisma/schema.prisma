@@ -153,7 +153,7 @@ model User {
   technician_locations   TechnicianLocation[]
   location_sharing       TechnicianLocationSharing?
   notifications          Notification[]
-  resolved_failures      FailureRecord[]
+  resolved_failures      FailureRecord[]              @relation("UserResolvedFailures")
   created_at             DateTime                     @default(now())
   updated_at             DateTime                     @updatedAt
 }
@@ -263,8 +263,8 @@ model Equipment {
   estado_actual     EquipmentStatus   @default(operativo)
   is_active         Boolean           @default(true)
   deleted_at        DateTime?
-  service_orders    ServiceOrder[]
-  maintenance_plans MaintenancePlan[]
+  service_orders    ServiceOrder[]    @relation("EquipmentServiceOrders")
+  maintenance_plans MaintenancePlan[] @relation("EquipmentMaintenancePlans")
   created_at        DateTime          @default(now())
   updated_at        DateTime          @updatedAt
 
@@ -279,11 +279,11 @@ model ServiceOrder {
   maintenance_plan_id      String?
   ticket_id                String?
   client                   Client                      @relation(fields: [client_id], references: [id])
-  equipment                Equipment?                  @relation(fields: [equipment_id], references: [id], onDelete: SetNull)
+  equipment                Equipment?                  @relation("EquipmentServiceOrders", fields: [equipment_id], references: [id], onDelete: SetNull)
   maintenance_plan         MaintenancePlan?            @relation(fields: [maintenance_plan_id], references: [id], onDelete: SetNull)
   ticket                   Ticket?                     @relation(fields: [ticket_id], references: [id], onDelete: SetNull)
   failure_record           FailureRecord?              @relation("OrderFailure", fields: [failure_record_id], references: [id], onDelete: SetNull)
-  maintenance_executions   MaintenanceExecution[]
+  maintenance_executions   MaintenanceExecution[]      @relation("OrderMaintenanceExecutions")
   estado                   String                      @default("presupuesto_generado")
   order_origin             OrderOrigin                 @default(manual)
   prioridad                Priority                    @default(media)
@@ -345,7 +345,7 @@ model MaintenancePlan {
   is_active         Boolean                  @default(true)
   auto_generate     Boolean                  @default(true)
   client            Client                   @relation(fields: [client_id], references: [id], onDelete: Cascade)
-  equipment         Equipment                @relation(fields: [equipment_id], references: [id], onDelete: Cascade)
+  equipment         Equipment                @relation("EquipmentMaintenancePlans", fields: [equipment_id], references: [id], onDelete: Cascade)
   orders            ServiceOrder[]
   executions        MaintenanceExecution[]
   created_at        DateTime                 @default(now())
@@ -365,7 +365,7 @@ model MaintenanceExecution {
   status        MaintenanceExecutionStatus
   notes         String?
   plan          MaintenancePlan            @relation(fields: [plan_id], references: [id], onDelete: Cascade)
-  order         ServiceOrder?              @relation(fields: [order_id], references: [id], onDelete: SetNull)
+  order         ServiceOrder?              @relation("OrderMaintenanceExecutions", fields: [order_id], references: [id], onDelete: SetNull)
 
   @@unique([plan_id, execution_key])
   @@index([plan_id, executed_at])
@@ -385,7 +385,7 @@ model FailureRecord {
   resolved_by        String
   failure_catalog_id String?
   created_at         DateTime              @default(now())
-  resolved_by_user   User                  @relation(fields: [resolved_by], references: [id], onDelete: Restrict)
+  resolved_by_user   User                  @relation("UserResolvedFailures", fields: [resolved_by], references: [id], onDelete: Restrict)
   failure_catalog    FailureCatalog?       @relation(fields: [failure_catalog_id], references: [id], onDelete: SetNull)
   ticket_links       Ticket[]              @relation("TicketFailure")
   order_links        ServiceOrder[]        @relation("OrderFailure")
