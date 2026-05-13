@@ -15,6 +15,11 @@ export type BuiltInOrderStatus =
 export type OrderStatus = BuiltInOrderStatus | (string & {});
 
 export type SlaStatus = 'ok' | 'warning' | 'critical' | 'breached' | 'met';
+export type WarrantyStatus = 'unknown' | 'pending_review' | 'approved' | 'rejected';
+export type WarrantyCoverage = 'full' | 'partial' | 'none';
+export type WarrantySource = 'ticket' | 'order_override';
+export type MaintenanceFrequencyType = 'monthly' | 'quarterly' | 'semiannual' | 'annual';
+export type OrderOrigin = 'manual' | 'ticket' | 'preventive';
 
 export interface UserMetrics {
   assigned_orders: number;
@@ -46,6 +51,11 @@ export interface Client {
   telefono?: string;
   persona_contacto?: string;
   observaciones?: string;
+  failure_type?: string | null;
+  failure_category?: string | null;
+  root_cause?: string | null;
+  solution?: string | null;
+  resolution_type?: 'remote' | 'onsite' | 'replacement' | string | null;
   fecha_vencimiento_documentacion?: string;
   deleted_at?: string | null;
   delayed?: boolean;
@@ -114,7 +124,11 @@ export interface OrderChecklist {
 export interface ServiceOrder {
   id: string;
   client_id: string;
+  equipment_id?: string | null;
+  maintenance_plan_id?: string | null;
+  ticket_id?: string | null;
   estado: OrderStatus;
+  order_origin?: OrderOrigin | string;
   prioridad: Priority;
   prioridad_peso: number;
   created_at?: string;
@@ -124,6 +138,21 @@ export interface ServiceOrder {
   contacto_planta?: string;
   telefono_contacto_planta?: string;
   observaciones?: string;
+  failure_type?: string | null;
+  failure_category?: string | null;
+  root_cause?: string | null;
+  solution?: string | null;
+  resolution_type?: 'remote' | 'onsite' | 'replacement' | string | null;
+  warranty_status?: WarrantyStatus | string;
+  coverage?: WarrantyCoverage | string;
+  approved_by?: string | null;
+  warranty_reason?: string | null;
+  warranty_notes?: string | null;
+  reviewed_at?: string | null;
+  warranty_source?: WarrantySource | string | null;
+  warranty_covered?: boolean;
+  billable?: boolean;
+  warranty_mismatch?: boolean;
   observaciones_cierre?: string;
   tiempo_trabajado_horas?: number | null;
   firma_cliente?: string | null;
@@ -137,7 +166,108 @@ export interface ServiceOrder {
   materials?: OrderMaterial[];
   location_events?: OrderLocationEvent[];
   invoice_draft?: InvoiceDraft | null;
+  ticket?: Pick<Ticket, 'id'> | null;
   technicians?: { technician_id: string; technician?: Pick<User, 'id' | 'first_name' | 'last_name' | 'email'> }[];
+}
+
+export interface MaintenancePlan {
+  id: string;
+  client_id: string;
+  equipment_id: string;
+  name: string;
+  frequency_type: MaintenanceFrequencyType;
+  frequency_value?: number | null;
+  last_executed_at?: string | null;
+  next_execution_at: string;
+  is_active: boolean;
+  auto_generate: boolean;
+  created_at: string;
+  updated_at: string;
+  client?: Pick<Client, 'id' | 'nombre_empresa'>;
+  equipment?: Pick<Equipment, 'id' | 'numero_serie' | 'tipo_equipo'>;
+}
+
+export interface MaintenanceExecution {
+  plan_id: string;
+  execution_key: string;
+  status: 'generated' | 'skipped' | 'failed';
+  order_id?: string | null;
+  error?: string | null;
+  timestamp: string;
+}
+
+export interface FailureRecord {
+  id: string;
+  source_type: 'ticket' | 'order';
+  source_id: string;
+  equipment_id?: string | null;
+  client_id?: string | null;
+  failure_type: string;
+  failure_category: string;
+  root_cause: string;
+  solution: string;
+  resolution_type: 'remote' | 'onsite' | 'replacement';
+  resolved_by: string;
+  created_at: string;
+}
+
+export type TicketChannel = 'phone' | 'email' | 'web' | 'whatsapp';
+export type TicketPriority = Priority;
+export type TicketStatus = 'new' | 'triage' | 'in_diagnosis' | 'resolved_remote' | 'escalated' | 'resolved' | 'closed';
+
+export interface TicketEvent {
+  id: string;
+  ticket_id: string;
+  type: string;
+  message?: string | null;
+  metadata?: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface Ticket {
+  id: string;
+  client_id: string;
+  equipment_id?: string | null;
+  serial_number?: string | null;
+  channel: TicketChannel | string;
+  issue_description: string;
+  priority: TicketPriority | string;
+  category?: string | null;
+  status: TicketStatus | string;
+  diagnosis?: string | null;
+  diagnosis_result?: string | null;
+  requires_intervention?: boolean;
+  failure_type?: string | null;
+  failure_category?: string | null;
+  root_cause?: string | null;
+  solution?: string | null;
+  resolution_type?: 'remote' | 'onsite' | 'replacement' | string | null;
+  warranty_status?: WarrantyStatus | string;
+  coverage?: WarrantyCoverage | string;
+  approved_by?: string | null;
+  warranty_reason?: string | null;
+  warranty_notes?: string | null;
+  reviewed_at?: string | null;
+  warranty_source?: WarrantySource | string | null;
+  warranty_covered?: boolean;
+  billable?: boolean;
+  reported_by_name?: string | null;
+  reported_by_contact?: string | null;
+  deleted_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  sla_response_deadline?: string | null;
+  sla_resolution_deadline?: string | null;
+  first_response_at?: string | null;
+  resolved_at?: string | null;
+  sla_status?: 'ok' | 'warning' | 'breach' | string;
+  sla_response_status?: 'ok' | 'warning' | 'breach' | string;
+  sla_resolution_status?: 'ok' | 'warning' | 'breach' | string;
+  response_time_hours?: number | null;
+  resolution_time_hours?: number | null;
+  client?: Pick<Client, 'id' | 'nombre_empresa'>;
+  events?: TicketEvent[];
+  service_orders?: Array<Pick<ServiceOrder, 'id'>>;
 }
 
 export interface OrderStatusConfig {
@@ -330,4 +460,30 @@ export interface PortalDocument {
   file_path?: string | null;
   created_at: string;
   updated_at?: string;
+}
+
+export interface PortalTicketSummary {
+  id: string;
+  serial_number?: string | null;
+  issue_description: string;
+  status: TicketStatus | string;
+  priority: TicketPriority | string;
+  warranty_status?: WarrantyStatus | string;
+  coverage?: WarrantyCoverage | string;
+  warranty_reason?: string | null;
+  reviewed_at?: string | null;
+  created_at: string;
+}
+
+export interface PortalTicketAttachment {
+  id: string;
+  filename: string;
+  url?: string | null;
+}
+
+export interface PortalTicketDetail extends PortalTicketSummary {
+  diagnosis_result?: string | null;
+  requires_intervention?: boolean;
+  attachments?: PortalTicketAttachment[];
+  timeline: TicketEvent[];
 }

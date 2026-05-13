@@ -79,6 +79,54 @@ enum CalendarSyncStatus {
   error
 }
 
+enum WarrantyStatus {
+  unknown
+  pending_review
+  approved
+  rejected
+}
+
+enum WarrantyCoverage {
+  full
+  partial
+  none
+}
+
+enum WarrantySource {
+  ticket
+  order_override
+}
+
+enum MaintenanceFrequencyType {
+  monthly
+  quarterly
+  semiannual
+  annual
+}
+
+enum MaintenanceExecutionStatus {
+  generated
+  skipped
+  failed
+}
+
+enum OrderOrigin {
+  manual
+  ticket
+  preventive
+}
+
+enum FailureSourceType {
+  ticket
+  order
+}
+
+enum FailureResolutionType {
+  remote
+  onsite
+  replacement
+}
+
 model Role {
   id    String   @id @default(cuid())
   name  UserRole @unique
@@ -86,31 +134,32 @@ model Role {
 }
 
 model User {
-  id             String                     @id @default(cuid())
-  first_name     String
-  last_name      String
-  email          String                     @unique
-  password       String
-  phone          String?
-  active         Boolean                    @default(true)
+  id                     String                       @id @default(cuid())
+  first_name             String
+  last_name              String
+  email                  String                       @unique
+  password               String
+  phone                  String?
+  active                 Boolean                      @default(true)
   password_reset_token   String?
   password_reset_expires DateTime?
-  role_id        String
-  role           Role                       @relation(fields: [role_id], references: [id])
-  orders         ServiceOrderTechnician[]
-  history        ServiceOrderStatusHistory[]
-  location_events OrderLocationEvent[]
-  calendar_connections ExternalCalendarConnection[]
-  calendar_events      ExternalCalendarEvent[]
-  technician_locations TechnicianLocation[]
-  location_sharing     TechnicianLocationSharing?
-  notifications  Notification[]
-  created_at     DateTime                   @default(now())
-  updated_at     DateTime                   @updatedAt
+  role_id                String
+  role                   Role                         @relation(fields: [role_id], references: [id])
+  orders                 ServiceOrderTechnician[]
+  history                ServiceOrderStatusHistory[]
+  location_events        OrderLocationEvent[]
+  calendar_connections   ExternalCalendarConnection[]
+  calendar_events        ExternalCalendarEvent[]
+  technician_locations   TechnicianLocation[]
+  location_sharing       TechnicianLocationSharing?
+  notifications          Notification[]
+  resolved_failures      FailureRecord[]
+  created_at             DateTime                     @default(now())
+  updated_at             DateTime                     @updatedAt
 }
 
 model Client {
-  id                              String       @id @default(cuid())
+  id                              String            @id @default(cuid())
   nombre_empresa                  String
   direccion                       String?
   telefono                        String?
@@ -118,33 +167,106 @@ model Client {
   persona_contacto                String?
   fecha_vencimiento_documentacion DateTime?
   observaciones                   String?
-  is_active                       Boolean      @default(true)
+  is_active                       Boolean           @default(true)
   deleted_at                      DateTime?
   equipments                      Equipment[]
   service_orders                  ServiceOrder[]
+  maintenance_plans               MaintenancePlan[]
   portal_users                    PortalUser[]
   invoice_drafts                  InvoiceDraft[]
-  created_at                      DateTime     @default(now())
-  updated_at                      DateTime     @updatedAt
+  tickets                         Ticket[]
+  created_at                      DateTime          @default(now())
+  updated_at                      DateTime          @updatedAt
 
   @@index([is_active, deleted_at])
 }
 
+model Ticket {
+  id                      String                 @id @default(cuid())
+  client_id               String
+  equipment_id            String?
+  serial_number           String?
+  channel                 String
+  issue_description       String
+  priority                String
+  category                String?
+  status                  String                 @default("new")
+  diagnosis               String?
+  diagnosis_result        String?
+  requires_intervention   Boolean                @default(false)
+  sla_response_deadline   DateTime?
+  sla_resolution_deadline DateTime?
+  first_response_at       DateTime?
+  resolved_at             DateTime?
+  reported_by_name        String?
+  reported_by_contact     String?
+  warranty_status         WarrantyStatus         @default(unknown)
+  coverage                WarrantyCoverage       @default(none)
+  approved_by             String?
+  warranty_reason         String?
+  warranty_notes          String?
+  reviewed_at             DateTime?
+  warranty_source         WarrantySource?
+  failure_type            String?
+  failure_category        String?
+  root_cause              String?
+  solution                String?
+  resolution_type         FailureResolutionType?
+  failure_record_id       String?
+  deleted_at              DateTime?
+  created_at              DateTime               @default(now())
+  updated_at              DateTime               @updatedAt
+  client                  Client                 @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  failure_record          FailureRecord?         @relation("TicketFailure", fields: [failure_record_id], references: [id], onDelete: SetNull)
+  events                  TicketEvent[]
+  service_orders          ServiceOrder[]
+
+  @@index([client_id])
+  @@index([status])
+  @@index([deleted_at])
+  @@index([status, created_at])
+}
+
+model TicketSLAConfig {
+  id                    String   @id @default(cuid())
+  client_id             String?
+  priority              String
+  response_time_hours   Int
+  resolution_time_hours Int
+  created_at            DateTime @default(now())
+
+  @@index([priority, client_id, created_at])
+}
+
+model TicketEvent {
+  id         String   @id @default(cuid())
+  ticket_id  String
+  type       String
+  message    String?
+  metadata   Json?
+  created_at DateTime @default(now())
+  ticket     Ticket   @relation(fields: [ticket_id], references: [id], onDelete: Cascade)
+
+  @@index([ticket_id])
+}
+
 model Equipment {
-  id               String          @id @default(cuid())
-  client_id        String
-  client           Client          @relation(fields: [client_id], references: [id])
-  tipo_equipo      String
-  modelo           String?
-  numero_serie     String          @unique
-  ubicacion_planta String?
-  observaciones    String?
+  id                String            @id @default(cuid())
+  client_id         String
+  client            Client            @relation(fields: [client_id], references: [id])
+  tipo_equipo       String
+  modelo            String?
+  numero_serie      String            @unique
+  ubicacion_planta  String?
+  observaciones     String?
   fecha_instalacion DateTime?
-  estado_actual    EquipmentStatus @default(operativo)
-  is_active        Boolean         @default(true)
-  deleted_at       DateTime?
-  created_at       DateTime        @default(now())
-  updated_at       DateTime        @updatedAt
+  estado_actual     EquipmentStatus   @default(operativo)
+  is_active         Boolean           @default(true)
+  deleted_at        DateTime?
+  service_orders    ServiceOrder[]
+  maintenance_plans MaintenancePlan[]
+  created_at        DateTime          @default(now())
+  updated_at        DateTime          @updatedAt
 
   @@index([client_id])
   @@index([is_active, deleted_at])
@@ -153,8 +275,17 @@ model Equipment {
 model ServiceOrder {
   id                       String                      @id @default(cuid())
   client_id                String
+  equipment_id             String?
+  maintenance_plan_id      String?
+  ticket_id                String?
   client                   Client                      @relation(fields: [client_id], references: [id])
+  equipment                Equipment?                  @relation(fields: [equipment_id], references: [id], onDelete: SetNull)
+  maintenance_plan         MaintenancePlan?            @relation(fields: [maintenance_plan_id], references: [id], onDelete: SetNull)
+  ticket                   Ticket?                     @relation(fields: [ticket_id], references: [id], onDelete: SetNull)
+  failure_record           FailureRecord?              @relation("OrderFailure", fields: [failure_record_id], references: [id], onDelete: SetNull)
+  maintenance_executions   MaintenanceExecution[]
   estado                   String                      @default("presupuesto_generado")
+  order_origin             OrderOrigin                 @default(manual)
   prioridad                Priority                    @default(media)
   prioridad_peso           Int                         @default(2)
   fecha_programada         DateTime?
@@ -162,6 +293,19 @@ model ServiceOrder {
   contacto_planta          String?
   telefono_contacto_planta String?
   observaciones            String?
+  warranty_status          WarrantyStatus              @default(unknown)
+  coverage                 WarrantyCoverage            @default(none)
+  approved_by              String?
+  warranty_reason          String?
+  warranty_notes           String?
+  reviewed_at              DateTime?
+  warranty_source          WarrantySource?
+  failure_type             String?
+  failure_category         String?
+  root_cause               String?
+  solution                 String?
+  resolution_type          FailureResolutionType?
+  failure_record_id        String?
   observaciones_cierre     String?
   tiempo_trabajado_horas   Float?
   firma_cliente            String?
@@ -183,20 +327,99 @@ model ServiceOrder {
   @@index([fecha_programada])
   @@index([estado])
   @@index([client_id])
+  @@index([ticket_id])
+  @@index([equipment_id])
+  @@index([maintenance_plan_id])
   @@index([is_active, deleted_at, estado, prioridad, fecha_programada])
 }
 
+model MaintenancePlan {
+  id                String                   @id @default(cuid())
+  client_id         String
+  equipment_id      String
+  name              String
+  frequency_type    MaintenanceFrequencyType
+  frequency_value   Int?
+  last_executed_at  DateTime?
+  next_execution_at DateTime
+  is_active         Boolean                  @default(true)
+  auto_generate     Boolean                  @default(true)
+  client            Client                   @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  equipment         Equipment                @relation(fields: [equipment_id], references: [id], onDelete: Cascade)
+  orders            ServiceOrder[]
+  executions        MaintenanceExecution[]
+  created_at        DateTime                 @default(now())
+  updated_at        DateTime                 @updatedAt
+
+  @@index([is_active, next_execution_at])
+  @@index([client_id])
+  @@index([equipment_id])
+}
+
+model MaintenanceExecution {
+  id            String                     @id @default(cuid())
+  plan_id       String
+  order_id      String?
+  execution_key String
+  executed_at   DateTime                   @default(now())
+  status        MaintenanceExecutionStatus
+  notes         String?
+  plan          MaintenancePlan            @relation(fields: [plan_id], references: [id], onDelete: Cascade)
+  order         ServiceOrder?              @relation(fields: [order_id], references: [id], onDelete: SetNull)
+
+  @@unique([plan_id, execution_key])
+  @@index([plan_id, executed_at])
+}
+
+model FailureRecord {
+  id                 String                @id @default(cuid())
+  source_type        FailureSourceType
+  source_id          String
+  equipment_id       String?
+  client_id          String?
+  failure_type       String
+  failure_category   String
+  root_cause         String
+  solution           String
+  resolution_type    FailureResolutionType
+  resolved_by        String
+  failure_catalog_id String?
+  created_at         DateTime              @default(now())
+  resolved_by_user   User                  @relation(fields: [resolved_by], references: [id], onDelete: Restrict)
+  failure_catalog    FailureCatalog?       @relation(fields: [failure_catalog_id], references: [id], onDelete: SetNull)
+  ticket_links       Ticket[]              @relation("TicketFailure")
+  order_links        ServiceOrder[]        @relation("OrderFailure")
+
+  @@index([source_type, source_id])
+  @@index([equipment_id, failure_type])
+  @@index([client_id, failure_type])
+}
+
+model FailureCatalog {
+  id                   String          @id @default(cuid())
+  failure_type         String
+  failure_category     String
+  common_root_cause    String
+  recommended_solution String
+  usage_count          Int             @default(1)
+  created_at           DateTime        @default(now())
+  updated_at           DateTime        @updatedAt
+  failure_records      FailureRecord[]
+
+  @@unique([failure_type, failure_category])
+  @@index([usage_count])
+}
 
 model OrderStatusConfig {
-  id          String   @id @default(cuid())
-  key         String   @unique
-  label       String
-  color       String
-  sort_order  Int      @default(0)
-  is_active   Boolean  @default(true)
-  is_system   Boolean  @default(false)
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
+  id         String   @id @default(cuid())
+  key        String   @unique
+  label      String
+  color      String
+  sort_order Int      @default(0)
+  is_active  Boolean  @default(true)
+  is_system  Boolean  @default(false)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   @@index([is_active, sort_order])
 }
@@ -218,7 +441,7 @@ model ExternalCalendarConnection {
 }
 
 model ExternalCalendarEvent {
-  id                String            @id @default(cuid())
+  id                String             @id @default(cuid())
   order_id          String
   user_id           String
   provider          CalendarProvider
@@ -226,10 +449,10 @@ model ExternalCalendarEvent {
   sync_status       CalendarSyncStatus @default(synced)
   last_error        String?
   last_synced_at    DateTime?
-  created_at        DateTime          @default(now())
-  updated_at        DateTime          @updatedAt
-  order             ServiceOrder      @relation(fields: [order_id], references: [id], onDelete: Cascade)
-  user              User              @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  created_at        DateTime           @default(now())
+  updated_at        DateTime           @updatedAt
+  order             ServiceOrder       @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  user              User               @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@unique([order_id, user_id, provider])
   @@index([user_id, provider, sync_status])
@@ -256,15 +479,15 @@ model TechnicianLocationSharing {
 }
 
 model PortalUser {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   client_id     String
-  client        Client   @relation(fields: [client_id], references: [id], onDelete: Cascade)
-  email         String   @unique
+  client        Client    @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  email         String    @unique
   password      String
-  active        Boolean  @default(true)
+  active        Boolean   @default(true)
   last_login_at DateTime?
-  created_at    DateTime @default(now())
-  updated_at    DateTime @updatedAt
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
 
   @@index([client_id, active])
 }
@@ -283,30 +506,29 @@ model ServiceOrderTechnician {
   @@index([technician_id])
 }
 
-
 model OrderMaterial {
-  id          String       @id @default(cuid())
-  order_id    String
-  order       ServiceOrder @relation(fields: [order_id], references: [id], onDelete: Cascade)
-  name        String
-  quantity    Float
-  unit_cost   Float        @default(0)
-  created_at  DateTime     @default(now())
-  updated_at  DateTime     @updatedAt
+  id         String       @id @default(cuid())
+  order_id   String
+  order      ServiceOrder @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  name       String
+  quantity   Float
+  unit_cost  Float        @default(0)
+  created_at DateTime     @default(now())
+  updated_at DateTime     @updatedAt
 
   @@index([order_id, created_at])
 }
 
 model OrderLocationEvent {
-  id          String       @id @default(cuid())
-  order_id    String
-  user_id     String
-  event_type  String
-  latitude    Float
-  longitude   Float
-  created_at  DateTime     @default(now())
-  order       ServiceOrder @relation(fields: [order_id], references: [id], onDelete: Cascade)
-  user        User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  id         String       @id @default(cuid())
+  order_id   String
+  user_id    String
+  event_type String
+  latitude   Float
+  longitude  Float
+  created_at DateTime     @default(now())
+  order      ServiceOrder @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  user       User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([order_id, created_at])
   @@index([user_id, created_at])
@@ -343,9 +565,9 @@ model Notification {
   user             User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
   service_order    ServiceOrder? @relation(fields: [service_order_id], references: [id], onDelete: SetNull)
 
+  @@unique([user_id, kind, service_order_id])
   @@index([user_id, kind, service_order_id, created_at])
   @@index([user_id, kind, client_id, created_at])
-  @@unique([user_id, kind, service_order_id])
 }
 
 model AutomationRule {
@@ -395,14 +617,14 @@ model Attachment {
 }
 
 model Document {
-  id          String             @id @default(cuid())
-  entity_type DocumentEntityType
-  entity_id   String
-  file_name   String
-  file_category DocumentCategory @default(other)
-  file_path   String?
-  created_at  DateTime           @default(now())
-  updated_at  DateTime           @updatedAt
+  id            String             @id @default(cuid())
+  entity_type   DocumentEntityType
+  entity_id     String
+  file_name     String
+  file_category DocumentCategory   @default(other)
+  file_path     String?
+  created_at    DateTime           @default(now())
+  updated_at    DateTime           @updatedAt
 
   @@index([entity_type, entity_id, created_at])
   @@index([created_at])
